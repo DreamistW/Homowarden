@@ -1,0 +1,10 @@
+export interface loginRequest {
+  grant_type: string;
+  username: string;
+  password: string;
+  scope: string;
+  client_id: string;
+  deviceType: number;
+  deviceIdentifier: string;
+  deviceName: string;
+}

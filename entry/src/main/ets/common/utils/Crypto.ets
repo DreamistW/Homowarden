@@ -1,10 +1,10 @@
 import { argon2Hash, HashOption } from '@huozhiniao/argon2';
 import { CryptoJS } from '@ohos/crypto-js';
-import { preLoginModel } from '../model/Login'
+import { preloginResponse } from '../models/Response/PreloginResponse'
 import { buffer } from '@kit.ArkTS';
 import { Logger } from '@nzy/logger'
 
-export async function deriveMasterPasswordHash(password: string, email: string, preLogin: preLoginModel): Promise<string> {
+export async function deriveMasterPasswordHash(password: string, email: string, preLogin: preloginResponse): Promise<string> {
   const pwdBuffer = buffer.from(password).buffer;
   const saltBuffer = buffer.from(email).buffer;
   const kdf = preLogin.kdf;

@@ -1,6 +1,6 @@
 import { IBestActionSheet } from '@ibestservices/ibest-ui';
-import { preLogin } from '../action/Login'
-import { serverType } from '../model/Login';
+import { serverType } from '../common/enums/ServerType';
+import { preLogin } from '../common/services/LoginService'
 
 @Entry
 @Component
@@ -9,10 +9,10 @@ struct Index {
   @State password: string = ''
   @State isLoading: boolean = false
   @State responseText: string = ''
-  @State serverType: serverType = serverType.NORMAL;
   @State serverTypeBtnText: string = '请选择';
   serverAddress: string = '';
   serverTypeList: string[] = ["bitwarden.com", "bitwarden.eu", "Custom"];
+  serverType: serverType = serverType.NORMAL;
 
   async handleLogin() {
     if (!this.email || !this.password) {
@@ -35,7 +35,7 @@ struct Index {
 
     this.isLoading = true
     try {
-      const result = await preLogin(`https://${this.serverAddress}`, this.email);
+      const result = await preLogin(`${this.serverAddress}`, this.email);
       this.responseText = result.kdfIterations.toString();
     } catch (error) {
       this.responseText = '登录失败，请重试'
