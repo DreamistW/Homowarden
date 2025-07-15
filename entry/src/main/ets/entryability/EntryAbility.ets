@@ -1,7 +1,9 @@
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
-import { IBestInit, IBestSetUIBaseStyle } from "@ibestservices/ibest-ui"
+import { IBestInit } from "@ibestservices/ibest-ui"
+import { DeviceUtil } from '../utils/DeviceUtil';
+import { DataPreferences } from '@abner/datastore';
 
 const DOMAIN = 0x0000;
 
@@ -26,6 +28,7 @@ export default class EntryAbility extends UIAbility {
       }
       hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
       IBestInit(windowStage, this.context);
+      DataPreferences.getInstance().init(this.context);
     });
   }
 

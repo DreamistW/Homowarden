@@ -1,46 +1,13 @@
 import { IBestActionSheet } from '@ibestservices/ibest-ui';
-import { serverType } from '../utils/ServerType';
+import { ServerType } from '../utils/Constants';
+import { LoginViewModel } from '../viewmodel/LoginViewModel';
 
 @Entry
 @Component
 struct LoginPage {
-  @State email: string = ''
-  @State password: string = ''
-  @State isLoading: boolean = false
-  @State responseText: string = ''
-  @State serverTypeBtnText: string = '请选择';
-  serverAddress: string = '';
-  serverTypeList: string[] = ["bitwarden.com", "bitwarden.eu", "Custom"];
-  serverType: serverType = serverType.NORMAL;
-
-  async handleLogin() {
-    if (!this.email || !this.password) {
-      return
-    }
-
-    if (this.serverType == serverType.CUSTOM && !this.serverAddress) {
-      return;
-    }
-
-    switch (this.serverType) {
-      case serverType.EU:
-        this.serverAddress = 'identity.bitwarden.eu';
-        break;
-      case serverType.CUSTOM:
-        break;
-      default:
-        this.serverAddress = 'identity.bitwarden.com';
-    }
-
-    this.isLoading = true
-    try {
-      // const result = await preLogin(`${this.serverAddress}`, this.email);
-      // this.responseText = result.kdfIterations.toString();
-    } catch (error) {
-      this.responseText = '登录失败，请重试'
-    }
-    this.isLoading = false
-  }
+  @State viewModel: LoginViewModel = new LoginViewModel();
+  @State isLoading: boolean = false;
+  serverTypeList: string[] = ["bitwarden.com", "bitwarden.eu", "Self-hosted"];
 
   build() {
     Column() {
@@ -48,25 +15,30 @@ struct LoginPage {
         .fontSize(36)
         .fontWeight(FontWeight.Bold)
         .margin({"bottom": 10})
+      
       // 邮箱输入框
       TextInput({
         placeholder: '请输入邮箱',
-        text: this.email
+        text: this.viewModel.email
       })
         .type(InputType.Email)
         .onChange((value: string) => {
-          this.email = value
+          this.viewModel.email = value;
+          this.viewModel.clearError();
+          this.updateUI();
         })
         .margin(12)
 
       // 密码输入框
       TextInput({
         placeholder: '请输入密码',
-        text: this.password
+        text: this.viewModel.password
       })
         .type(InputType.Password)
         .onChange((value: string) => {
-          this.password = value
+          this.viewModel.password = value;
+          this.viewModel.clearError();
+          this.updateUI();
         })
         .margin(12)
 
@@ -75,34 +47,38 @@ struct LoginPage {
         Text('选择服务器')
           .fontSize(16)
           .margin({ right: 8 })
-        Button(this.serverTypeBtnText)
+        Button(this.getServerTypeButtonText())
           .stateEffect(false)
           .buttonStyle(ButtonStyleMode.TEXTUAL)
           .onClick(() => {
             IBestActionSheet.show({
               actions: this.serverTypeList,
               onSelect: (position: number) => {
-                this.serverType = position as serverType;
-                this.serverTypeBtnText = this.serverTypeList[position];
-                if(position == serverType.CUSTOM)
-                {
-                  this.serverAddress = '';
+                this.viewModel.serverType = position as ServerType;
+                this.viewModel.clearError();
+                if (position == ServerType.SELF_HOSTED) {
+                  this.viewModel.serverAddress = '';
                 }
+                this.updateUI();
               }
             })
           })
       }
 
-
-      if (this.serverType == serverType.CUSTOM) {
+      if (this.viewModel.serverType == ServerType.SELF_HOSTED) {
         Row() {
           Text('https://')
             .fontSize(16)
             .margin({ right: 8 })
-          TextInput({ placeholder: '输入域名或IP', text: this.serverAddress })
+          TextInput({ 
+            placeholder: '输入域名或IP', 
+            text: this.viewModel.serverAddress 
+          })
             .type(InputType.Normal)
             .onChange((value: string) => {
-              this.serverAddress = value
+              this.viewModel.serverAddress = value;
+              this.viewModel.clearError();
+              this.updateUI();
             })
             .layoutWeight(1)
         }
@@ -114,19 +90,65 @@ struct LoginPage {
       Button(this.isLoading ? '登录中...' : '登录')
         .onClick(() => {
           if (!this.isLoading) {
-            this.handleLogin()
+            this.handleLogin();
           }
         })
         .margin(12)
         .stateEffect(!this.isLoading)
+        .enabled(!this.isLoading)
 
-      // 显示响应结果
-      Text(this.responseText)
-        .fontSize(16)
-        .margin(12)
+      // 显示错误信息
+      if (this.viewModel.errorMessage) {
+        Text(this.viewModel.errorMessage)
+          .fontSize(14)
+          .fontColor(Color.Red)
+          .margin(12)
+      }
+
+      // 显示成功信息
+      if (this.viewModel.successMessage) {
+        Text(this.viewModel.successMessage)
+          .fontSize(14)
+          .fontColor(Color.Green)
+          .margin(12)
+      }
+
+      // 显示调试信息（可选）
+      if (this.viewModel.kdfIterations > 0) {
+        Text(`KDF迭代次数: ${this.viewModel.kdfIterations}`)
+          .fontSize(12)
+          .fontColor(Color.Gray)
+          .margin(12)
+      }
     }
     .width('100%')
     .height('100%')
     .padding(24)
+  }
+
+  // 处理登录逻辑
+  private async handleLogin(): Promise<void> {
+    this.isLoading = true;
+    await this.viewModel.login();
+    this.updateUI();
+    this.isLoading = false;
+  }
+
+  // 更新UI状态
+  private updateUI(): void {
+    // 使用clone方法创建新的ViewModel实例来触发UI更新
+    this.viewModel = this.viewModel.clone();
+  }
+
+  // 获取服务器类型按钮文本
+  private getServerTypeButtonText(): string {
+    switch (this.viewModel.serverType) {
+      case ServerType.EU:
+        return 'bitwarden.eu';
+      case ServerType.SELF_HOSTED:
+        return 'Self-hosted';
+      default:
+        return 'bitwarden.com';
+    }
   }
 }

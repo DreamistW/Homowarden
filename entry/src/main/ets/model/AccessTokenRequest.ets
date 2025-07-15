@@ -4,4 +4,7 @@ export interface AccessTokenRequest {
   password: string;
   scope: string;
   client_id: string;
+  deviceType: number;
+  deviceIdentifier: string;
+  deviceName: string;
 } 
