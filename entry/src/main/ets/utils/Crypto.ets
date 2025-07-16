@@ -91,42 +91,19 @@ export class Crypto {
    * @returns Base64密文
    */
   static async encryptAES(data: string, key: string, iv: string): Promise<string> {
-    // 创建密钥生成器（AES-256需要32字节密钥）
-    let symKeyGenerator = cryptoFramework.createSymKeyGenerator('AES256');
-    // Base64解码密钥字符串
-    let keyBytes = new util.Base64Helper().decodeSync(key);
-
-    // 创建加密参数
-    let ivBlob: cryptoFramework.DataBlob = {
-      data: new util.Base64Helper().decodeSync(iv)
-    };
-
-    let ivParamsSpec: cryptoFramework.IvParamsSpec = {
-      algName: "IvParamsSpec",
-      iv: ivBlob
-    };
-
-    try {
-      // 生成加密密钥
-      let symKey = await symKeyGenerator.convertKey({
-        data: keyBytes
-      });
-
-      // 创建加密器并初始化
-      let cipher = cryptoFramework.createCipher('AEB256|CBC|PKCS7');
-      await cipher.init(cryptoFramework.CryptoMode.ENCRYPT_MODE, symKey, ivParamsSpec);
-
-      // 执行加密操作
-      let input: cryptoFramework.DataBlob = { data: new util.TextEncoder().encodeInto(data) };
-      let output = await cipher.doFinal(input);
-
-      // 将加密结果转换为Base64字符串
-      return new util.Base64Helper().encodeToStringSync(output.data, util.Type.BASIC);
-    } catch (error) {
-      Logger.error(`AES encryption failed: ${error.message}`);
-      return Promise.reject(error);
-    }
-
+    // 解析Base64密钥和IV
+    const keyWordArray = CryptoJS.enc.Base64.parse(key);
+    const ivWordArray = CryptoJS.enc.Base64.parse(iv);
+    // 明文转为WordArray
+    const dataWordArray = CryptoJS.enc.Utf8.parse(data);
+    // 执行加密
+    const encrypted = CryptoJS.AES.encrypt(dataWordArray, keyWordArray, {
+      iv: ivWordArray,
+      mode: CryptoJS.mode.CBC,
+      padding: CryptoJS.pad.Pkcs7
+    });
+    // 返回Base64密文
+    return encrypted.ciphertext.toString(CryptoJS.enc.Base64);
   }
 
   /**
@@ -137,27 +114,23 @@ export class Crypto {
    * @returns 明文
    */
   static async decryptAES(encryptedData: string, key: string, iv: string): Promise<string> {
-    // 创建加密参数
-    let ivBlob: cryptoFramework.DataBlob = {
-      data: new util.Base64Helper().decodeSync(iv)
-    };
-
-    let ivParamsSpec: cryptoFramework.IvParamsSpec = {
-      algName: "IvParamsSpec",
-      iv: ivBlob
-    };
-
-    let symKey = await cryptoFramework.createSymKeyGenerator('AES256')
-      .convertKey({ data: new util.Base64Helper().decodeSync(key) });
-
-    let cipher = cryptoFramework.createCipher('AEB256|CBC|PKCS7');
-    await cipher.init(cryptoFramework.CryptoMode.DECRYPT_MODE, symKey, ivParamsSpec);
-
-    let rawEncryptedData = new util.Base64Helper().decodeSync(encryptedData);
-    let input: cryptoFramework.DataBlob = { data: new Uint8Array(buffer.from(rawEncryptedData).buffer) };
-    let output = await cipher.doFinal(input);
-
-    return new util.TextDecoder().decodeToString(output.data);
+    // 解析Base64密钥和IV
+    const keyWordArray = CryptoJS.enc.Base64.parse(key);
+    const ivWordArray = CryptoJS.enc.Base64.parse(iv);
+    // 解析Base64密文
+    const encryptedWordArray = CryptoJS.enc.Base64.parse(encryptedData);
+    // 构造CipherParams对象
+    const cipherParams = CryptoJS.lib.CipherParams.create({
+      ciphertext: encryptedWordArray
+    });
+    // 执行解密
+    const decrypted = CryptoJS.AES.decrypt(cipherParams, keyWordArray, {
+      iv: ivWordArray,
+      mode: CryptoJS.mode.CBC,
+      padding: CryptoJS.pad.Pkcs7
+    });
+    // 返回明文字符串
+    return decrypted.toString(CryptoJS.enc.Utf8);
   }
 
   /**
