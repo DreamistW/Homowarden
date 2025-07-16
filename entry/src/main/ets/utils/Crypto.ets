@@ -40,7 +40,7 @@ export class Crypto {
    * @returns Base64字符串
    */
   static deriveKeyPBKDF2(password: string, salt: string, iterations: number, keyLen: number = 32): Promise<string> {
-    const saltBuffer = new Uint8Array(buffer.from(salt).buffer);
+    const saltBuffer = new util.TextEncoder().encodeInto(salt.toLowerCase());
     let spec: cryptoFramework.PBKDF2Spec = {
       algName: 'PBKDF2',
       password: password,
@@ -67,8 +67,8 @@ export class Crypto {
    */
   static async deriveKeyArgon2id(password: string, salt: string, iterations: number, memory: number,
     parallelism: number, keyLen: number = 32): Promise<string> {
-    let passwordBuffer = buffer.from(password).buffer;
-    let saltBuffer = buffer.from(salt).buffer;
+    let passwordBuffer = new util.TextEncoder().encodeInto(password.toLowerCase());
+    let saltBuffer = new util.TextEncoder().encodeInto(salt.toLowerCase());
 
     const option: HashOption = {
       timeCost: iterations,

@@ -112,14 +112,12 @@ export class LoginViewModel {
 
       if (this.kdfType === 0) {
         // PBKDF2
-        Crypto.deriveKeyPBKDF2(
+        this.masterKey = await Crypto.deriveKeyPBKDF2(
           this.password,
           salt,
           this.kdfIterations,
           32
-        ).then((key) => {
-          this.masterKey = key;
-        });
+        );
       } else if (this.kdfType === 1) {
         // Argon2id
         this.masterKey = await Crypto.deriveKeyArgon2id(
@@ -189,8 +187,7 @@ export class LoginViewModel {
     }
 
     // 保存服务器配置
-    this.setServerType(this.serverType);
-    this.setServerAddress(this.serverAddress);
+    this.saveServerConfig();
 
     try {
       // 执行预登录
@@ -311,16 +308,5 @@ export class LoginViewModel {
     DataPreferences.getInstance().get(SERVER_ADDRESS_KEY, '').result<string>((data: string) => {
       this.serverAddress = data;
     });
-  }
-
-  // 在用户切换服务器类型或输入自定义地址时调用saveServerConfig
-  setServerType(type: number): void {
-    this.serverType = type;
-    this.saveServerConfig();
-  }
-
-  setServerAddress(address: string): void {
-    this.serverAddress = address;
-    this.saveServerConfig();
   }
 }

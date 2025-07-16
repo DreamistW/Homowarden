@@ -16,18 +16,16 @@ import { Logger } from '@nzy/logger';
 import { BusinessError } from '@kit.BasicServicesKit';
 
 async function getServerConfig(): Promise<ServerConfig> {
-  let type: ServerType = ServerType.US;
-  DataPreferences.getInstance().get(SERVER_TYPE_KEY, ServerType.US).result<ServerType>((data: ServerType) => {
-    type = data;
+  let serverConfig: ServerConfig = {serverType: ServerType.US, serverAddress: ''};
+  await DataPreferences.getInstance().getPromise<ServerType>(SERVER_TYPE_KEY).then((data) => {
+    Logger.debug(`Server Type preference: ${data}`);
+    serverConfig.serverType = data;
   })
-  let address = '';
-  DataPreferences.getInstance().get(SERVER_ADDRESS_KEY, '').result<string>((data: string) => {
-    address = data;
+  await DataPreferences.getInstance().getPromise<string>(SERVER_ADDRESS_KEY).then((data) => {
+    Logger.debug(`Server Address preference: ${data}`);
+    serverConfig.serverAddress = data;
   })
-  return {
-    serverType: type,
-    serverAddress: address
-  };
+  return serverConfig;
 }
 
 // 预登录接口
@@ -90,7 +88,7 @@ export async function accessToken(request: AccessTokenRequest): Promise<AccessTo
     .then((response: AxiosResponse<AccessTokenResponse>) => {
       return response.data;
     })
-    .catch((error: BusinessError)=>{
+    .catch((error: BusinessError) => {
       Logger.error("Get token failed, error message: " + error.message);
       return Promise.reject(error);
     })
