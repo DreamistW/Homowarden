@@ -25,7 +25,6 @@ struct LoginPage {
         .onChange((value: string) => {
           this.viewModel.email = value;
           this.viewModel.clearError();
-          this.updateUI();
         })
         .margin(12)
 
@@ -38,7 +37,6 @@ struct LoginPage {
         .onChange((value: string) => {
           this.viewModel.password = value;
           this.viewModel.clearError();
-          this.updateUI();
         })
         .margin(12)
 
@@ -56,10 +54,8 @@ struct LoginPage {
               onSelect: (position: number) => {
                 this.viewModel.serverType = position as ServerType;
                 this.viewModel.clearError();
-                if (position == ServerType.SELF_HOSTED) {
-                  this.viewModel.serverAddress = '';
-                }
-                this.updateUI();
+                if(this.viewModel.serverType == ServerType.SELF_HOSTED)
+                  this.viewModel.loadServerConfig();
               }
             })
           })
@@ -72,13 +68,12 @@ struct LoginPage {
             .margin({ right: 8 })
           TextInput({ 
             placeholder: '输入域名或IP', 
-            text: this.viewModel.serverAddress 
+            text: this.viewModel.serverAddress
           })
             .type(InputType.Normal)
             .onChange((value: string) => {
               this.viewModel.serverAddress = value;
               this.viewModel.clearError();
-              this.updateUI();
             })
             .layoutWeight(1)
         }
@@ -113,13 +108,13 @@ struct LoginPage {
           .margin(12)
       }
 
-      // 显示调试信息（可选）
-      if (this.viewModel.kdfIterations > 0) {
-        Text(`KDF迭代次数: ${this.viewModel.kdfIterations}`)
-          .fontSize(12)
-          .fontColor(Color.Gray)
-          .margin(12)
-      }
+      // 显示预登录信息（可选）
+      // if (this.viewModel.kdfIterations > 0) {
+      //   Text(`KDF迭代次数: ${this.viewModel.kdfIterations}`)
+      //     .fontSize(12)
+      //     .fontColor(Color.Gray)
+      //     .margin(12)
+      // }
     }
     .width('100%')
     .height('100%')
