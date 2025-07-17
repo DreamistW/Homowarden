@@ -18,6 +18,8 @@ export class LoginViewModel {
   serverType: ServerType = ServerType.US;
   errorMessage: string = '';
   successMessage: string = '';
+  needTwoFactor: boolean = false;
+  twoFactorToken: string = '';
   // 预登录信息
   kdfType: number = 0; // 0=PBKDF2, 1=Argon2id
   kdfIterations: number = 0;
@@ -170,11 +172,6 @@ export class LoginViewModel {
       // 确保设备信息已初始化
       await this.initializeAsyncDeviceInfo();
 
-      // 主密钥哈希
-      if (!await this.hashMasterKey()) {
-        return false;
-      }
-
       const request: AccessTokenRequest = {
         grant_type: 'password',
         username: this.email.trim(),
@@ -196,21 +193,58 @@ export class LoginViewModel {
       Logger.debug('Login successful, tokens received');
       return true;
     } catch (error) {
+      // 检查是否为2FA错误
+      if (error?.response?.data?.error === 'invalid_grant' &&
+        error?.response?.data?.error_description === 'Two factor required.') {
+        this.needTwoFactor = true;
+        return false;
+      }
       Logger.error(`Login failed: ${error}`);
       this.errorMessage = '登录失败，请检查邮箱和密码';
       return false;
     }
   }
 
+  // 带2FA的登录请求
+  async performLoginWith2FA(): Promise<boolean> {
+    try {
+      const request: AccessTokenRequest = {
+        grant_type: 'password',
+        username: this.email.trim(),
+        password: this.loginPassword,
+        scope: 'api offline_access',
+        client_id: 'web',
+        deviceType: this.deviceType,
+        deviceIdentifier: this.deviceIdentifier,
+        deviceName: this.deviceName,
+        two_factor_token: this.twoFactorToken,
+        two_factor_provider: 0,
+        twoFactorRemember: 0
+      };
+      const response: AccessTokenResponse = await accessToken(request);
+      this.accessToken = response.access_token;
+      this.refreshToken = response.refresh_token;
+      this.tokenExpiresIn = response.expires_in;
+
+      this.successMessage = '登录成功！';
+      Logger.debug('Login successful, tokens received');
+      return true;
+    } catch (error) {
+      Logger.error(`Login failed: ${error}`);
+      this.errorMessage = '登录失败，请重试';
+      return false;
+    }
+  }
+
   // 登录流程
-  async login(): Promise<void> {
+  async login(): Promise<boolean> {
     // 清除之前的错误信息
     this.errorMessage = '';
     this.successMessage = '';
 
     // 验证输入
     if (!this.validateInput()) {
-      return;
+      return false;
     }
 
     // 保存服务器配置
@@ -220,24 +254,37 @@ export class LoginViewModel {
       // 执行预登录
       const preloginSuccess = await this.performPrelogin();
       if (!preloginSuccess) {
-        return;
+        return false;
       }
 
       // 派生主密钥
       const masterKeySuccess = await this.deriveMasterKey();
       if (!masterKeySuccess) {
-        return;
+        return false;
+      }
+
+      // 主密钥哈希
+      if (!await this.hashMasterKey()) {
+        return false;
       }
 
       // 执行登录
-      const loginSuccess = await this.performLogin();
+      let loginSuccess: boolean = false;
+      if (this.needTwoFactor) {
+        loginSuccess = await this.performLoginWith2FA();
+      } else {
+        loginSuccess = await this.performLogin();
+      }
       if (loginSuccess) {
         // 登录成功，保存登录信息
         this.saveLoginInfo();
+        return true;
       }
+      return false;
     } catch (error) {
       Logger.error(`Login process failed: ${error}`);
       this.errorMessage = '登录过程中发生未知错误';
+      return false;
     }
   }
 
@@ -279,6 +326,7 @@ export class LoginViewModel {
     newViewModel.deviceIdentifier = this.deviceIdentifier;
     newViewModel.deviceName = this.deviceName;
     newViewModel.deviceInfoInitialized = this.deviceInfoInitialized;
+    newViewModel.needTwoFactor = this.needTwoFactor;
     return newViewModel;
   }
 

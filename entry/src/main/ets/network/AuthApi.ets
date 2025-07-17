@@ -16,7 +16,7 @@ import { Logger } from '@nzy/logger';
 import { BusinessError } from '@kit.BasicServicesKit';
 
 async function getServerConfig(): Promise<ServerConfig> {
-  let serverConfig: ServerConfig = {serverType: ServerType.US, serverAddress: ''};
+  let serverConfig: ServerConfig = { serverType: ServerType.US, serverAddress: '' };
   await DataPreferences.getInstance().getPromise<ServerType>(SERVER_TYPE_KEY).then((data) => {
     Logger.debug(`Server Type preference: ${data}`);
     serverConfig.serverType = data;
@@ -73,7 +73,8 @@ export async function accessToken(request: AccessTokenRequest): Promise<AccessTo
     baseURL = `https://${serverConfig.serverAddress}/identity`;
   }
   const client = createHttpClient(baseURL);
-  const formBody = toFormUrlEncoded(request, [
+
+  let fields = [
     'grant_type',
     'username',
     'password',
@@ -82,7 +83,16 @@ export async function accessToken(request: AccessTokenRequest): Promise<AccessTo
     'deviceType',
     'deviceIdentifier',
     'deviceName'
-  ]);
+  ] as (keyof AccessTokenRequest)[];
+
+  if (request.two_factor_token) {
+    fields.push('two_factor_token' as keyof AccessTokenRequest);
+    fields.push('two_factor_provider' as keyof AccessTokenRequest);
+    fields.push('twoFactorRemember' as keyof AccessTokenRequest);
+  }
+
+  const formBody = toFormUrlEncoded(request, fields);
+
   return client.post('/connect/token', formBody,
     { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
     .then((response: AxiosResponse<AccessTokenResponse>) => {
