@@ -8,6 +8,7 @@ import { Logger } from '@nzy/logger';
 import { Crypto } from '../utils/Crypto.ets';
 import { DeviceUtil } from '../utils/DeviceUtil';
 import { DataPreferences } from '@abner/datastore';
+import { util } from '@kit.ArkTS';
 
 export class LoginViewModel {
   // 登录状态
@@ -28,6 +29,7 @@ export class LoginViewModel {
   tokenExpiresIn: number = 0;
   // 加密相关
   masterKey: string = '';
+  loginPassword: string = '';
   // 设备信息
   deviceType: number = DeviceType.ANDROID;
   deviceIdentifier: string = '';
@@ -36,7 +38,7 @@ export class LoginViewModel {
   private deviceInfoInitialized: boolean = false;
 
   constructor() {
-    // 构造函数中只初始化同步的设备信息
+    // 初始化同步的设备信息
     this.initializeSyncDeviceInfo();
   }
 
@@ -142,16 +144,41 @@ export class LoginViewModel {
     }
   }
 
+  // 二次派生，生成登录时发送给服务器的密码
+  async hashMasterKey(): Promise<boolean> {
+    try {
+      // 将Base64主密钥解码为Uint8Array
+      const masterKeyBytes = new util.Base64Helper().decodeSync(this.masterKey, util.Type.BASIC);
+      this.loginPassword = await Crypto.deriveKeyPBKDF2(
+        masterKeyBytes,
+        this.password,
+        1,
+        32
+      );
+      Logger.debug('Hash master key successfully');
+      return true;
+    } catch (error) {
+      Logger.error(`Master key hash failed: ${error}`);
+      this.errorMessage = '主密钥哈希失败';
+      return false;
+    }
+  }
+
   // 执行登录
   async performLogin(): Promise<boolean> {
     try {
       // 确保设备信息已初始化
       await this.initializeAsyncDeviceInfo();
 
+      // 主密钥哈希
+      if (!await this.hashMasterKey()) {
+        return false;
+      }
+
       const request: AccessTokenRequest = {
         grant_type: 'password',
         username: this.email.trim(),
-        password: this.masterKey,
+        password: this.loginPassword,
         scope: 'api offline_access',
         client_id: 'web',
         deviceType: this.deviceType,
@@ -301,11 +328,11 @@ export class LoginViewModel {
   }
 
   // 从DataPreferences读取服务器配置
-  private async loadServerConfig(): Promise<void> {
-    DataPreferences.getInstance().get(SERVER_TYPE_KEY, ServerType.US).result<ServerType>((data: ServerType) => {
+  async loadServerConfig(): Promise<void> {
+    await DataPreferences.getInstance().getPromise(SERVER_TYPE_KEY, ServerType.US).then((data: ServerType) => {
       this.serverType = data;
     })
-    DataPreferences.getInstance().get(SERVER_ADDRESS_KEY, '').result<string>((data: string) => {
+    await DataPreferences.getInstance().getPromise(SERVER_ADDRESS_KEY, '').then((data: string) => {
       this.serverAddress = data;
     });
   }

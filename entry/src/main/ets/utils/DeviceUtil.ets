@@ -52,7 +52,7 @@ export class DeviceUtil {
    */
   static async getOrGenerateDeviceIdentifier(): Promise<string> {
     let deviceId = '';
-    DataPreferences.getInstance().get(DEVICE_ID_KEY, '').result<string>((data: string)=>{
+    await DataPreferences.getInstance().getPromise(DEVICE_ID_KEY, '').then((data: string)=>{
       deviceId = data;
     })
     if (!deviceId) {

@@ -39,8 +39,8 @@ export class Crypto {
    * @param keyLen 派生密钥长度（字节）
    * @returns Base64字符串
    */
-  static deriveKeyPBKDF2(password: string, salt: string, iterations: number, keyLen: number = 32): Promise<string> {
-    const saltBuffer = new util.TextEncoder().encodeInto(salt.toLowerCase());
+  static deriveKeyPBKDF2(password: string | Uint8Array, salt: string, iterations: number, keyLen: number = 32): Promise<string> {
+    const saltBuffer = new util.TextEncoder().encodeInto(salt);
     let spec: cryptoFramework.PBKDF2Spec = {
       algName: 'PBKDF2',
       password: password,
