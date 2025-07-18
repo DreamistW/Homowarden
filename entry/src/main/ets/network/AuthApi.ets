@@ -14,6 +14,7 @@ import {
 } from '../utils/Constants.ets';
 import { Logger } from '@nzy/logger';
 import { BusinessError } from '@kit.BasicServicesKit';
+import { util } from '@kit.ArkTS';
 
 async function getServerConfig(): Promise<ServerConfig> {
   let serverConfig: ServerConfig = { serverType: ServerType.US, serverAddress: '' };
@@ -36,9 +37,9 @@ export async function prelogin(request: PreloginRequest): Promise<PreloginRespon
   // 自定义服务器：https://your.domain.com/api/accounts/prelogin
   let baseURL = '';
   if (serverConfig.serverType == ServerType.US) {
-    baseURL = `https://identity.${SERVER_BASE_URL_US}`;
+    baseURL = `https://vault.${SERVER_BASE_URL_US}/identity`;
   } else if (serverConfig.serverType == ServerType.EU) {
-    baseURL = `https://identity.${SERVER_BASE_URL_EU}`;
+    baseURL = `https://vault.${SERVER_BASE_URL_EU}/identity`;
   } else {
     baseURL = `https://${serverConfig.serverAddress}/api`;
   }
@@ -46,7 +47,11 @@ export async function prelogin(request: PreloginRequest): Promise<PreloginRespon
   return client.post(
     '/accounts/prelogin',
     request,
-    { headers: { 'Content-Type': 'application/json' } }
+    {
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    }
   ).then((response: AxiosResponse<PreloginResponse>) => {
     return response.data;
   }).catch((error: BusinessError) => {
@@ -55,6 +60,7 @@ export async function prelogin(request: PreloginRequest): Promise<PreloginRespon
   })
 }
 
+// 处理表单内容
 function toFormUrlEncoded<T extends object>(data: T, keys: (keyof T)[]): string {
   return keys
     .map(key => encodeURIComponent(String(key)) + '=' + encodeURIComponent((data[key] as string) ?? ''))
@@ -66,11 +72,11 @@ export async function accessToken(request: AccessTokenRequest): Promise<AccessTo
   const serverConfig = await getServerConfig();
   let baseURL = '';
   if (serverConfig.serverType == ServerType.US) {
-    baseURL = `https://identity.${SERVER_BASE_URL_US}`;
+    baseURL = `https://vault.${SERVER_BASE_URL_US}`;
   } else if (serverConfig.serverType == ServerType.EU) {
-    baseURL = `https://identity.${SERVER_BASE_URL_EU}`;
+    baseURL = `https://vault.${SERVER_BASE_URL_EU}`;
   } else {
-    baseURL = `https://${serverConfig.serverAddress}/identity`;
+    baseURL = `https://${serverConfig.serverAddress}`;
   }
   const client = createHttpClient(baseURL);
 
@@ -93,8 +99,13 @@ export async function accessToken(request: AccessTokenRequest): Promise<AccessTo
 
   const formBody = toFormUrlEncoded(request, fields);
 
-  return client.post('/connect/token', formBody,
-    { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
+  return client.post('/identity/connect/token', formBody,
+    {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'auth-email': encodeStringToBase64(request.username),
+      }
+    })
     .then((response: AxiosResponse<AccessTokenResponse>) => {
       return response.data;
     })
@@ -107,4 +118,10 @@ export async function accessToken(request: AccessTokenRequest): Promise<AccessTo
 export interface ServerConfig {
   serverType: ServerType,
   serverAddress: string
+}
+
+function encodeStringToBase64(str: string): string {
+  const encoder = new util.TextEncoder();
+  const data: Uint8Array = encoder.encodeInto(str);
+  return new util.Base64Helper().encodeToStringSync(data, util.Type.BASIC);
 }

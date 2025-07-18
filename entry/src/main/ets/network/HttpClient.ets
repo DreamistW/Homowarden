@@ -1,5 +1,9 @@
+// HTTP客户端，使用Axios实现
+
 import axios, { AxiosRequestConfig, InternalAxiosRequestConfig, AxiosResponse, AxiosError } from '@ohos/axios';
 import { Logger } from '@nzy/logger';
+import { Header_Client_Name, Header_Client_Version } from '../utils/Constants';
+import { DeviceUtil } from '../utils/DeviceUtil';
 
 export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
   const instance = axios.create({
@@ -12,8 +16,14 @@ export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
 
   // 请求拦截器
   instance.interceptors.request.use(
-    (config: InternalAxiosRequestConfig) => {
-      Logger.debug(`[HTTP] ${config.method?.toUpperCase()} ${config.baseURL || baseURL}${config.url}\nRequest: ${JSON.stringify(config.data)}`);
+    async (config: InternalAxiosRequestConfig) => {
+      config.headers['bitwarden-client-name'] = Header_Client_Name;
+      config.headers['bitwarden-client-version'] = Header_Client_Version;
+      config.headers['device-type'] = DeviceUtil.getDeviceType();
+      config.headers['device-identifier'] = await DeviceUtil.getOrGenerateDeviceIdentifier();
+      config.headers['Accept-Language'] = "zh-CN,zh;q=0.9";
+      config.headers['Origin'] = config.baseURL
+      Logger.debug(`[HTTP] ${config.method?.toUpperCase()} ${config.baseURL || baseURL}${config.url}\nHeader:${JSON.stringify(config.headers)}\nRequest: ${JSON.stringify(config.data)}`);
       return config;
     },
     (error: AxiosError) => {

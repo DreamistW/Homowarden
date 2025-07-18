@@ -1,5 +1,7 @@
-import { IBestActionSheet, IBestDialog } from '@ibestservices/ibest-ui';
-import { ServerType } from '../utils/Constants';
+import { IBestActionSheet, IBestDialog, IBestSwitch } from '@ibestservices/ibest-ui';
+import { AssetModel } from '../model/AssetModel';
+import { queryAsset, queryAssetSync } from '../utils/Asset';
+import { EMAIL_KEY, ServerType } from '../utils/Constants';
 import { LoginViewModel } from '../viewmodel/LoginViewModel';
 
 @Entry
@@ -10,7 +12,21 @@ struct LoginPage {
   @State isNeed2FA: boolean = false;
   @State twoFactorInputError: boolean = false;
   @State twoFactorInputHint: string = '';
+  @State needToSaveEmail: boolean = false;
   serverTypeList: string[] = ["bitwarden.com", "bitwarden.eu", "Self-hosted"];
+
+  aboutToAppear() {
+    this.loadSaveEmail();
+  }
+
+  private loadSaveEmail() {
+    const email = queryAssetSync(EMAIL_KEY);
+    if (email) {
+      this.viewModel.email = email;
+      this.needToSaveEmail = true;
+      this.viewModel.needSaveEmail = true;
+    }
+  }
 
   @Builder
   twoFactorInputContain() {
@@ -50,6 +66,19 @@ struct LoginPage {
           this.viewModel.clearError();
         })
         .margin(12)
+
+      // 记住邮箱的开关，关联viewModel的needSaveEmail
+      Row() {
+        Text('记住邮箱')
+          .fontSize(16)
+          .margin(12)
+        IBestSwitch({
+          value: $needToSaveEmail,
+          onChange: () => {
+            this.viewModel.needSaveEmail = this.needToSaveEmail;
+          }
+        })
+      }
 
       // 密码输入框
       TextInput({
@@ -176,6 +205,8 @@ struct LoginPage {
 
   // 处理登录逻辑
   private async handleLogin(): Promise<void> {
+    this.twoFactorInputError = false;
+    this.viewModel.clearError();
     this.isLoading = true;
     await this.viewModel.login();
     if (this.viewModel.needTwoFactor) {

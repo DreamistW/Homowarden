@@ -24,11 +24,17 @@ export enum KdfType {
   ARGON2ID = 1
 }
 
-// 全局Key常量
+// 全局常量
 export const DEVICE_ID_KEY = 'device_identifier';
 export const SERVER_TYPE_KEY = 'server_type';
+export const EMAIL_KEY = 'login_email';
 export const SERVER_ADDRESS_KEY = 'server_address';
 export const SERVER_BASE_URL_US = 'bitwarden.com';
 export const SERVER_BASE_URL_EU = 'bitwarden.eu';
-
+export const ACCESS_TOKEN_KEY = 'access_token';
+export const REFRESH_TOKEN_KEY = 'refresh_token';
+export const TOKEN_EXPIRE_TIME_KEY = 'token_expire_timestamp';
+export const MASTER_KEY = 'master_key';
+export const Header_Client_Name = 'web';
+export const Header_Client_Version = '2025.7.0';
 

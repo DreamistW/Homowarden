@@ -1,12 +1,11 @@
 import { argon2Hash, HashOption } from '@huozhiniao/argon2';
 import { Logger } from '@nzy/logger';
-import { buffer, util } from '@kit.ArkTS';
+import { util } from '@kit.ArkTS';
 import { cryptoFramework } from '@kit.CryptoArchitectureKit';
 import { CryptoJS } from '@ohos/crypto-js'
 
 /**
  * 加密工具类
- * 使用CryptoArchitectureKit和@huozhiniao/argon2实现加解密
  */
 export class Crypto {
   /**

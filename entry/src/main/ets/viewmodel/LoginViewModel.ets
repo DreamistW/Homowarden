@@ -3,16 +3,26 @@ import { PreloginRequest } from '../model/PreloginRequest.ets';
 import { PreloginResponse } from '../model/PreloginResponse.ets';
 import { AccessTokenRequest } from '../model/AccessTokenRequest.ets';
 import { AccessTokenResponse } from '../model/AccessTokenResponse.ets';
-import { ServerType, DeviceType, SERVER_TYPE_KEY, SERVER_ADDRESS_KEY } from '../utils/Constants.ets';
+import { ServerType, DeviceType, SERVER_TYPE_KEY, SERVER_ADDRESS_KEY, EMAIL_KEY,
+  ACCESS_TOKEN_KEY,
+  REFRESH_TOKEN_KEY,
+  TOKEN_EXPIRE_TIME_KEY} from '../utils/Constants.ets';
 import { Logger } from '@nzy/logger';
 import { Crypto } from '../utils/Crypto.ets';
 import { DeviceUtil } from '../utils/DeviceUtil';
 import { DataPreferences } from '@abner/datastore';
 import { util } from '@kit.ArkTS';
+import { addAsset, deleteAsset, queryAsset, queryAssetSync, updateAsset } from '../utils/Asset';
+import { AssetModel } from '../model/AssetModel';
+import { asset } from '@kit.AssetStoreKit';
 
+/**
+ * 登录界面ViewModel
+ */
 export class LoginViewModel {
   // 登录状态
   email: string = '';
+  needSaveEmail: boolean = false;
   password: string = '';
   serverAddress: string = '';
   serverType: ServerType = ServerType.US;
@@ -90,6 +100,18 @@ export class LoginViewModel {
   // 预登录
   async performPrelogin(): Promise<boolean> {
     try {
+      if (this.needSaveEmail) {
+        // 先查询是否存在Asset
+        const queryResult = queryAssetSync(EMAIL_KEY);
+        if (queryResult) {
+          await updateAsset(EMAIL_KEY, asset.Tag.SECRET, this.email);
+        } else {
+          const emailAsset: AssetModel = { alias: EMAIL_KEY, secret: this.email };
+          await addAsset(emailAsset);
+        }
+      } else {
+        deleteAsset(EMAIL_KEY);
+      }
       const request: PreloginRequest = {
         email: this.email.trim()
       };
@@ -288,11 +310,26 @@ export class LoginViewModel {
     }
   }
 
-  // 保存登录信息到本地存储
+  // 保存登录凭据
   private saveLoginInfo(): void {
-    // TODO: 实现本地存储逻辑
-    // 可以使用preferences或kvStore来保存token等信息
-    Logger.debug(`登录信息: \naccessToken: ${this.accessToken},\nrefreshToken: ${this.refreshToken},\nexpiresIn: ${this.tokenExpiresIn},\nserverType: ${this.serverType},\nserverAddress: ${this.serverAddress},\ndeviceType: ${this.deviceType} (${DeviceUtil.getDeviceTypeDescription(this.deviceType)}),\ndeviceIdentifier: ${this.deviceIdentifier},\ndeviceName: ${this.deviceName}`)
+    // 删除原本的凭据
+    deleteAsset(ACCESS_TOKEN_KEY);
+    deleteAsset(REFRESH_TOKEN_KEY);
+    deleteAsset(TOKEN_EXPIRE_TIME_KEY);
+    // 保存新的凭据
+    addAsset(this.createAssetModel(ACCESS_TOKEN_KEY, this.accessToken));
+    addAsset(this.createAssetModel(REFRESH_TOKEN_KEY, this.refreshToken));
+    let expireTime = Math.floor(Date.now() / 1000) + this.tokenExpiresIn;
+    addAsset(this.createAssetModel(TOKEN_EXPIRE_TIME_KEY, expireTime.toString()));
+    // Logger.debug(`登录信息: \naccessToken: ${this.accessToken},\nrefreshToken: ${this.refreshToken},\nexpiresIn: ${this.tokenExpiresIn},\nserverType: ${this.serverType},\nserverAddress: ${this.serverAddress},\ndeviceType: ${this.deviceType} (${DeviceUtil.getDeviceTypeDescription(this.deviceType)}),\ndeviceIdentifier: ${this.deviceIdentifier},\ndeviceName: ${this.deviceName}`)
+  }
+
+  private createAssetModel(alias: string, secret: string, label?: string[]): AssetModel{
+    return {
+      alias: alias,
+      secret: secret,
+      label: label
+    }
   }
 
   // 清除错误信息
@@ -327,6 +364,7 @@ export class LoginViewModel {
     newViewModel.deviceName = this.deviceName;
     newViewModel.deviceInfoInitialized = this.deviceInfoInitialized;
     newViewModel.needTwoFactor = this.needTwoFactor;
+    newViewModel.needSaveEmail = this.needSaveEmail;
     return newViewModel;
   }
 
@@ -346,7 +384,6 @@ export class LoginViewModel {
     this.refreshToken = '';
     this.tokenExpiresIn = 0;
     this.masterKey = '';
-    // 设备信息不需要重置，保持一致性
   }
 
   // 清理敏感数据
@@ -377,9 +414,6 @@ export class LoginViewModel {
 
   // 从DataPreferences读取服务器配置
   async loadServerConfig(): Promise<void> {
-    await DataPreferences.getInstance().getPromise(SERVER_TYPE_KEY, ServerType.US).then((data: ServerType) => {
-      this.serverType = data;
-    })
     await DataPreferences.getInstance().getPromise(SERVER_ADDRESS_KEY, '').then((data: string) => {
       this.serverAddress = data;
     });
