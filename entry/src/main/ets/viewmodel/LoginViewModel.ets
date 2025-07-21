@@ -1,8 +1,4 @@
 import { prelogin, accessToken } from '../network/AuthApi.ets';
-import { PreloginRequest } from '../model/PreloginRequest.ets';
-import { PreloginResponse } from '../model/PreloginResponse.ets';
-import { AccessTokenRequest } from '../model/AccessTokenRequest.ets';
-import { AccessTokenResponse } from '../model/AccessTokenResponse.ets';
 import {
   ServerType,
   DeviceType,
@@ -15,7 +11,11 @@ import {
   TOKEN_EXPIRE_TIME_KEY,
   PRIVATE_KEY_1,
   PRIVATE_KEY_2,
-  RETURN_KEY
+  RETURN_KEY,
+  KDF_PARAM_KEY,
+  Header_Client_Name,
+  GrantType,
+  SCOPE_KEY
 } from '../utils/Constants.ets';
 import { Logger } from '@nzy/logger';
 import { Crypto } from '../utils/Crypto.ets';
@@ -25,6 +25,9 @@ import { util } from '@kit.ArkTS';
 import { addAsset, deleteAsset, queryAssetSync, updateAsset } from '../utils/Asset';
 import { AssetModel } from '../model/AssetModel';
 import { asset } from '@kit.AssetStoreKit';
+import { getServerConfig } from '../network/HttpClient';
+import { AccessTokenRequest, AccessTokenResponse } from '../model/AccessToken';
+import { PreloginRequest, PreloginResponse } from '../model/Prelogin';
 
 /**
  * 登录界面ViewModel
@@ -203,11 +206,11 @@ export class LoginViewModel {
       await this.initializeAsyncDeviceInfo();
 
       const request: AccessTokenRequest = {
-        grant_type: 'password',
+        grant_type: GrantType.PASSWORD,
         username: this.email.trim(),
         password: this.loginPassword,
-        scope: 'api offline_access',
-        client_id: 'web',
+        scope: SCOPE_KEY,
+        client_id: Header_Client_Name,
         deviceType: this.deviceType,
         deviceIdentifier: this.deviceIdentifier,
         deviceName: this.deviceName
@@ -234,11 +237,11 @@ export class LoginViewModel {
   async performLoginWith2FA(): Promise<boolean> {
     try {
       const request: AccessTokenRequest = {
-        grant_type: 'password',
+        grant_type: GrantType.PASSWORD,
         username: this.email.trim(),
         password: this.loginPassword,
-        scope: 'api offline_access',
-        client_id: 'web',
+        scope: SCOPE_KEY,
+        client_id: Header_Client_Name,
         deviceType: this.deviceType,
         deviceIdentifier: this.deviceIdentifier,
         deviceName: this.deviceName,
@@ -310,8 +313,9 @@ export class LoginViewModel {
     }
   }
 
-  // 保存登录凭据
+  // 保存登录凭据和加密参数
   private saveLoginInfo() {
+    this.needTwoFactor = false;
     // 删除原本的凭据
     deleteAsset(ACCESS_TOKEN_KEY_1);
     deleteAsset(ACCESS_TOKEN_KEY_2);
@@ -320,6 +324,7 @@ export class LoginViewModel {
     deleteAsset(PRIVATE_KEY_1);
     deleteAsset(PRIVATE_KEY_2);
     deleteAsset(RETURN_KEY);
+    deleteAsset(KDF_PARAM_KEY);
     // 保存新的凭据
     if (this.accessTokenResponse.access_token.length > 1000) {
       addAsset(this.createAssetModel(ACCESS_TOKEN_KEY_1, this.accessTokenResponse.access_token.substring(0, 1000)));
@@ -334,6 +339,16 @@ export class LoginViewModel {
     addAsset(this.createAssetModel(REFRESH_TOKEN_KEY, this.accessTokenResponse.refresh_token));
     let expireTime = Math.floor(Date.now() / 1000) + this.accessTokenResponse.expires_in;
     addAsset(this.createAssetModel(TOKEN_EXPIRE_TIME_KEY, expireTime.toString()));
+
+    // 保存后续加解密的参数
+    const kdfParam: PreloginResponse = {
+      kdf: this.accessTokenResponse.Kdf,
+      kdfIterations: this.accessTokenResponse.KdfIterations,
+      kdfMemory: this.accessTokenResponse.KdfMemory,
+      kdfParallelism: this.accessTokenResponse.KdfParallelism
+    };
+    addAsset(this.createAssetModel(KDF_PARAM_KEY, JSON.stringify(kdfParam)));
+
     // Logger.debug(`登录信息: \naccessToken: ${this.accessToken},\nrefreshToken: ${this.refreshToken},\nexpiresIn: ${this.tokenExpiresIn},\nserverType: ${this.serverType},\nserverAddress: ${this.serverAddress},\ndeviceType: ${this.deviceType} (${DeviceUtil.getDeviceTypeDescription(this.deviceType)}),\ndeviceIdentifier: ${this.deviceIdentifier},\ndeviceName: ${this.deviceName}`)
   }
 
@@ -420,8 +435,11 @@ export class LoginViewModel {
 
   // 读取服务器配置
   async loadServerConfig(): Promise<void> {
-    await DataPreferences.getInstance().getPromise(SERVER_ADDRESS_KEY, '').then((data: string) => {
-      this.serverAddress = data;
-    });
+    // await DataPreferences.getInstance().getPromise(SERVER_ADDRESS_KEY, '').then((data: string) => {
+    //   this.serverAddress = data;
+    // });
+    const serverConfig = await getServerConfig();
+    this.serverType = serverConfig.serverType;
+    this.serverAddress = serverConfig.serverAddress;
   }
 }

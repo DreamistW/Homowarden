@@ -2,8 +2,17 @@
 
 import axios, { AxiosRequestConfig, InternalAxiosRequestConfig, AxiosResponse, AxiosError } from '@ohos/axios';
 import { Logger } from '@nzy/logger';
-import { Header_Client_Name, Header_Client_Version } from '../utils/Constants';
+import {
+  Header_Client_Name,
+  Header_Client_Version,
+  ServerType,
+  SERVER_ADDRESS_KEY,
+  SERVER_TYPE_KEY
+} from '../utils/Constants';
 import { DeviceUtil } from '../utils/DeviceUtil';
+import { DataPreferences } from '@abner/datastore';
+import { util } from '@kit.ArkTS';
+import { ServerConfig } from '../model/ServerConfig';
 
 export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
   const instance = axios.create({
@@ -23,7 +32,8 @@ export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
       config.headers['accept-Language'] = "zh-CN,zh;q=0.9";
       config.headers['accept'] = 'application/json';
       config.headers['origin'] = config.baseURL
-      Logger.debug(`[HTTP] ${config.method?.toUpperCase()} ${config.baseURL || baseURL}${config.url}\nHeader:${JSON.stringify(config.headers)}\nRequest: ${JSON.stringify(config.data)}`);
+      Logger.debug(`[HTTP] ${config.method?.toUpperCase()} ${config.baseURL ||
+        baseURL}${config.url}\nHeader:${JSON.stringify(config.headers)}\nRequest: ${JSON.stringify(config.data)}`);
       return config;
     },
     (error: AxiosError) => {
@@ -35,7 +45,8 @@ export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
   // 响应拦截器
   instance.interceptors.response.use(
     (response: AxiosResponse) => {
-      Logger.debug(`[HTTP] Response ${response.config.baseURL || baseURL}${response.config.url}\nResponse: ${JSON.stringify(response.data)}`);
+      Logger.debug(`[HTTP] Response ${response.config.baseURL ||
+        baseURL}${response.config.url}\nResponse: ${JSON.stringify(response.data)}`);
       return response;
     },
     (error: AxiosError) => {
@@ -45,4 +56,31 @@ export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
   );
 
   return instance;
+}
+
+// 从配置文件中读取服务器地址
+export async function getServerConfig(): Promise<ServerConfig> {
+  let serverConfig: ServerConfig = { serverType: ServerType.US, serverAddress: '' };
+  await DataPreferences.getInstance().getPromise<ServerType>(SERVER_TYPE_KEY).then((data) => {
+    Logger.debug(`Server Type preference: ${data}`);
+    serverConfig.serverType = data;
+  })
+  await DataPreferences.getInstance().getPromise<string>(SERVER_ADDRESS_KEY).then((data) => {
+    Logger.debug(`Server Address preference: ${data}`);
+    serverConfig.serverAddress = data;
+  })
+  return serverConfig;
+}
+
+// 处理表单内容
+export function toFormUrlEncoded<T extends object>(data: T, keys: (keyof T)[]): string {
+  return keys
+    .map(key => encodeURIComponent(String(key)) + '=' + encodeURIComponent((data[key] as string) ?? ''))
+    .join('&');
+}
+
+export function encodeStringToBase64(str: string): string {
+  const encoder = new util.TextEncoder();
+  const data: Uint8Array = encoder.encodeInto(str);
+  return new util.Base64Helper().encodeToStringSync(data, util.Type.BASIC);
 }

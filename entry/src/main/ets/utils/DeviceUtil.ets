@@ -1,6 +1,7 @@
 import { Logger } from '@nzy/logger';
 import { DataPreferences } from '@abner/datastore';
 import { DeviceType, DEVICE_ID_KEY } from './Constants.ets';
+import { DeviceInfo } from '../model/DeviceInfo';
 
 /**
  * 设备信息管理工具类
@@ -142,10 +143,4 @@ export class DeviceUtil {
     DataPreferences.getInstance().delete(DEVICE_ID_KEY);
     Logger.debug('Device identifier cleared from DataStore');
   }
-}
-
-export interface DeviceInfo{
-  deviceType: number,
-  deviceName: string,
-  deviceIdentifier: string
 }

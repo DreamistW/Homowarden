@@ -3,6 +3,7 @@ import { Logger } from '@nzy/logger';
 import { util } from '@kit.ArkTS';
 import { cryptoFramework } from '@kit.CryptoArchitectureKit';
 import { CryptoJS } from '@ohos/crypto-js'
+import { EncryptedStringResult } from '../model/CryptoModels';
 
 /**
  * 加密工具类
@@ -174,15 +175,3 @@ export class Crypto {
   }
 }
 
-/**
- * Argon2派生结果类型（@huozhiniao/argon2）
- */
-export interface Argon2Result {
-  hash: string; // base64
-  encoded: string;
-}
-
-export interface EncryptedStringResult {
-  encrypted: string;
-  iv: string;
-}

@@ -16,6 +16,7 @@ struct LoginPage {
 
   aboutToAppear() {
     this.loadSaveEmail();
+    this.viewModel.loadServerConfig();
   }
 
   private loadSaveEmail() {
@@ -105,9 +106,6 @@ struct LoginPage {
               onSelect: (position: number) => {
                 this.viewModel.serverType = position as ServerType;
                 this.viewModel.clearError();
-                if (this.viewModel.serverType == ServerType.SELF_HOSTED) {
-                  this.viewModel.loadServerConfig();
-                }
               }
             })
           })

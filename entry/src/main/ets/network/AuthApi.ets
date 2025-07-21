@@ -1,33 +1,12 @@
-import { createHttpClient } from './HttpClient.ets';
-import { PreloginRequest } from '../model/PreloginRequest.ets';
-import { PreloginResponse } from '../model/PreloginResponse.ets';
-import { AccessTokenRequest } from '../model/AccessTokenRequest.ets';
-import { AccessTokenResponse } from '../model/AccessTokenResponse.ets';
+import { createHttpClient, encodeStringToBase64, getServerConfig, toFormUrlEncoded } from './HttpClient.ets';
 import { AxiosResponse } from '@ohos/axios';
-import { DataPreferences } from '@abner/datastore';
-import {
-  ServerType,
-  SERVER_TYPE_KEY,
-  SERVER_ADDRESS_KEY,
-  SERVER_BASE_URL_US,
-  SERVER_BASE_URL_EU
-} from '../utils/Constants.ets';
+import { ServerType, SERVER_BASE_URL_US, SERVER_BASE_URL_EU } from '../utils/Constants.ets';
 import { Logger } from '@nzy/logger';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { util } from '@kit.ArkTS';
+import { PreloginRequest, PreloginResponse } from '../model/Prelogin';
+import { AccessTokenRequest, AccessTokenResponse } from '../model/AccessToken';
+import { RefreshTokenRequest, RefreshTokenResponse } from '../model/RefreshToken';
 
-async function getServerConfig(): Promise<ServerConfig> {
-  let serverConfig: ServerConfig = { serverType: ServerType.US, serverAddress: '' };
-  await DataPreferences.getInstance().getPromise<ServerType>(SERVER_TYPE_KEY).then((data) => {
-    Logger.debug(`Server Type preference: ${data}`);
-    serverConfig.serverType = data;
-  })
-  await DataPreferences.getInstance().getPromise<string>(SERVER_ADDRESS_KEY).then((data) => {
-    Logger.debug(`Server Address preference: ${data}`);
-    serverConfig.serverAddress = data;
-  })
-  return serverConfig;
-}
 
 // 预登录接口
 export async function prelogin(request: PreloginRequest): Promise<PreloginResponse> {
@@ -55,17 +34,11 @@ export async function prelogin(request: PreloginRequest): Promise<PreloginRespon
   ).then((response: AxiosResponse<PreloginResponse>) => {
     return response.data;
   }).catch((error: BusinessError) => {
-    Logger.error("Prelogin failed, error message: " + error.message);
+    Logger.error("failed to prelogin, error message: " + error.message);
     return Promise.reject(error);
   })
 }
 
-// 处理表单内容
-function toFormUrlEncoded<T extends object>(data: T, keys: (keyof T)[]): string {
-  return keys
-    .map(key => encodeURIComponent(String(key)) + '=' + encodeURIComponent((data[key] as string) ?? ''))
-    .join('&');
-}
 
 // 登录接口
 export async function accessToken(request: AccessTokenRequest): Promise<AccessTokenResponse> {
@@ -110,18 +83,38 @@ export async function accessToken(request: AccessTokenRequest): Promise<AccessTo
       return response.data;
     })
     .catch((error: BusinessError) => {
-      Logger.error("Get token failed, error message: " + error.message);
+      Logger.error("Failed to get token, error message: " + error.message);
       return Promise.reject(error);
     })
 }
 
-export interface ServerConfig {
-  serverType: ServerType,
-  serverAddress: string
-}
+// 更新token接口
+export async function refreshToken(request: RefreshTokenRequest): Promise<RefreshTokenResponse> {
+  const serverConfig = await getServerConfig();
+  let baseURL = '';
+  if (serverConfig.serverType == ServerType.US) {
+    baseURL = `https://vault.${SERVER_BASE_URL_US}`;
+  } else if (serverConfig.serverType == ServerType.EU) {
+    baseURL = `https://vault.${SERVER_BASE_URL_EU}`;
+  } else {
+    baseURL = `https://${serverConfig.serverAddress}`;
+  }
+  const client = createHttpClient(baseURL);
 
-function encodeStringToBase64(str: string): string {
-  const encoder = new util.TextEncoder();
-  const data: Uint8Array = encoder.encodeInto(str);
-  return new util.Base64Helper().encodeToStringSync(data, util.Type.BASIC);
+  let fields = [
+    'grant_type',
+    'refresh_token',
+    'client_id'
+  ] as (keyof RefreshTokenRequest)[];
+
+  const formBody = toFormUrlEncoded(request, fields);
+
+  return client.post('/identity/connect/token', formBody)
+    .then((response: AxiosResponse<RefreshTokenResponse>) => {
+      return response.data;
+    })
+    .catch((error: BusinessError) => {
+      Logger.error("Failed to refresh token, error message: " + error.message);
+      return Promise.reject(error);
+    })
 }

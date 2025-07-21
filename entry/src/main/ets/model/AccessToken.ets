@@ -10,4 +10,16 @@ export interface AccessTokenRequest {
   twoFactorToken?: string;
   twoFactorProvider?: number;
   twoFactorRemember?: number;
+}
+
+export interface AccessTokenResponse {
+  access_token: string;
+  expires_in: number;
+  refresh_token: string;
+  PrivateKey: string;
+  Key: string;
+  Kdf: number;
+  KdfIterations: number;
+  KdfMemory: number;
+  KdfParallelism: number;
 } 
