@@ -27,7 +27,7 @@ const labelMap: Record<number, asset.Tag> = {
  * 添加关键资产
  * @param assetModel 关键资产模型
  */
-export async function addAsset(assetModel: AssetModel) {
+export function addAsset(assetModel: AssetModel) {
   let attr: asset.AssetMap = new Map();
   attr.set(asset.Tag.SECRET, stringToArray(assetModel.secret));
   attr.set(asset.Tag.ALIAS, stringToArray(assetModel.alias));
@@ -39,11 +39,13 @@ export async function addAsset(assetModel: AssetModel) {
     }
   }
 
-  asset.add(attr).then(() => {
-    Logger.debug(`Asset added successfully`);
-  }).catch((err: BusinessError) => {
+  try {
+    asset.addSync(attr);
+    Logger.debug(`Asset added successfully, alias is ${assetModel.alias}`);
+  } catch (error) {
+    let err = error as BusinessError;
     Logger.error(`Failed to add asset, code is ${err.code}, message is ${err.message}`);
-  })
+  }
 }
 
 /**
@@ -102,28 +104,32 @@ export function queryAssetSync(alias: string): string {
  * @param tag 关键资产属性
  * @param value 关键资产内容
  */
-export async function updateAsset(alias: string, tag: asset.Tag, value: string) {
+export function updateAsset(alias: string, tag: asset.Tag, value: string) {
   let query: asset.AssetMap = new Map();
   query.set(asset.Tag.ALIAS, stringToArray(alias));
   let attrsToUpdate: asset.AssetMap = new Map();
   attrsToUpdate.set(tag, stringToArray(value));
-  asset.update(query, attrsToUpdate).then(() => {
-    Logger.debug(`Asset updated successfully`);
-  }).catch((err: BusinessError) => {
+  try {
+    asset.updateSync(query, attrsToUpdate);
+    Logger.debug(`Asset ${alias} updated successfully`);
+  } catch (error) {
+    let err = error as BusinessError;
     Logger.error(`Failed to update asset, code is ${err.code}, message is ${err.message}`);
-  })
+  }
 }
 
 /**
  * 删除关键资产
  * @param alias 关键资产别名
  */
-export async function deleteAsset(alias: string) {
+export function deleteAsset(alias: string) {
   let query: asset.AssetMap = new Map();
   query.set(asset.Tag.ALIAS, stringToArray(alias));
-  asset.remove(query).then(() => {
+  try {
+    asset.removeSync(query);
     Logger.debug(`Asset removed successfully`);
-  }).catch((err: BusinessError) => {
-    Logger.error(`Failed to delete asset, code is ${err.code}, message is ${err.message}`);
-  })
+  } catch (error) {
+    let err = error as BusinessError;
+    Logger.error(`Failed to delete asset ${alias}, code is ${err.code}, message is ${err.message}`);
+  }
 }

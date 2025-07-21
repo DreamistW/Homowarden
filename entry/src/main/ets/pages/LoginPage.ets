@@ -1,6 +1,5 @@
 import { IBestActionSheet, IBestDialog, IBestSwitch } from '@ibestservices/ibest-ui';
-import { AssetModel } from '../model/AssetModel';
-import { queryAsset, queryAssetSync } from '../utils/Asset';
+import { queryAssetSync } from '../utils/Asset';
 import { EMAIL_KEY, ServerType } from '../utils/Constants';
 import { LoginViewModel } from '../viewmodel/LoginViewModel';
 
@@ -214,6 +213,7 @@ struct LoginPage {
     }
     this.updateUI();
     this.isLoading = false;
+    this.getUIContext().getFocusController().clearFocus();
   }
 
   // 更新UI状态

@@ -91,9 +91,9 @@ export async function accessToken(request: AccessTokenRequest): Promise<AccessTo
     'deviceName'
   ] as (keyof AccessTokenRequest)[];
 
-  if (request.two_factor_token) {
-    fields.push('two_factor_token' as keyof AccessTokenRequest);
-    fields.push('two_factor_provider' as keyof AccessTokenRequest);
+  if (request.twoFactorToken) {
+    fields.push('twoFactorToken' as keyof AccessTokenRequest);
+    fields.push('twoFactorProvider' as keyof AccessTokenRequest);
     fields.push('twoFactorRemember' as keyof AccessTokenRequest);
   }
 

@@ -3,16 +3,26 @@ import { PreloginRequest } from '../model/PreloginRequest.ets';
 import { PreloginResponse } from '../model/PreloginResponse.ets';
 import { AccessTokenRequest } from '../model/AccessTokenRequest.ets';
 import { AccessTokenResponse } from '../model/AccessTokenResponse.ets';
-import { ServerType, DeviceType, SERVER_TYPE_KEY, SERVER_ADDRESS_KEY, EMAIL_KEY,
-  ACCESS_TOKEN_KEY,
+import {
+  ServerType,
+  DeviceType,
+  SERVER_TYPE_KEY,
+  SERVER_ADDRESS_KEY,
+  EMAIL_KEY,
+  ACCESS_TOKEN_KEY_1,
+  ACCESS_TOKEN_KEY_2,
   REFRESH_TOKEN_KEY,
-  TOKEN_EXPIRE_TIME_KEY} from '../utils/Constants.ets';
+  TOKEN_EXPIRE_TIME_KEY,
+  PRIVATE_KEY_1,
+  PRIVATE_KEY_2,
+  RETURN_KEY
+} from '../utils/Constants.ets';
 import { Logger } from '@nzy/logger';
 import { Crypto } from '../utils/Crypto.ets';
 import { DeviceUtil } from '../utils/DeviceUtil';
 import { DataPreferences } from '@abner/datastore';
 import { util } from '@kit.ArkTS';
-import { addAsset, deleteAsset, queryAsset, queryAssetSync, updateAsset } from '../utils/Asset';
+import { addAsset, deleteAsset, queryAssetSync, updateAsset } from '../utils/Asset';
 import { AssetModel } from '../model/AssetModel';
 import { asset } from '@kit.AssetStoreKit';
 
@@ -36,9 +46,7 @@ export class LoginViewModel {
   kdfMemory: number = 0;
   kdfParallelism: number = 0;
   // 登录结果
-  accessToken: string = '';
-  refreshToken: string = '';
-  tokenExpiresIn: number = 0;
+  accessTokenResponse: AccessTokenResponse = {} as AccessTokenResponse;
   // 加密相关
   masterKey: string = '';
   loginPassword: string = '';
@@ -104,10 +112,10 @@ export class LoginViewModel {
         // 先查询是否存在Asset
         const queryResult = queryAssetSync(EMAIL_KEY);
         if (queryResult) {
-          await updateAsset(EMAIL_KEY, asset.Tag.SECRET, this.email);
+          updateAsset(EMAIL_KEY, asset.Tag.SECRET, this.email);
         } else {
           const emailAsset: AssetModel = { alias: EMAIL_KEY, secret: this.email };
-          await addAsset(emailAsset);
+          addAsset(emailAsset);
         }
       } else {
         deleteAsset(EMAIL_KEY);
@@ -205,12 +213,7 @@ export class LoginViewModel {
         deviceName: this.deviceName
       };
 
-      const response: AccessTokenResponse = await accessToken(request);
-
-      this.accessToken = response.access_token;
-      this.refreshToken = response.refresh_token;
-      this.tokenExpiresIn = response.expires_in;
-
+      this.accessTokenResponse = await accessToken(request);
       this.successMessage = '登录成功！';
       Logger.debug('Login successful, tokens received');
       return true;
@@ -239,15 +242,12 @@ export class LoginViewModel {
         deviceType: this.deviceType,
         deviceIdentifier: this.deviceIdentifier,
         deviceName: this.deviceName,
-        two_factor_token: this.twoFactorToken,
-        two_factor_provider: 0,
+        twoFactorToken: this.twoFactorToken,
+        twoFactorProvider: 0,
         twoFactorRemember: 0
       };
-      const response: AccessTokenResponse = await accessToken(request);
-      this.accessToken = response.access_token;
-      this.refreshToken = response.refresh_token;
-      this.tokenExpiresIn = response.expires_in;
 
+      this.accessTokenResponse = await accessToken(request);
       this.successMessage = '登录成功！';
       Logger.debug('Login successful, tokens received');
       return true;
@@ -311,20 +311,33 @@ export class LoginViewModel {
   }
 
   // 保存登录凭据
-  private saveLoginInfo(): void {
+  private saveLoginInfo() {
     // 删除原本的凭据
-    deleteAsset(ACCESS_TOKEN_KEY);
+    deleteAsset(ACCESS_TOKEN_KEY_1);
+    deleteAsset(ACCESS_TOKEN_KEY_2);
     deleteAsset(REFRESH_TOKEN_KEY);
     deleteAsset(TOKEN_EXPIRE_TIME_KEY);
+    deleteAsset(PRIVATE_KEY_1);
+    deleteAsset(PRIVATE_KEY_2);
+    deleteAsset(RETURN_KEY);
     // 保存新的凭据
-    addAsset(this.createAssetModel(ACCESS_TOKEN_KEY, this.accessToken));
-    addAsset(this.createAssetModel(REFRESH_TOKEN_KEY, this.refreshToken));
-    let expireTime = Math.floor(Date.now() / 1000) + this.tokenExpiresIn;
+    if (this.accessTokenResponse.access_token.length > 1000) {
+      addAsset(this.createAssetModel(ACCESS_TOKEN_KEY_1, this.accessTokenResponse.access_token.substring(0, 1000)));
+      addAsset(this.createAssetModel(ACCESS_TOKEN_KEY_2, this.accessTokenResponse.access_token.substring(1000)));
+    } else {
+      addAsset(this.createAssetModel(ACCESS_TOKEN_KEY_1, this.accessTokenResponse.access_token));
+    }
+
+    addAsset(this.createAssetModel(PRIVATE_KEY_1, this.accessTokenResponse.PrivateKey.substring(0, 1000)));
+    addAsset(this.createAssetModel(PRIVATE_KEY_2, this.accessTokenResponse.PrivateKey.substring(1000)));
+    addAsset(this.createAssetModel(RETURN_KEY, this.accessTokenResponse.Key));
+    addAsset(this.createAssetModel(REFRESH_TOKEN_KEY, this.accessTokenResponse.refresh_token));
+    let expireTime = Math.floor(Date.now() / 1000) + this.accessTokenResponse.expires_in;
     addAsset(this.createAssetModel(TOKEN_EXPIRE_TIME_KEY, expireTime.toString()));
     // Logger.debug(`登录信息: \naccessToken: ${this.accessToken},\nrefreshToken: ${this.refreshToken},\nexpiresIn: ${this.tokenExpiresIn},\nserverType: ${this.serverType},\nserverAddress: ${this.serverAddress},\ndeviceType: ${this.deviceType} (${DeviceUtil.getDeviceTypeDescription(this.deviceType)}),\ndeviceIdentifier: ${this.deviceIdentifier},\ndeviceName: ${this.deviceName}`)
   }
 
-  private createAssetModel(alias: string, secret: string, label?: string[]): AssetModel{
+  private createAssetModel(alias: string, secret: string, label?: string[]): AssetModel {
     return {
       alias: alias,
       secret: secret,
@@ -355,9 +368,6 @@ export class LoginViewModel {
     newViewModel.kdfIterations = this.kdfIterations;
     newViewModel.kdfMemory = this.kdfMemory;
     newViewModel.kdfParallelism = this.kdfParallelism;
-    newViewModel.accessToken = this.accessToken;
-    newViewModel.refreshToken = this.refreshToken;
-    newViewModel.tokenExpiresIn = this.tokenExpiresIn;
     newViewModel.masterKey = this.masterKey;
     newViewModel.deviceType = this.deviceType;
     newViewModel.deviceIdentifier = this.deviceIdentifier;
@@ -365,6 +375,7 @@ export class LoginViewModel {
     newViewModel.deviceInfoInitialized = this.deviceInfoInitialized;
     newViewModel.needTwoFactor = this.needTwoFactor;
     newViewModel.needSaveEmail = this.needSaveEmail;
+    newViewModel.accessTokenResponse = this.accessTokenResponse;
     return newViewModel;
   }
 
@@ -380,9 +391,6 @@ export class LoginViewModel {
     this.kdfIterations = 0;
     this.kdfMemory = 0;
     this.kdfParallelism = 0;
-    this.accessToken = '';
-    this.refreshToken = '';
-    this.tokenExpiresIn = 0;
     this.masterKey = '';
   }
 
@@ -391,13 +399,11 @@ export class LoginViewModel {
     // 清理密码和密钥
     this.password = '';
     this.masterKey = '';
-    this.accessToken = '';
-    this.refreshToken = '';
 
     Logger.debug('Sensitive data cleared from LoginViewModel');
   }
 
-  // 保存服务器配置到DataStore
+  // 保存服务器配置
   private async saveServerConfig(): Promise<void> {
     DataPreferences.getInstance().put(SERVER_TYPE_KEY, this.serverType, (isSuccess: boolean, error) => {
       if (!isSuccess) {
@@ -412,7 +418,7 @@ export class LoginViewModel {
       })
   }
 
-  // 从DataPreferences读取服务器配置
+  // 读取服务器配置
   async loadServerConfig(): Promise<void> {
     await DataPreferences.getInstance().getPromise(SERVER_ADDRESS_KEY, '').then((data: string) => {
       this.serverAddress = data;

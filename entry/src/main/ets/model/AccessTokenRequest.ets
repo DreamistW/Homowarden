@@ -7,7 +7,7 @@ export interface AccessTokenRequest {
   deviceType: number;
   deviceIdentifier: string;
   deviceName: string;
-  two_factor_token?: string;
-  two_factor_provider?: number;
+  twoFactorToken?: string;
+  twoFactorProvider?: number;
   twoFactorRemember?: number;
 } 

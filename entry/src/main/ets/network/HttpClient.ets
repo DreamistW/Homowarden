@@ -20,9 +20,9 @@ export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
       config.headers['bitwarden-client-name'] = Header_Client_Name;
       config.headers['bitwarden-client-version'] = Header_Client_Version;
       config.headers['device-type'] = DeviceUtil.getDeviceType();
-      config.headers['device-identifier'] = await DeviceUtil.getOrGenerateDeviceIdentifier();
-      config.headers['Accept-Language'] = "zh-CN,zh;q=0.9";
-      config.headers['Origin'] = config.baseURL
+      config.headers['accept-Language'] = "zh-CN,zh;q=0.9";
+      config.headers['accept'] = 'application/json';
+      config.headers['origin'] = config.baseURL
       Logger.debug(`[HTTP] ${config.method?.toUpperCase()} ${config.baseURL || baseURL}${config.url}\nHeader:${JSON.stringify(config.headers)}\nRequest: ${JSON.stringify(config.data)}`);
       return config;
     },
