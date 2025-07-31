@@ -45,7 +45,9 @@ export const PRIVATE_KEY_1 = "private_key_1";
 
 export const PRIVATE_KEY_2 = "private_key_2";
 
-export const RETURN_KEY = 'return_key';
+export const USER_KEY = 'user_key';
+
+export const MASTER_KEY = 'master_key';
 
 export const REFRESH_TOKEN_KEY = 'refresh_token';
 

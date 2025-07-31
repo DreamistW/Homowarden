@@ -11,11 +11,12 @@ import {
   TOKEN_EXPIRE_TIME_KEY,
   PRIVATE_KEY_1,
   PRIVATE_KEY_2,
-  RETURN_KEY,
+  USER_KEY,
   KDF_PARAM_KEY,
   Header_Client_Name,
   GrantType,
-  SCOPE_KEY
+  SCOPE_KEY,
+  MASTER_KEY
 } from '../utils/Constants.ets';
 import { Logger } from '@nzy/logger';
 import { Crypto } from '../utils/Crypto.ets';
@@ -317,13 +318,14 @@ export class LoginViewModel {
   private saveLoginInfo() {
     this.needTwoFactor = false;
     // 删除原本的凭据
+    deleteAsset(MASTER_KEY);
     deleteAsset(ACCESS_TOKEN_KEY_1);
     deleteAsset(ACCESS_TOKEN_KEY_2);
     deleteAsset(REFRESH_TOKEN_KEY);
     deleteAsset(TOKEN_EXPIRE_TIME_KEY);
     deleteAsset(PRIVATE_KEY_1);
     deleteAsset(PRIVATE_KEY_2);
-    deleteAsset(RETURN_KEY);
+    deleteAsset(USER_KEY);
     deleteAsset(KDF_PARAM_KEY);
     // 保存新的凭据
     if (this.accessTokenResponse.access_token.length > 1000) {
@@ -332,10 +334,10 @@ export class LoginViewModel {
     } else {
       addAsset(this.createAssetModel(ACCESS_TOKEN_KEY_1, this.accessTokenResponse.access_token));
     }
-
+    addAsset(this.createAssetModel(MASTER_KEY, this.masterKey));
     addAsset(this.createAssetModel(PRIVATE_KEY_1, this.accessTokenResponse.PrivateKey.substring(0, 1000)));
     addAsset(this.createAssetModel(PRIVATE_KEY_2, this.accessTokenResponse.PrivateKey.substring(1000)));
-    addAsset(this.createAssetModel(RETURN_KEY, this.accessTokenResponse.Key));
+    addAsset(this.createAssetModel(USER_KEY, this.accessTokenResponse.Key));
     addAsset(this.createAssetModel(REFRESH_TOKEN_KEY, this.accessTokenResponse.refresh_token));
     let expireTime = Math.floor(Date.now() / 1000) + this.accessTokenResponse.expires_in;
     addAsset(this.createAssetModel(TOKEN_EXPIRE_TIME_KEY, expireTime.toString()));

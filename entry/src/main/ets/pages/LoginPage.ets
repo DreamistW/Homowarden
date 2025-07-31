@@ -2,6 +2,7 @@ import { IBestActionSheet, IBestDialog, IBestSwitch } from '@ibestservices/ibest
 import { queryAssetSync } from '../utils/Asset';
 import { EMAIL_KEY, ServerType } from '../utils/Constants';
 import { LoginViewModel } from '../viewmodel/LoginViewModel';
+import router from '@ohos.router';
 
 @Entry
 @Component
@@ -205,13 +206,21 @@ struct LoginPage {
     this.twoFactorInputError = false;
     this.viewModel.clearError();
     this.isLoading = true;
-    await this.viewModel.login();
+    const loginSuccess = await this.viewModel.login();
     if (this.viewModel.needTwoFactor) {
       this.isNeed2FA = true;
+    } else if (loginSuccess) {
+      // 登录成功，跳转到密码库页面
+      this.navigateToVault();
     }
     this.updateUI();
     this.isLoading = false;
     this.getUIContext().getFocusController().clearFocus();
+  }
+
+  // 跳转到密码库页面
+  private navigateToVault(): void {
+    router.replaceUrl({ url: 'pages/VaultPage' });
   }
 
   // 更新UI状态
