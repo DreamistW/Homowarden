@@ -1,4 +1,4 @@
-import { CipherItemType } from "../utils/Constants";
+import { CipherFieldType, CipherItemType } from "../utils/Constants";
 
 /**
  * 密码项（Cipher）数据模型
@@ -9,18 +9,18 @@ export interface Cipher {
   name: string; // 名称
   favorite: boolean; // 是否收藏
   edit: boolean; // 是否可编辑
-  folderId: string | null; // 文件夹ID
-  organizationId: string | null; // 组织ID
+  folderId?: string | null; // 文件夹ID
+  organizationId?: string | null; // 组织ID
   creationDate: string; // 创建时间
   revisionDate?: string | null; // 最后修改时间
   deletedDate?: string | null; // 删除时间
-  notes: string | null; // 备注
+  notes?: string | null; // 备注
   login?: CipherLogin | null; // 登录信息（type=1时）
   card?: CipherCard | null; // 卡片信息（type=3时）
   identity?: CipherIdentity | null; // 身份信息（type=4时）
   secureNote?: CipherSecureNote | null; // 安全笔记（type=2时）
-  fields: CipherField[] | string[]; // 自定义字段
-  collectionIds: string[]; // 所属集合ID
+  fields?: CipherField[] | string[]; // 自定义字段
+  collectionIds?: string[]; // 所属集合ID
   reprompt: number // 是否需要验证主密码才能查看
 }
 
@@ -75,7 +75,7 @@ export interface CipherIdentity {
  * 安全笔记结构
  */
 export interface CipherSecureNote {
-  type: number; // 类型
+  type: CipherFieldType; // 类型
 }
 
 /**
@@ -84,7 +84,7 @@ export interface CipherSecureNote {
 export interface CipherField {
   name: string; // 字段名
   value: string; // 字段值
-  type: number; // 字段类型（0为文本，1为隐藏，2为复选框）
+  type: CipherFieldType; // 字段类型（0为文本，1为隐藏，2为复选框）
 }
 
 /**

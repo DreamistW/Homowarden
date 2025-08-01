@@ -1,5 +1,6 @@
 import { routerInitNavPathStack, routerReturnBuilder, startPage } from '@abner/router';
 import { EntryRouter } from '../../../../EntryRouter';
+import { createTables } from '../utils/DatabaseUtil';
 
 @Entry
 @Component
@@ -8,6 +9,7 @@ struct Index {
 
   aboutToAppear(): void {
     routerInitNavPathStack(this.navPathStack);
+    createTables();
   }
 
   @Builder

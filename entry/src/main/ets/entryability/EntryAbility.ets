@@ -2,8 +2,7 @@ import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.Ab
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { IBestInit } from "@ibestservices/ibest-ui"
-import { DeviceUtil } from '../utils/DeviceUtil';
-import { DataPreferences } from '@abner/datastore';
+import { DataPreferences, DbUtil } from '@abner/datastore';
 
 const DOMAIN = 0x0000;
 
@@ -29,6 +28,7 @@ export default class EntryAbility extends UIAbility {
       hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
       IBestInit(windowStage, this.context);
       DataPreferences.getInstance().init(this.context);
+      DbUtil.getInstance().init(this.context, { name: 'homowarden.sql', securityLevel: 4, encrypt: true });
     });
   }
 
