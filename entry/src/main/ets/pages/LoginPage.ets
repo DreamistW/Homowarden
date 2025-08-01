@@ -2,11 +2,12 @@ import { IBestActionSheet, IBestDialog, IBestSwitch } from '@ibestservices/ibest
 import { queryAssetSync } from '../utils/Asset';
 import { EMAIL_KEY, ServerType } from '../utils/Constants';
 import { LoginViewModel } from '../viewmodel/LoginViewModel';
-import router from '@ohos.router';
+import { replacePage, RouterPath } from '@abner/router';
+import { EntryRouter } from '../../../../EntryRouter';
 
-@Entry
+@RouterPath(EntryRouter.LoginPage)
 @Component
-struct LoginPage {
+export struct LoginPage {
   @State viewModel: LoginViewModel = new LoginViewModel();
   @State isLoading: boolean = false;
   @State isNeed2FA: boolean = false;
@@ -184,6 +185,7 @@ struct LoginPage {
           }
           this.isNeed2FA = false;
           this.updateUI();
+          this.navigateToVault();
           return true;
         }
       })
@@ -220,7 +222,7 @@ struct LoginPage {
 
   // 跳转到密码库页面
   private navigateToVault(): void {
-    router.replaceUrl({ url: 'pages/VaultPage' });
+    replacePage(EntryRouter.VaultPage);
   }
 
   // 更新UI状态

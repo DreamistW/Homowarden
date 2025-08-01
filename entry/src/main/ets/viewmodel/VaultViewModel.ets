@@ -1,6 +1,7 @@
 import { getAllCiphers, updateCipher } from '../network/CipherApi.ets';
 import { Cipher } from '../model/CipherModels.ets';
 import { Logger } from '@nzy/logger';
+import { CipherItemType } from '../utils/Constants';
 
 /**
  * 密码库ViewModel
@@ -117,13 +118,13 @@ export class VaultViewModel {
    */
   getCipherTypeName(type: number): string {
     switch (type) {
-      case 1:
+      case CipherItemType.LOGIN:
         return '登录';
-      case 2:
+      case CipherItemType.NOTE:
         return '安全笔记';
-      case 3:
+      case CipherItemType.CARD:
         return '卡片';
-      case 4:
+      case CipherItemType.IDENTITY:
         return '身份信息';
       default:
         return '未知';
@@ -136,13 +137,13 @@ export class VaultViewModel {
    */
   getCipherTypeIcon(type: number): string {
     switch (type) {
-      case 1:
+      case CipherItemType.LOGIN:
         return 'ic_login';
-      case 2:
+      case CipherItemType.NOTE:
         return 'ic_note';
-      case 3:
+      case CipherItemType.CARD:
         return 'ic_card';
-      case 4:
+      case CipherItemType.IDENTITY:
         return 'ic_identity';
       default:
         return 'ic_unknown';

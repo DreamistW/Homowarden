@@ -1,16 +1,18 @@
-import router from '@ohos.router';
+import { finishPage, routerGetParams, RouterPath } from '@abner/router';
+import { EntryRouter } from '../../../../EntryRouter';
 import { Cipher, CipherField } from '../model/CipherModels';
+import { CipherItemType } from '../utils/Constants';
 
-@Entry
+@RouterPath(EntryRouter.CipherDetailPage)
 @Component
-struct CipherDetailPage {
+export struct CipherDetailPage {
   @State cipher: Cipher = {} as Cipher;
   @State showPassword: boolean = false;
   @State isLoading: boolean = true;
 
-  aboutToAppear() {
-    const params = router.getParams();
-    const cipherId: string = '';
+  onPageShow(): void {
+    const params = routerGetParams();
+    const cipherId: string = params as string;
     this.loadCipherDetail(cipherId);
   }
 
@@ -21,7 +23,7 @@ struct CipherDetailPage {
       this.cipher = {
         id: cipherId,
         name: 'GitHub',
-        type: 1,
+        type: CipherItemType.LOGIN,
         login: {
           username: 'user@example.com',
           password: 'password123',
@@ -56,7 +58,7 @@ struct CipherDetailPage {
         }
         .backgroundColor(Color.Transparent)
         .onClick(() => {
-          router.back();
+          finishPage();
         })
 
         Text('密码项详情')
@@ -111,11 +113,10 @@ struct CipherDetailPage {
             }
             .width('100%')
             .padding(16)
-            .backgroundColor(Color.White)
             .margin({ bottom: 8 })
 
             // 登录信息
-            if (this.cipher.type === 1) {
+            if (this.cipher.type === CipherItemType.LOGIN) {
               Column() {
                 Text('登录信息')
                   .fontSize(16)
@@ -178,7 +179,6 @@ struct CipherDetailPage {
               }
               .width('100%')
               .padding(16)
-              .backgroundColor(Color.White)
               .margin({ bottom: 8 })
             }
 
@@ -196,7 +196,6 @@ struct CipherDetailPage {
               }
               .width('100%')
               .padding(16)
-              .backgroundColor(Color.White)
               .margin({ bottom: 8 })
             }
 
@@ -235,7 +234,6 @@ struct CipherDetailPage {
             }
             .width('100%')
             .padding(16)
-            .backgroundColor(Color.White)
             .margin({ bottom: 8 })
           }
           .width('100%')
@@ -246,18 +244,17 @@ struct CipherDetailPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F5F5F5')
   }
 
   private getTypeName(type: number): string {
     switch (type) {
-      case 1:
+      case CipherItemType.LOGIN:
         return '登录';
-      case 2:
+      case CipherItemType.NOTE:
         return '安全笔记';
-      case 3:
+      case CipherItemType.CARD:
         return '卡片';
-      case 4:
+      case CipherItemType.IDENTITY:
         return '身份信息';
       default:
         return '未知';
@@ -265,9 +262,6 @@ struct CipherDetailPage {
   }
 
   private navigateToEdit() {
-    router.pushUrl({
-      url: 'pages/EditCipherPage',
-      params: { cipherId: this.cipher.id }
-    });
+
   }
 } 

@@ -65,3 +65,10 @@ export enum GrantType {
   PASSWORD = 'password',
   REFRESH = 'refresh_token'
 }
+
+export enum CipherItemType{
+  LOGIN = 1,
+  NOTE = 2,
+  CARD = 3,
+  IDENTITY = 4
+}

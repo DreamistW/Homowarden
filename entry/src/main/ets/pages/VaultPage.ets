@@ -1,11 +1,13 @@
-import router from '@ohos.router';
+import { RouterPath, startPage } from '@abner/router';
+import { EntryRouter } from '../../../../EntryRouter';
+import { Cipher } from '../model/CipherModels';
 
-@Entry
+@RouterPath(EntryRouter.VaultPage)
 @Component
-struct VaultPage {
+export struct VaultPage {
   @State isLoading: boolean = false;
   @State searchText: string = '';
-  @State ciphers: any[] = [];
+  @State ciphers: Cipher[] = [];
 
   aboutToAppear() {
     this.loadCiphers();
@@ -16,9 +18,9 @@ struct VaultPage {
     // 模拟加载数据
     setTimeout(() => {
       this.ciphers = [
-        { id: '1', name: 'GitHub', type: 1, username: 'user@example.com', favorite: true },
-        { id: '2', name: 'Google', type: 1, username: 'user@gmail.com', favorite: false },
-        { id: '3', name: '银行卡', type: 3, cardNumber: '**** **** **** 1234', favorite: false }
+        // { id: '1', name: 'GitHub', type: 1, username: 'user@example.com', favorite: true },
+        // { id: '2', name: 'Google', type: 1, username: 'user@gmail.com', favorite: false },
+        // { id: '3', name: '银行卡', type: 3, cardNumber: '**** **** **** 1234', favorite: false }
       ];
       this.isLoading = false;
     }, 1000);
@@ -40,7 +42,7 @@ struct VaultPage {
         }
         .backgroundColor(Color.Transparent)
         .onClick(() => {
-          router.pushUrl({ url: 'pages/SettingsPage' });
+          startPage(EntryRouter.SettingsPage);
         })
       }
       .width('100%')
@@ -85,7 +87,7 @@ struct VaultPage {
         .justifyContent(FlexAlign.Center)
       } else {
         List() {
-          ForEach(this.ciphers, (cipher: any) => {
+          ForEach(this.ciphers, (cipher: Cipher) => {
             ListItem() {
               Row() {
                 Column() {
@@ -93,7 +95,7 @@ struct VaultPage {
                     .fontSize(16)
                     .fontWeight(FontWeight.Medium)
                   
-                  Text(cipher.username || cipher.cardNumber || '')
+                  Text(cipher.login?.username || cipher.card?.number || '')
                     .fontSize(14)
                     .fontColor('#666666')
                     .margin({ top: 2 })
@@ -112,7 +114,6 @@ struct VaultPage {
               }
               .width('100%')
               .padding(16)
-              .backgroundColor(Color.White)
               .borderRadius(8)
               .margin({ bottom: 8 })
               .onClick(() => {
@@ -143,17 +144,13 @@ struct VaultPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F5F5F5')
   }
 
-  private navigateToDetail(cipher: any) {
-    router.pushUrl({ 
-      url: 'pages/CipherDetailPage',
-      params: { cipherId: cipher.id }
-    });
+  private navigateToDetail(cipher: Cipher) {
+    startPage(EntryRouter.CipherDetailPage, {param: cipher.id})
   }
 
   private navigateToAdd() {
-    router.pushUrl({ url: 'pages/AddCipherPage' });
+    startPage(EntryRouter.AddCipherPage)
   }
 } 

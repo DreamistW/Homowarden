@@ -1,8 +1,9 @@
-import router from '@ohos.router';
+import { finishPage, replacePage, routerClearPage, RouterPath } from '@abner/router';
+import { EntryRouter } from '../../../../EntryRouter';
 
-@Entry
+@RouterPath(EntryRouter.SettingsPage)
 @Component
-struct SettingsPage {
+export struct SettingsPage {
   @State autoLockEnabled: boolean = true;
   @State biometricEnabled: boolean = false;
   @State syncEnabled: boolean = true;
@@ -17,7 +18,7 @@ struct SettingsPage {
         }
         .backgroundColor(Color.Transparent)
         .onClick(() => {
-          router.back();
+          finishPage();
         })
         
         Text('设置')
@@ -68,7 +69,6 @@ struct SettingsPage {
           }
           .width('100%')
           .padding(16)
-          .backgroundColor(Color.White)
           .margin({ bottom: 8 })
 
           // 同步设置
@@ -94,7 +94,6 @@ struct SettingsPage {
           }
           .width('100%')
           .padding(16)
-          .backgroundColor(Color.White)
           .margin({ bottom: 8 })
 
           // 账户设置
@@ -142,7 +141,6 @@ struct SettingsPage {
           }
           .width('100%')
           .padding(16)
-          .backgroundColor(Color.White)
           .margin({ bottom: 8 })
 
           // 关于
@@ -167,7 +165,6 @@ struct SettingsPage {
           }
           .width('100%')
           .padding(16)
-          .backgroundColor(Color.White)
           .margin({ bottom: 8 })
         }
         .width('100%')
@@ -177,13 +174,12 @@ struct SettingsPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F5F5F5')
   }
 
   private logout() {
     // 清除登录信息
     // 跳转到登录页面
-    router.clear();
-    router.pushUrl({ url: 'pages/LoginPage' });
+    routerClearPage();
+    replacePage(EntryRouter.LoginPage);
   }
 } 

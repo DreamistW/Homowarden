@@ -1,5 +1,6 @@
 import { Cipher } from '../model/CipherModels.ets';
 import { IBestIcon } from "@ibestservices/ibest-ui";
+import { CipherItemType } from '../utils/Constants';
 
 @Component
 export struct CipherItem {
@@ -28,13 +29,13 @@ export struct CipherItem {
 
   private getTypeIcon(): string {
     switch (this.cipher.type) {
-      case 1:
+      case CipherItemType.LOGIN:
         return 'contact-o';
-      case 2:
+      case CipherItemType.NOTE:
         return 'notes-o';
-      case 3:
+      case CipherItemType.CARD:
         return 'credit-pay';
-      case 4:
+      case CipherItemType.IDENTITY:
         return 'idcard';
       default:
         return 'cross';
@@ -55,13 +56,13 @@ export struct CipherItem {
 
   private getTypeName(): string {
     switch (this.cipher.type) {
-      case 1:
+      case CipherItemType.LOGIN:
         return '登录';
-      case 2:
+      case CipherItemType.NOTE:
         return '安全笔记';
-      case 3:
+      case CipherItemType.CARD:
         return '卡片';
-      case 4:
+      case CipherItemType.IDENTITY:
         return '身份信息';
       default:
         return '未知';

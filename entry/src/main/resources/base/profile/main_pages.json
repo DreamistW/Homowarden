@@ -1,10 +1,5 @@
 {
   "src": [
-    "pages/Index",
-    "pages/LoginPage",
-    "pages/VaultPage",
-    "pages/CipherDetailPage",
-    "pages/AddCipherPage",
-    "pages/SettingsPage"
+    "pages/Index"
   ]
 }

@@ -1,8 +1,10 @@
-import router from '@ohos.router';
+import { finishPage, RouterPath } from '@abner/router';
+import { EntryRouter } from '../../../../EntryRouter';
+import { CipherItemType } from '../utils/Constants';
 
-@Entry
+@RouterPath(EntryRouter.AddCipherPage)
 @Component
-struct AddCipherPage {
+export struct AddCipherPage {
   @State cipherType: number = 1; // 1=登录, 2=安全笔记, 3=卡片, 4=身份信息
   @State name: string = '';
   @State username: string = '';
@@ -21,7 +23,7 @@ struct AddCipherPage {
         }
         .backgroundColor(Color.Transparent)
         .onClick(() => {
-          router.back();
+          finishPage();
         })
         
         Text('新增密码项')
@@ -54,7 +56,7 @@ struct AddCipherPage {
               .margin({ bottom: 12 })
 
             Row() {
-              ForEach([1, 2, 3, 4], (type: number) => {
+              ForEach([CipherItemType.LOGIN, CipherItemType.NOTE, CipherItemType.CARD, CipherItemType.IDENTITY], (type: CipherItemType) => {
                 Button() {
                   Text(this.getTypeName(type))
                     .fontSize(14)
@@ -62,7 +64,6 @@ struct AddCipherPage {
                 }
                 .width('22%')
                 .height(40)
-                .backgroundColor(this.cipherType === type ? '#007AFF' : '#F5F5F5')
                 .borderRadius(8)
                 .margin({ right: 8 })
                 .onClick(() => {
@@ -74,7 +75,6 @@ struct AddCipherPage {
           }
           .width('100%')
           .padding(16)
-          .backgroundColor(Color.White)
           .margin({ bottom: 8 })
 
           // 基本信息
@@ -90,7 +90,6 @@ struct AddCipherPage {
             })
               .width('100%')
               .height(48)
-              .backgroundColor('#F5F5F5')
               .borderRadius(8)
               .padding({ left: 12, right: 12 })
               .onChange((value: string) => {
@@ -100,11 +99,10 @@ struct AddCipherPage {
           }
           .width('100%')
           .padding(16)
-          .backgroundColor(Color.White)
           .margin({ bottom: 8 })
 
           // 登录信息（仅登录类型显示）
-          if (this.cipherType === 1) {
+          if (this.cipherType === CipherItemType.LOGIN) {
             Column() {
               Text('登录信息')
                 .fontSize(16)
@@ -117,7 +115,6 @@ struct AddCipherPage {
               })
                 .width('100%')
                 .height(48)
-                .backgroundColor('#F5F5F5')
                 .borderRadius(8)
                 .padding({ left: 12, right: 12 })
                 .onChange((value: string) => {
@@ -131,7 +128,6 @@ struct AddCipherPage {
               })
                 .width('100%')
                 .height(48)
-                .backgroundColor('#F5F5F5')
                 .borderRadius(8)
                 .padding({ left: 12, right: 12 })
                 .type(InputType.Password)
@@ -146,7 +142,6 @@ struct AddCipherPage {
               })
                 .width('100%')
                 .height(48)
-                .backgroundColor('#F5F5F5')
                 .borderRadius(8)
                 .padding({ left: 12, right: 12 })
                 .onChange((value: string) => {
@@ -155,7 +150,6 @@ struct AddCipherPage {
             }
             .width('100%')
             .padding(16)
-            .backgroundColor(Color.White)
             .margin({ bottom: 8 })
           }
 
@@ -172,7 +166,6 @@ struct AddCipherPage {
             })
               .width('100%')
               .height(100)
-              .backgroundColor('#F5F5F5')
               .borderRadius(8)
               .padding({ left: 12, right: 12, top: 12, bottom: 12 })
               .onChange((value: string) => {
@@ -181,7 +174,6 @@ struct AddCipherPage {
           }
           .width('100%')
           .padding(16)
-          .backgroundColor(Color.White)
           .margin({ bottom: 8 })
         }
         .width('100%')
@@ -191,18 +183,17 @@ struct AddCipherPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F5F5F5')
   }
 
   private getTypeName(type: number): string {
     switch (type) {
-      case 1:
+      case CipherItemType.LOGIN:
         return '登录';
-      case 2:
+      case CipherItemType.NOTE:
         return '安全笔记';
-      case 3:
+      case CipherItemType.CARD:
         return '卡片';
-      case 4:
+      case CipherItemType.IDENTITY:
         return '身份信息';
       default:
         return '未知';
@@ -223,7 +214,7 @@ struct AddCipherPage {
     // 模拟保存
     setTimeout(() => {
       this.isSubmitting = false;
-      router.back();
+      finishPage();
     }, 1000);
   }
 } 

@@ -1,9 +1,11 @@
+import { CipherItemType } from "../utils/Constants";
+
 /**
  * 密码项（Cipher）数据模型
  */
 export interface Cipher {
   id?: string; // 密码项ID
-  type: number; // 密码项类型（1=登录，2=安全笔记，3=卡片，4=身份信息）
+  type: CipherItemType; // 密码项类型（1=登录，2=安全笔记，3=卡片，4=身份信息）
   name: string; // 名称
   favorite: boolean; // 是否收藏
   edit: boolean; // 是否可编辑
