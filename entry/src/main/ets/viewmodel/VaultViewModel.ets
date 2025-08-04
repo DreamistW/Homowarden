@@ -51,7 +51,7 @@ export class VaultViewModel {
         id: cipherData.id as string,
         type: cipherData.type as CipherItemType,
         name: cipherData.name as string,
-        favorite: (cipherData.favorite as number) === 0,
+        favorite: (cipherData.favorite as number) === 1,
         edit: (cipherData.edit as number) === 1,
         folderId: cipherData.folder_id as string || null,
         organizationId: cipherData.organization_id as string || null,
@@ -59,7 +59,7 @@ export class VaultViewModel {
         revisionDate: cipherData.revision_date as string || null,
         deletedDate: cipherData.deleted_date as string || null,
         notes: cipherData.notes as string || null,
-        reprompt: cipherData.reprompt === 0
+        reprompt: cipherData.reprompt as number
       };
 
       // 根据类型加载详细信息

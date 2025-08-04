@@ -22,4 +22,5 @@ export interface AccessTokenResponse {
   KdfIterations: number;
   KdfMemory: number;
   KdfParallelism: number;
+  TwoFactorToken: string;
 } 

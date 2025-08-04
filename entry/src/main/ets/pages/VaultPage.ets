@@ -1,6 +1,7 @@
-import { RouterPath, startPage } from '@abner/router';
+import { RouterPath, setRouterLifeCycle, startPage } from '@abner/router';
 import { EntryRouter } from '../../../../EntryRouter';
 import { Cipher } from '../model/CipherModels';
+import { common } from '@kit.AbilityKit';
 
 @RouterPath(EntryRouter.VaultPage)
 @Component
@@ -11,6 +12,11 @@ export struct VaultPage {
 
   aboutToAppear() {
     this.loadCiphers();
+    setRouterLifeCycle({
+      onWillDisappear: ()=>{
+        (this.getUIContext().getHostContext() as common.UIAbilityContext)?.terminateSelf();
+      }
+    })
   }
 
   private async loadCiphers() {

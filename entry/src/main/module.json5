@@ -23,6 +23,7 @@
         "startWindowIcon": "$media:startIcon",
         "startWindowBackground": "$color:start_window_background",
         "exported": true,
+        "removeMissionAfterTerminate": true,
         "skills": [
           {
             "entities": [
@@ -52,7 +53,7 @@
     "requestPermissions": [
       {
         "name": "ohos.permission.INTERNET"
-      }
+      },
     ]
   }
 }

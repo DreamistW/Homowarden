@@ -25,10 +25,10 @@ export default class EntryAbility extends UIAbility {
         hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
         return;
       }
-      hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
-      IBestInit(windowStage, this.context);
       DataPreferences.getInstance().init(this.context);
       DbUtil.getInstance().init(this.context, { name: 'homowarden.sql', securityLevel: 4, encrypt: true });
+      IBestInit(windowStage, this.context);
+      hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
     });
   }
 

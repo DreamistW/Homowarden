@@ -53,14 +53,15 @@ export class DeviceUtil {
    */
   static async getOrGenerateDeviceIdentifier(): Promise<string> {
     let deviceId = '';
-    await DataPreferences.getInstance().getPromise(DEVICE_ID_KEY, '').then((data: string)=>{
+    await DataPreferences.getInstance().getPromise(DEVICE_ID_KEY, '').then((data: string) => {
       deviceId = data;
     })
     if (!deviceId) {
       deviceId = DeviceUtil.generateUUID();
-      DataPreferences.getInstance().put(DEVICE_ID_KEY, deviceId, (isSuccess: boolean, error)=>{
-        if(!isSuccess)
+      DataPreferences.getInstance().put(DEVICE_ID_KEY, deviceId, (isSuccess: boolean, error) => {
+        if (!isSuccess) {
           Logger.error("Save device id failed, error message: " + error?.message);
+        }
       })
       Logger.debug(`Generated new device identifier: ${deviceId}`);
     } else {

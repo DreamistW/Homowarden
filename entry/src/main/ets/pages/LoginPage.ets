@@ -2,8 +2,9 @@ import { IBestActionSheet, IBestDialog, IBestSwitch } from '@ibestservices/ibest
 import { queryAssetSync } from '../utils/Asset';
 import { EMAIL_KEY, ServerType } from '../utils/Constants';
 import { LoginViewModel } from '../viewmodel/LoginViewModel';
-import { replacePage, RouterPath } from '@abner/router';
+import { replacePage, RouterPath, setRouterLifeCycle } from '@abner/router';
 import { EntryRouter } from '../../../../EntryRouter';
+import { common } from '@kit.AbilityKit';
 
 @RouterPath(EntryRouter.LoginPage)
 @Component
@@ -14,11 +15,17 @@ export struct LoginPage {
   @State twoFactorInputError: boolean = false;
   @State twoFactorInputHint: string = '';
   @State needToSaveEmail: boolean = false;
+  @State twoFactorRemember: boolean = false;
   serverTypeList: string[] = ["bitwarden.com", "bitwarden.eu", "Self-hosted"];
 
   aboutToAppear() {
     this.loadSaveEmail();
     this.viewModel.loadServerConfig();
+    setRouterLifeCycle({
+      onWillDisappear: ()=>{
+        (this.getUIContext().getHostContext() as common.UIAbilityContext)?.terminateSelf();
+      }
+    })
   }
 
   private loadSaveEmail() {
@@ -31,7 +38,7 @@ export struct LoginPage {
   }
 
   @Builder
-  twoFactorInputContain() {
+  twoFactorInputContent() {
     Column({ space: 20 }) {
       Text('请输入身份验证器的两步验证码')
         .margin(12)
@@ -40,6 +47,17 @@ export struct LoginPage {
           this.viewModel.twoFactorToken = value;
           this.twoFactorInputError = false;
         })
+      Row() {
+        IBestSwitch({
+          value: $twoFactorRemember,
+          onChange: () => {
+            this.viewModel.twoFactorRemember = this.twoFactorRemember;
+          }
+        })
+        Text('记住我')
+          .margin(12)
+      }
+
       if (this.twoFactorInputError) {
         Text(this.twoFactorInputHint)
           .width("100%")
@@ -166,7 +184,7 @@ export struct LoginPage {
         title: '两步验证',
         showCancelButton: true,
         closeOnClickOverlay: false,
-        defaultBuilder: (): void => this.twoFactorInputContain(),
+        defaultBuilder: (): void => this.twoFactorInputContent(),
         beforeClose: async (action) => {
           if (action === 'cancel') {
             return true;

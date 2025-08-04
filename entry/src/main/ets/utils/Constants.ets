@@ -51,6 +51,8 @@ export const MASTER_KEY = 'master_key';
 
 export const REFRESH_TOKEN_KEY = 'refresh_token';
 
+export const TWO_FACTOR_TOKEN_KEY = 'two_factor_token';
+
 export const TOKEN_EXPIRE_TIME_KEY = 'token_expire_timestamp';
 
 export const KDF_PARAM_KEY = 'kdf_param';
@@ -60,6 +62,10 @@ export const Header_Client_Name = 'web';
 export const Header_Client_Version = '2025.7.0';
 
 export const SCOPE_KEY = 'api offline_access';
+
+export const LOGIN_STATUS_KEY = 'login_status';
+
+export const PRIVACY_AGREED_KEY = 'privacy_agreed';
 
 export enum GrantType {
   PASSWORD = 'password',

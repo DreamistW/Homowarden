@@ -16,7 +16,9 @@ import {
   Header_Client_Name,
   GrantType,
   SCOPE_KEY,
-  MASTER_KEY
+  MASTER_KEY,
+  TWO_FACTOR_TOKEN_KEY,
+  LOGIN_STATUS_KEY
 } from '../utils/Constants.ets';
 import { Logger } from '@nzy/logger';
 import { Crypto } from '../utils/Crypto.ets';
@@ -44,6 +46,7 @@ export class LoginViewModel {
   successMessage: string = '';
   needTwoFactor: boolean = false;
   twoFactorToken: string = '';
+  twoFactorRemember: boolean = false;
   // 预登录信息
   kdfType: number = 0; // 0=PBKDF2, 1=Argon2id
   kdfIterations: number = 0;
@@ -206,6 +209,8 @@ export class LoginViewModel {
       // 确保设备信息已初始化
       await this.initializeAsyncDeviceInfo();
 
+      const twoFactorToken = queryAssetSync(TWO_FACTOR_TOKEN_KEY);
+
       const request: AccessTokenRequest = {
         grant_type: GrantType.PASSWORD,
         username: this.email.trim(),
@@ -214,7 +219,10 @@ export class LoginViewModel {
         client_id: Header_Client_Name,
         deviceType: this.deviceType,
         deviceIdentifier: this.deviceIdentifier,
-        deviceName: this.deviceName
+        deviceName: this.deviceName,
+        twoFactorProvider: 5,
+        twoFactorRemember: 0,
+        twoFactorToken: twoFactorToken
       };
 
       this.accessTokenResponse = await accessToken(request);
@@ -248,7 +256,7 @@ export class LoginViewModel {
         deviceName: this.deviceName,
         twoFactorToken: this.twoFactorToken,
         twoFactorProvider: 0,
-        twoFactorRemember: 0
+        twoFactorRemember: this.twoFactorRemember ? 1 : 0
       };
 
       this.accessTokenResponse = await accessToken(request);
@@ -327,6 +335,7 @@ export class LoginViewModel {
     deleteAsset(PRIVATE_KEY_2);
     deleteAsset(USER_KEY);
     deleteAsset(KDF_PARAM_KEY);
+    deleteAsset(TWO_FACTOR_TOKEN_KEY);
     // 保存新的凭据
     if (this.accessTokenResponse.access_token.length > 1000) {
       addAsset(this.createAssetModel(ACCESS_TOKEN_KEY_1, this.accessTokenResponse.access_token.substring(0, 1000)));
@@ -341,6 +350,8 @@ export class LoginViewModel {
     addAsset(this.createAssetModel(REFRESH_TOKEN_KEY, this.accessTokenResponse.refresh_token));
     let expireTime = Math.floor(Date.now() / 1000) + this.accessTokenResponse.expires_in;
     addAsset(this.createAssetModel(TOKEN_EXPIRE_TIME_KEY, expireTime.toString()));
+    if(this.accessTokenResponse.TwoFactorToken)
+      addAsset(this.createAssetModel(TWO_FACTOR_TOKEN_KEY, this.accessTokenResponse.TwoFactorToken));
 
     // 保存后续加解密的参数
     const kdfParam: PreloginResponse = {
@@ -350,6 +361,8 @@ export class LoginViewModel {
       kdfParallelism: this.accessTokenResponse.KdfParallelism
     };
     addAsset(this.createAssetModel(KDF_PARAM_KEY, JSON.stringify(kdfParam)));
+
+    DataPreferences.getInstance().putSync(LOGIN_STATUS_KEY, 1);
 
     // Logger.debug(`登录信息: \naccessToken: ${this.accessToken},\nrefreshToken: ${this.refreshToken},\nexpiresIn: ${this.tokenExpiresIn},\nserverType: ${this.serverType},\nserverAddress: ${this.serverAddress},\ndeviceType: ${this.deviceType} (${DeviceUtil.getDeviceTypeDescription(this.deviceType)}),\ndeviceIdentifier: ${this.deviceIdentifier},\ndeviceName: ${this.deviceName}`)
   }
