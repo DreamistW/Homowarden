@@ -17,7 +17,7 @@ export struct AddCipherPage {
   @State isSubmitting: boolean = false;
   pathInfos: NavPathStack = new NavPathStack();
   EditItemBtn: NavigationMenuItem = {
-    'value': '', 'icon': 'resources/base/media/icon_confirm.svg', 'action': () => {
+    'value': '', 'icon': 'resources/base/media/icon_confirm.svg', isEnabled: false, 'action': () => {
       this.saveCipher();
     }
   }

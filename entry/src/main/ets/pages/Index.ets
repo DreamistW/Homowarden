@@ -41,27 +41,9 @@ struct PrivacyDialogContent {
 @Entry
 @Component
 struct Index {
-  @Provide('pathInfos') pathInfos: NavPathStack = new NavPathStack();
+  pathInfos: NavPathStack = new NavPathStack();
   @State private showPrivacyDialog: boolean = true;
   private isLogin: boolean = false;
-
-  aboutToAppear(): void {
-    this.getLoginStatus();
-  }
-
-  onPageShow(): void {
-    this.getPrivacyStatus();
-    if (this.showPrivacyDialog) {
-      this.privacyDialogController.open();
-    } else {
-      this.getLoginStatus();
-      if (!this.isLogin) {
-        this.pathInfos.pushPath({ name: EntryRouter.LoginPage });
-      } else {
-        this.pathInfos.pushPath({ name: EntryRouter.VaultPage });
-      }
-    }
-  }
 
   onPageHide(): void {
     this.privacyDialogController.close();
@@ -113,5 +95,19 @@ struct Index {
     }
     .width('100%')
     .mode(NavigationMode.Stack)
+    .onAppear(() => {
+      this.getLoginStatus();
+      this.getPrivacyStatus();
+      if (this.showPrivacyDialog) {
+        this.privacyDialogController.open();
+      } else {
+        this.getLoginStatus();
+        if (!this.isLogin) {
+          this.pathInfos.pushPath({ name: EntryRouter.LoginPage });
+        } else {
+          this.pathInfos.pushPath({ name: EntryRouter.VaultPage });
+        }
+      }
+    })
   }
 }
