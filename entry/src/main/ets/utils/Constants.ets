@@ -84,3 +84,12 @@ export enum CipherFieldType {
   HIDE = 1,
   BOOL = 2
 }
+
+export enum DBTableName {
+  MAIN = 'ciphers',
+  LOGINS = 'cipher_logins',
+  CARDS = 'cipher_card',
+  IDENTITIES = 'cipher_identities',
+  FIELDS = 'cipher_fields',
+  NOTES = 'cipher_secure_notes'
+}

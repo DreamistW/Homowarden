@@ -5,6 +5,7 @@ import { LoginViewModel } from '../viewmodel/LoginViewModel';
 import { replacePage, RouterPath, setRouterLifeCycle } from '@abner/router';
 import { EntryRouter } from '../../../../EntryRouter';
 import { common } from '@kit.AbilityKit';
+import { PromptAction } from '@kit.ArkUI';
 
 @RouterPath(EntryRouter.LoginPage)
 @Component
@@ -17,13 +18,25 @@ export struct LoginPage {
   @State needToSaveEmail: boolean = false;
   @State twoFactorRemember: boolean = false;
   serverTypeList: string[] = ["bitwarden.com", "bitwarden.eu", "Self-hosted"];
+  private exitTime: number = 0;
 
   aboutToAppear() {
     this.loadSaveEmail();
     this.viewModel.loadServerConfig();
     setRouterLifeCycle({
-      onWillDisappear: ()=>{
-        (this.getUIContext().getHostContext() as common.UIAbilityContext)?.terminateSelf();
+      onBackPressed: () => {
+        const currentTime = new Date().getTime();
+        if (currentTime - this.exitTime < 2000) {
+          (this.getUIContext().getHostContext() as common.UIAbilityContext)?.terminateSelf();
+        } else {
+          let promptAction: PromptAction = this.getUIContext().getPromptAction();
+          this.exitTime = currentTime;
+          promptAction.showToast({
+            message: '再按一次退出',
+            duration: 2000
+          })
+        }
+        return true;
       }
     })
   }

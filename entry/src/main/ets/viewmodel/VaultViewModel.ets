@@ -1,9 +1,10 @@
 import { getAllCiphers, updateCipher } from '../network/CipherApi.ets';
 import { Cipher, CipherLogin, CipherCard, CipherIdentity, CipherSecureNote, CipherField } from '../model/CipherModels.ets';
 import { Logger } from '@nzy/logger';
-import { CipherItemType, CipherFieldType } from '../utils/Constants';
-import { queryAllData } from '../utils/DatabaseUtil';
+import { CipherItemType, CipherFieldType, DBTableName } from '../utils/Constants';
+import { queryAllData, deleteAllData, saveCipherToDatabase } from '../utils/DatabaseUtil';
 import { ValuesBucket } from '@kit.ArkData';
+import { BusinessError } from '@kit.BasicServicesKit';
 
 /**
  * 密码库ViewModel
@@ -17,6 +18,8 @@ export class VaultViewModel {
   isLoading: boolean = false;
   // 错误信息
   errorMessage: string = '';
+  // 重新登录回调
+  onReLoginRequired?: () => void;
 
   /**
    * 加载所有密码项
@@ -27,16 +30,69 @@ export class VaultViewModel {
       this.errorMessage = '';
       
       // 从数据库加载密码项
-      const ciphersData = await queryAllData('ciphers');
+      const ciphersData = await queryAllData(DBTableName.MAIN);
       this.allCiphers = await this.buildCiphersFromData(ciphersData);
       this.filteredCiphers = [...this.allCiphers];
       
       Logger.debug(`Loaded ${this.allCiphers.length} ciphers from database`);
+      
+      // 异步从服务器同步数据
+      this.syncCiphersFromServer();
     } catch (error) {
       Logger.error(`Failed to load ciphers: ${error}`);
       this.errorMessage = '加载密码项失败';
     } finally {
       this.isLoading = false;
+    }
+  }
+
+  /**
+   * 从服务器同步密码项数据
+   */
+  private async syncCiphersFromServer(): Promise<void> {
+    try {
+      Logger.debug('Starting to sync ciphers from server...');
+      
+      const response = await getAllCiphers();
+      
+      if (response && response.data && Array.isArray(response.data)) {
+        Logger.debug(`Received ${response.data.length} ciphers from server`);
+        
+        // 删除数据库中所有密码项
+        await deleteAllData(DBTableName.MAIN);
+        
+        // 将服务器数据保存到数据库
+        for (const cipher of response.data) {
+          saveCipherToDatabase(cipher);
+        }
+        
+        // 重新从数据库加载并显示
+        const ciphersData = await queryAllData(DBTableName.MAIN);
+        this.allCiphers = await this.buildCiphersFromData(ciphersData);
+        this.filteredCiphers = [...this.allCiphers];
+        
+        Logger.debug(`Successfully synced ${this.allCiphers.length} ciphers from server`);
+      }
+    } catch (error) {
+      const businessError = error as BusinessError;
+      Logger.error(`Failed to sync ciphers from server: ${businessError.message}`);
+      
+      // 检查是否是认证错误（需要重新登录）
+      if (businessError.message.includes('401') || businessError.message.includes('403')) {
+        this.errorMessage = '登录已过期，请重新登录';
+        this.handleReLoginRequired();
+      }
+      // 其他错误不处理，保持本地数据显示
+    }
+  }
+
+  /**
+   * 处理需要重新登录的情况
+   */
+  private handleReLoginRequired(): void {
+    Logger.debug('User needs to re-login');
+    if (this.onReLoginRequired) {
+      this.onReLoginRequired();
     }
   }
 
@@ -87,7 +143,7 @@ export class VaultViewModel {
    */
   private async getCipherLogin(cipherId: string): Promise<CipherLogin | null> {
     try {
-      const loginData = await queryAllData('cipher_logins');
+      const loginData = await queryAllData(DBTableName.LOGINS);
       const loginRecord = loginData.find(data => data.cipher_id === cipherId);
       
       if (loginRecord) {
@@ -110,7 +166,7 @@ export class VaultViewModel {
    */
   private async getCipherCard(cipherId: string): Promise<CipherCard | null> {
     try {
-      const cardData = await queryAllData('cipher_cards');
+      const cardData = await queryAllData(DBTableName.CARDS);
       const cardRecord = cardData.find(data => data.cipher_id === cipherId);
       
       if (cardRecord) {
@@ -134,7 +190,7 @@ export class VaultViewModel {
    */
   private async getCipherIdentity(cipherId: string): Promise<CipherIdentity | null> {
     try {
-      const identityData = await queryAllData('cipher_identities');
+      const identityData = await queryAllData(DBTableName.IDENTITIES);
       const identityRecord = identityData.find(data => data.cipher_id === cipherId);
       
       if (identityRecord) {
@@ -170,7 +226,7 @@ export class VaultViewModel {
    */
   private async getCipherSecureNote(cipherId: string): Promise<CipherSecureNote | null> {
     try {
-      const noteData = await queryAllData('cipher_secure_notes');
+      const noteData = await queryAllData(DBTableName.NOTES);
       const noteRecord = noteData.find(data => data.cipher_id === cipherId);
       
       if (noteRecord) {
@@ -189,7 +245,7 @@ export class VaultViewModel {
    */
   private async getCipherFields(cipherId: string): Promise<CipherField[]> {
     try {
-      const fieldsData = await queryAllData('cipher_fields');
+      const fieldsData = await queryAllData(DBTableName.FIELDS);
       const fields: CipherField[] = [];
       
       for (const fieldData of fieldsData) {
@@ -264,62 +320,8 @@ export class VaultViewModel {
    * @param isFavorite 是否收藏
    */
   async toggleFavorite(cipher: Cipher, isFavorite: boolean): Promise<void> {
-    // try {
-    //   const updatedCipher = { cipher, favorite: isFavorite };
-    //   await updateCipher(cipher.id!, updatedCipher);
-    //
-    //   // 更新本地数据
-    //   const index = this.allCiphers.findIndex(c => c.id === cipher.id);
-    //   if (index !== -1) {
-    //     this.allCiphers[index] = updatedCipher;
-    //   }
-    //
-    //   // 重新筛选
-    //   this.filterCiphers('all', '');
-    //
-    //   Logger.debug(`Toggled favorite for cipher ${cipher.id}: ${isFavorite}`);
-    // } catch (error) {
-    //   Logger.error(`Failed to toggle favorite: ${error}`);
-    //   this.errorMessage = '更新收藏状态失败';
-    // }
-  }
-
-  /**
-   * 获取密码项类型名称
-   * @param type 类型ID
-   */
-  getCipherTypeName(type: number): string {
-    switch (type) {
-      case CipherItemType.LOGIN:
-        return '登录';
-      case CipherItemType.NOTE:
-        return '安全笔记';
-      case CipherItemType.CARD:
-        return '卡片';
-      case CipherItemType.IDENTITY:
-        return '身份信息';
-      default:
-        return '未知';
-    }
-  }
-
-  /**
-   * 获取密码项类型图标
-   * @param type 类型ID
-   */
-  getCipherTypeIcon(type: number): string {
-    switch (type) {
-      case CipherItemType.LOGIN:
-        return 'ic_login';
-      case CipherItemType.NOTE:
-        return 'ic_note';
-      case CipherItemType.CARD:
-        return 'ic_card';
-      case CipherItemType.IDENTITY:
-        return 'ic_identity';
-      default:
-        return 'ic_unknown';
-    }
+    cipher.favorite = isFavorite;
+    updateCipher(cipher.id, cipher);
   }
 
   /**
@@ -342,7 +344,7 @@ export class VaultViewModel {
   async getCipherTypeStats(): Promise<CipherStats> {
     const stats: CipherStats = {} as CipherStats;
     try {
-      const ciphersData = await queryAllData('ciphers');
+      const ciphersData = await queryAllData(DBTableName.MAIN);
       
       for (const cipherData of ciphersData) {
         const type = cipherData.type as number;

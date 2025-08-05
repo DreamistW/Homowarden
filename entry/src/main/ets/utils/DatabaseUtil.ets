@@ -2,6 +2,8 @@ import { DbUtil } from "@abner/datastore";
 import { BusinessError } from "@kit.BasicServicesKit";
 import { Logger } from "@nzy/logger";
 import { ValuesBucket } from "@kit.ArkData";
+import { Cipher, CipherField } from "../model/CipherModels";
+import { DBTableName } from "./Constants";
 
 // 关系型数据库操作类
 
@@ -26,7 +28,7 @@ export function createTables(): void {
       reprompt INTEGER DEFAULT 0
     )
   `;
-  
+
   // 创建登录信息表
   const createLoginTable = `
     CREATE TABLE IF NOT EXISTS cipher_logins (
@@ -40,7 +42,7 @@ export function createTables(): void {
       FOREIGN KEY (cipher_id) REFERENCES ciphers(id) ON DELETE CASCADE
     )
   `;
-  
+
   // 创建卡片信息表
   const createCardTable = `
     CREATE TABLE IF NOT EXISTS cipher_cards (
@@ -55,7 +57,7 @@ export function createTables(): void {
       FOREIGN KEY (cipher_id) REFERENCES ciphers(id) ON DELETE CASCADE
     )
   `;
-  
+
   // 创建身份信息表
   const createIdentityTable = `
     CREATE TABLE IF NOT EXISTS cipher_identities (
@@ -82,7 +84,7 @@ export function createTables(): void {
       FOREIGN KEY (cipher_id) REFERENCES ciphers(id) ON DELETE CASCADE
     )
   `;
-  
+
   // 创建安全笔记表
   const createSecureNoteTable = `
     CREATE TABLE IF NOT EXISTS cipher_secure_notes (
@@ -92,7 +94,7 @@ export function createTables(): void {
       FOREIGN KEY (cipher_id) REFERENCES ciphers(id) ON DELETE CASCADE
     )
   `;
-  
+
   // 创建自定义字段表
   const createFieldsTable = `
     CREATE TABLE IF NOT EXISTS cipher_fields (
@@ -104,7 +106,7 @@ export function createTables(): void {
       FOREIGN KEY (cipher_id) REFERENCES ciphers(id) ON DELETE CASCADE
     )
   `;
-  
+
   // 执行创建表语句
   executeSql(createCiphersTable);
   executeSql(createLoginTable);
@@ -112,7 +114,7 @@ export function createTables(): void {
   executeSql(createIdentityTable);
   executeSql(createSecureNoteTable);
   executeSql(createFieldsTable);
-  
+
   Logger.debug('Database tables created successfully');
 }
 
@@ -120,17 +122,15 @@ export function createTables(): void {
  * 执行SQL语句
  * @param sql
  */
-export function executeSql(sql: string): boolean {
-  let result: boolean = false;
-  DbUtil.getInstance().executeSql(sql, (isSuccess: boolean, err?: BusinessError) => {
-    if (isSuccess) {
-      Logger.debug(`Succeeded to execute sql: ${sql}`);
-      result = true;
-    } else {
-      Logger.error(`Failed to execute sql ${sql}, error message: ${err?.message}`);
-    }
-  });
-  return result;
+export async function executeSql(sql: string): Promise<boolean> {
+  try {
+    DbUtil.getInstance().executeSql(sql);
+    return true;
+  } catch (err) {
+    const error = err as BusinessError;
+    Logger.error(`Failed to execute sql: ${sql}, error message: ${error.message}`);
+    return false;
+  }
 }
 
 /**
@@ -177,6 +177,20 @@ export function deleteData(table: string, uuid: string) {
   }
 }
 
+/**
+ * 删除表中所有数据
+ * @param table 表名
+ */
+export async function deleteAllData(table: string) {
+  const deleteSql = `DELETE FROM ${table}`;
+  const result = await executeSql(deleteSql);
+  if (result) {
+    Logger.debug(`Successfully deleted all data from table: ${table}`);
+  } else {
+    Logger.error(`Failed to delete all data from table: ${table}`);
+  }
+}
+
 
 /**
  * 查询表的所有数据
@@ -216,4 +230,115 @@ export async function querySingleData(table: string, uuid: string): Promise<Valu
     return Promise.reject(err);
   }
   return result;
+}
+
+/**
+ * 保存密码项到数据库
+ * @param cipher 密码项对象
+ */
+export function saveCipherToDatabase(cipher: Cipher) {
+  try {
+    // 保存主表数据
+    const cipherData: ValuesBucket = {
+      id: cipher.id,
+      type: cipher.type,
+      name: cipher.name,
+      favorite: cipher.favorite ? 1 : 0,
+      edit: cipher.edit ? 1 : 0,
+      folder_id: cipher.folderId || null,
+      organization_id: cipher.organizationId || null,
+      creation_date: cipher.creationDate,
+      revision_date: cipher.revisionDate || null,
+      deleted_date: cipher.deletedDate || null,
+      notes: cipher.notes || null,
+      reprompt: cipher.reprompt || 0
+    };
+    insertData(DBTableName.MAIN, cipherData);
+
+    // 保存登录信息
+    if (cipher.login && cipher.type === 1) {
+      const loginData: ValuesBucket = {
+        id: `${cipher.id}_login`,
+        cipher_id: cipher.id,
+        username: cipher.login.username || '',
+        password: cipher.login.password || '',
+        password_revision_date: cipher.login.passwordRevisionDate || null,
+        totp: cipher.login.totp || null,
+        uris: cipher.login.uris ? JSON.stringify(cipher.login.uris) : null
+      };
+      insertData(DBTableName.LOGINS, loginData);
+    }
+
+    // 保存卡片信息
+    if (cipher.card && cipher.type === 3) {
+      const cardData: ValuesBucket = {
+        id: `${cipher.id}_card`,
+        cipher_id: cipher.id,
+        cardholder_name: cipher.card.cardholderName || '',
+        brand: cipher.card.brand || '',
+        number: cipher.card.number || '',
+        exp_month: cipher.card.expMonth || '',
+        exp_year: cipher.card.expYear || '',
+        code: cipher.card.code || ''
+      };
+      insertData(DBTableName.CARDS, cardData);
+    }
+
+    // 保存身份信息
+    if (cipher.identity && cipher.type === 4) {
+      const identityData: ValuesBucket = {
+        id: `${cipher.id}_identity`,
+        cipher_id: cipher.id,
+        title: cipher.identity.title || null,
+        first_name: cipher.identity.firstName || null,
+        middle_name: cipher.identity.middleName || null,
+        last_name: cipher.identity.lastName || null,
+        address1: cipher.identity.address1 || null,
+        address2: cipher.identity.address2 || null,
+        address3: cipher.identity.address3 || null,
+        city: cipher.identity.city || null,
+        state: cipher.identity.state || null,
+        postal_code: cipher.identity.postalCode || null,
+        country: cipher.identity.country || null,
+        company: cipher.identity.company || null,
+        email: cipher.identity.email || null,
+        phone: cipher.identity.phone || null,
+        ssn: cipher.identity.ssn || null,
+        username: cipher.identity.username || null,
+        passport_number: cipher.identity.passportNumber || null,
+        license_number: cipher.identity.licenseNumber || null
+      };
+      insertData(DBTableName.IDENTITIES, identityData);
+    }
+
+    // 保存安全笔记
+    if (cipher.secureNote && cipher.type === 2) {
+      const noteData: ValuesBucket = {
+        id: `${cipher.id}_note`,
+        cipher_id: cipher.id,
+        type: cipher.secureNote.type || 0
+      };
+      insertData(DBTableName.NOTES, noteData);
+    }
+
+    // 保存自定义字段
+    if (cipher.fields && Array.isArray(cipher.fields)) {
+      for (let i = 0; i < cipher.fields.length; i++) {
+        const field = cipher.fields[i] as CipherField;
+        const fieldData: ValuesBucket = {
+          id: `${cipher.id}_field_${i}`,
+          cipher_id: cipher.id,
+          name: field.name || '',
+          value: field.value || '',
+          type: field.type || 0
+        };
+        insertData(DBTableName.FIELDS, fieldData);
+      }
+    }
+
+    Logger.debug(`Successfully saved cipher ${cipher.id} to database`);
+  } catch (err) {
+    const error = err as BusinessError;
+    Logger.error(`Failed to save cipher to database, error message: ${error.message}`);
+  }
 }

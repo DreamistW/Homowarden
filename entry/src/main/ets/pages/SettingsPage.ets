@@ -1,4 +1,4 @@
-import { finishPage, replacePage, routerClearPage, RouterPath } from '@abner/router';
+import { finishPage, replacePage, routerClearPage, RouterPath, setRouterLifeCycle } from '@abner/router';
 import { EntryRouter } from '../../../../EntryRouter';
 
 @RouterPath(EntryRouter.SettingsPage)
@@ -7,6 +7,15 @@ export struct SettingsPage {
   @State autoLockEnabled: boolean = true;
   @State biometricEnabled: boolean = false;
   @State syncEnabled: boolean = true;
+
+  aboutToAppear() {
+    setRouterLifeCycle({
+      onBackPressed: () => {
+        finishPage();
+        return true;
+      }
+    })
+  }
 
   build() {
     Column() {

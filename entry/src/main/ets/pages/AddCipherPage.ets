@@ -1,4 +1,4 @@
-import { finishPage, RouterPath } from '@abner/router';
+import { finishPage, RouterPath, setRouterLifeCycle } from '@abner/router';
 import { EntryRouter } from '../../../../EntryRouter';
 import { CipherItemType } from '../utils/Constants';
 
@@ -12,6 +12,15 @@ export struct AddCipherPage {
   @State url: string = '';
   @State notes: string = '';
   @State isSubmitting: boolean = false;
+
+  aboutToAppear() {
+    setRouterLifeCycle({
+      onBackPressed: () => {
+        finishPage();
+        return true;
+      }
+    })
+  }
 
   build() {
     Column() {

@@ -1,4 +1,4 @@
-import { finishPage, routerGetParams, RouterPath } from '@abner/router';
+import { finishPage, routerGetParams, RouterPath, setRouterLifeCycle } from '@abner/router';
 import { EntryRouter } from '../../../../EntryRouter';
 import { Cipher, CipherField } from '../model/CipherModels';
 import { CipherItemType } from '../utils/Constants';
@@ -9,6 +9,15 @@ export struct CipherDetailPage {
   @State cipher: Cipher = {} as Cipher;
   @State showPassword: boolean = false;
   @State isLoading: boolean = true;
+
+  aboutToAppear() {
+    setRouterLifeCycle({
+      onBackPressed: () => {
+        finishPage();
+        return true;
+      }
+    })
+  }
 
   onPageShow(): void {
     const params = routerGetParams();

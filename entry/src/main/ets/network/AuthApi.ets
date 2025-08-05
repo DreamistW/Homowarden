@@ -109,7 +109,12 @@ export async function refreshToken(request: RefreshTokenRequest): Promise<Refres
 
   const formBody = toFormUrlEncoded(request, fields);
 
-  return client.post('/identity/connect/token', formBody)
+  return client.post('/identity/connect/token', formBody,
+    {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      }
+    })
     .then((response: AxiosResponse<RefreshTokenResponse>) => {
       return response.data;
     })

@@ -350,8 +350,9 @@ export class LoginViewModel {
     addAsset(this.createAssetModel(REFRESH_TOKEN_KEY, this.accessTokenResponse.refresh_token));
     let expireTime = Math.floor(Date.now() / 1000) + this.accessTokenResponse.expires_in;
     addAsset(this.createAssetModel(TOKEN_EXPIRE_TIME_KEY, expireTime.toString()));
-    if(this.accessTokenResponse.TwoFactorToken)
+    if (this.accessTokenResponse.TwoFactorToken) {
       addAsset(this.createAssetModel(TWO_FACTOR_TOKEN_KEY, this.accessTokenResponse.TwoFactorToken));
+    }
 
     // 保存后续加解密的参数
     const kdfParam: PreloginResponse = {
@@ -364,7 +365,7 @@ export class LoginViewModel {
 
     DataPreferences.getInstance().putSync(LOGIN_STATUS_KEY, 1);
 
-    // Logger.debug(`登录信息: \naccessToken: ${this.accessToken},\nrefreshToken: ${this.refreshToken},\nexpiresIn: ${this.tokenExpiresIn},\nserverType: ${this.serverType},\nserverAddress: ${this.serverAddress},\ndeviceType: ${this.deviceType} (${DeviceUtil.getDeviceTypeDescription(this.deviceType)}),\ndeviceIdentifier: ${this.deviceIdentifier},\ndeviceName: ${this.deviceName}`)
+    Logger.debug(`登录信息: \naccessToken: ${this.accessTokenResponse.access_token},\nrefreshToken: ${this.accessTokenResponse.refresh_token},\nexpiresIn: ${this.accessTokenResponse.expires_in},\n`)
   }
 
   private createAssetModel(alias: string, secret: string, label?: string[]): AssetModel {

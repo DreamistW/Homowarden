@@ -21,7 +21,7 @@ export struct CipherItem {
     IBestIcon({
       name: this.cipher.favorite ? 'star' : 'star-o',
       iconSize: 20,
-      onIconClick: ()=>{
+      onIconClick: () => {
         this.onFavorite?.(!this.cipher.favorite);
       }
     })
@@ -47,9 +47,9 @@ export struct CipherItem {
       return this.cipher.login.username;
     }
     if (this.cipher.notes) {
-      return this.cipher.notes.length > 50 ? 
-        this.cipher.notes.substring(0, 50) + '...' : 
-        this.cipher.notes;
+      return this.cipher.notes.length > 50 ?
+        this.cipher.notes.substring(0, 50) + '...' :
+      this.cipher.notes;
     }
     return this.getTypeName();
   }
@@ -81,7 +81,7 @@ export struct CipherItem {
           .fontWeight(FontWeight.Medium)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
-        
+
         Text(this.getSubtitle())
           .fontSize(14)
           .fontColor('#666666')
