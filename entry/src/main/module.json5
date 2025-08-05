@@ -54,6 +54,7 @@
       {
         "name": "ohos.permission.INTERNET"
       },
-    ]
+    ],
+    "routerMap": "$profile:router_map"
   }
 }

@@ -1,28 +1,23 @@
-import { finishPage, routerGetParams, RouterPath, setRouterLifeCycle } from '@abner/router';
 import { EntryRouter } from '../../../../EntryRouter';
 import { Cipher, CipherField } from '../model/CipherModels';
 import { CipherItemType } from '../utils/Constants';
 
-@RouterPath(EntryRouter.CipherDetailPage)
+@Builder
+export function CipherDetailPageBuilder() {
+  CipherDetailPage();
+}
+
 @Component
 export struct CipherDetailPage {
   @State cipher: Cipher = {} as Cipher;
   @State showPassword: boolean = false;
   @State isLoading: boolean = true;
-
-  aboutToAppear() {
-    setRouterLifeCycle({
-      onBackPressed: () => {
-        finishPage();
-        return true;
-      }
-    })
-  }
-
-  onPageShow(): void {
-    const params = routerGetParams();
-    const cipherId: string = params as string;
-    this.loadCipherDetail(cipherId);
+  pathInfos: NavPathStack = new NavPathStack();
+  pageParam: string = '';
+  EditItemBtn: NavigationMenuItem = {
+    'value': '', 'icon': 'resources/base/media/icon_edit.svg', 'action': () => {
+      // this.pathInfos.pushPath({ name: EntryRouter.AddCipherPage });
+    }
   }
 
   private async loadCipherDetail(cipherId: string) {
@@ -58,201 +53,175 @@ export struct CipherDetailPage {
   }
 
   build() {
-    Column() {
-      // 顶部导航栏
-      Row() {
-        Button() {
-          Text('←')
-            .fontSize(20)
-        }
-        .backgroundColor(Color.Transparent)
-        .onClick(() => {
-          finishPage();
-        })
-
-        Text('密码项详情')
-          .fontSize(18)
-          .fontWeight(FontWeight.Medium)
-
-        Blank()
-
-        Button() {
-          Text('编辑')
-            .fontSize(16)
-        }
-        .backgroundColor(Color.Transparent)
-        .onClick(() => {
-          this.navigateToEdit();
-        })
-      }
-      .width('100%')
-      .padding({
-        left: 16,
-        right: 16,
-        top: 12,
-        bottom: 12
-      })
-
-      if (this.isLoading) {
-        Column() {
-          LoadingProgress()
-            .width(40)
-            .height(40)
-          Text('加载中...')
-            .fontSize(14)
-            .fontColor(Color.Gray)
-            .margin({ top: 8 })
-        }
-        .width('100%')
-        .height('100%')
-        .justifyContent(FlexAlign.Center)
-      } else if (this.cipher) {
-        Scroll() {
+    NavDestination() {
+      Column() {
+        if (this.isLoading) {
           Column() {
-            // 基本信息
+            LoadingProgress()
+              .width(40)
+              .height(40)
+            Text('加载中...')
+              .fontSize(14)
+              .fontColor(Color.Gray)
+              .margin({ top: 8 })
+          }
+          .width('100%')
+          .height('100%')
+          .justifyContent(FlexAlign.Center)
+        } else if (this.cipher) {
+          Scroll() {
             Column() {
-              Text(this.cipher.name)
-                .fontSize(24)
-                .fontWeight(FontWeight.Bold)
-                .margin({ bottom: 8 })
-
-              Text(this.getTypeName(this.cipher.type))
-                .fontSize(14)
-                .fontColor('#666666')
-            }
-            .width('100%')
-            .padding(16)
-            .margin({ bottom: 8 })
-
-            // 登录信息
-            if (this.cipher.type === CipherItemType.LOGIN) {
+              // 基本信息
               Column() {
-                Text('登录信息')
-                  .fontSize(16)
-                  .fontWeight(FontWeight.Medium)
-                  .margin({ bottom: 12 })
+                Text(this.cipher.name)
+                  .fontSize(24)
+                  .fontWeight(FontWeight.Bold)
+                  .margin({ bottom: 8 })
 
-                // 用户名
-                Row() {
-                  Text('用户名')
-                    .fontSize(14)
-                    .fontColor('#666666')
-                    .width(80)
+                Text(this.getTypeName(this.cipher.type))
+                  .fontSize(14)
+                  .fontColor('#666666')
+              }
+              .width('100%')
+              .padding(16)
+              .margin({ bottom: 8 })
 
-                  Text(this.cipher.login?.username)
-                    .fontSize(14)
-                    .layoutWeight(1)
-                }
-                .width('100%')
-                .padding({ top: 8, bottom: 8 })
+              // 登录信息
+              if (this.cipher.type === CipherItemType.LOGIN) {
+                Column() {
+                  Text('登录信息')
+                    .fontSize(16)
+                    .fontWeight(FontWeight.Medium)
+                    .margin({ bottom: 12 })
 
-                // 密码
-                Row() {
-                  Text('密码')
-                    .fontSize(14)
-                    .fontColor('#666666')
-                    .width(80)
-
-                  Text(this.showPassword ? this.cipher.login?.password : '••••••••')
-                    .fontSize(14)
-                    .layoutWeight(1)
-
-                  Button() {
-                    Text(this.showPassword ? '隐藏' : '显示')
-                      .fontSize(12)
-                  }
-                  .backgroundColor(Color.Transparent)
-                  .onClick(() => {
-                    this.showPassword = !this.showPassword;
-                  })
-                }
-                .width('100%')
-                .padding({ top: 8, bottom: 8 })
-
-                // 网址
-                if (this.cipher.login?.uris) {
+                  // 用户名
                   Row() {
-                    Text('网址')
+                    Text('用户名')
                       .fontSize(14)
                       .fontColor('#666666')
                       .width(80)
 
-                    Text(this.cipher.login.uris[0].uri)
+                    Text(this.cipher.login?.username)
                       .fontSize(14)
                       .layoutWeight(1)
-                      .fontColor('#007AFF')
                   }
                   .width('100%')
                   .padding({ top: 8, bottom: 8 })
-                }
-              }
-              .width('100%')
-              .padding(16)
-              .margin({ bottom: 8 })
-            }
 
-            // 备注
-            if (this.cipher.notes) {
+                  // 密码
+                  Row() {
+                    Text('密码')
+                      .fontSize(14)
+                      .fontColor('#666666')
+                      .width(80)
+
+                    Text(this.showPassword ? this.cipher.login?.password : '••••••••')
+                      .fontSize(14)
+                      .layoutWeight(1)
+
+                    Button() {
+                      Text(this.showPassword ? '隐藏' : '显示')
+                        .fontSize(12)
+                    }
+                    .backgroundColor(Color.Transparent)
+                    .onClick(() => {
+                      this.showPassword = !this.showPassword;
+                    })
+                  }
+                  .width('100%')
+                  .padding({ top: 8, bottom: 8 })
+
+                  // 网址
+                  if (this.cipher.login?.uris) {
+                    Row() {
+                      Text('网址')
+                        .fontSize(14)
+                        .fontColor('#666666')
+                        .width(80)
+
+                      Text(this.cipher.login.uris[0].uri)
+                        .fontSize(14)
+                        .layoutWeight(1)
+                        .fontColor('#007AFF')
+                    }
+                    .width('100%')
+                    .padding({ top: 8, bottom: 8 })
+                  }
+                }
+                .width('100%')
+                .padding(16)
+                .margin({ bottom: 8 })
+              }
+
+              // 备注
+              if (this.cipher.notes) {
+                Column() {
+                  Text('备注')
+                    .fontSize(16)
+                    .fontWeight(FontWeight.Medium)
+                    .margin({ bottom: 12 })
+
+                  Text(this.cipher.notes)
+                    .fontSize(14)
+                    .fontColor('#333333')
+                }
+                .width('100%')
+                .padding(16)
+                .margin({ bottom: 8 })
+              }
+
+              // 元数据
               Column() {
-                Text('备注')
+                Text('元数据')
                   .fontSize(16)
                   .fontWeight(FontWeight.Medium)
                   .margin({ bottom: 12 })
 
-                Text(this.cipher.notes)
-                  .fontSize(14)
-                  .fontColor('#333333')
+                Row() {
+                  Text('创建时间')
+                    .fontSize(14)
+                    .fontColor('#666666')
+                    .width(80)
+
+                  Text(this.cipher.creationDate)
+                    .fontSize(14)
+                    .layoutWeight(1)
+                }
+                .width('100%')
+                .padding({ top: 8, bottom: 8 })
+
+                Row() {
+                  Text('修改时间')
+                    .fontSize(14)
+                    .fontColor('#666666')
+                    .width(80)
+
+                  Text(this.cipher.revisionDate)
+                    .fontSize(14)
+                    .layoutWeight(1)
+                }
+                .width('100%')
+                .padding({ top: 8, bottom: 8 })
               }
               .width('100%')
               .padding(16)
               .margin({ bottom: 8 })
             }
-
-            // 元数据
-            Column() {
-              Text('元数据')
-                .fontSize(16)
-                .fontWeight(FontWeight.Medium)
-                .margin({ bottom: 12 })
-
-              Row() {
-                Text('创建时间')
-                  .fontSize(14)
-                  .fontColor('#666666')
-                  .width(80)
-
-                Text(this.cipher.creationDate)
-                  .fontSize(14)
-                  .layoutWeight(1)
-              }
-              .width('100%')
-              .padding({ top: 8, bottom: 8 })
-
-              Row() {
-                Text('修改时间')
-                  .fontSize(14)
-                  .fontColor('#666666')
-                  .width(80)
-
-                Text(this.cipher.revisionDate)
-                  .fontSize(14)
-                  .layoutWeight(1)
-              }
-              .width('100%')
-              .padding({ top: 8, bottom: 8 })
-            }
             .width('100%')
-            .padding(16)
-            .margin({ bottom: 8 })
+            .padding({ left: 16, right: 16 })
           }
-          .width('100%')
-          .padding({ left: 16, right: 16 })
+          .layoutWeight(1)
         }
-        .layoutWeight(1)
       }
+      .width('100%')
+      .height('100%')
     }
-    .width('100%')
-    .height('100%')
+    .title('详情')
+    .onReady((ctx: NavDestinationContext) => {
+      this.pathInfos = ctx.pathStack;
+      this.pageParam = ctx.pathInfo.param as string;
+    })
+    .menus([this.EditItemBtn])
   }
 
   private getTypeName(type: number): string {

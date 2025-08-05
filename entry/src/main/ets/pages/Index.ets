@@ -1,9 +1,8 @@
 import { DataPreferences } from '@abner/datastore';
-import { finishPage, replacePage, routerInitNavPathStack, routerReturnBuilder, startPage } from '@abner/router';
-import { EntryRouter } from '../../../../EntryRouter';
 import { LOGIN_STATUS_KEY, PRIVACY_AGREED_KEY } from '../utils/Constants';
 import { createTables } from '../utils/DatabaseUtil';
 import { common } from '@kit.AbilityKit';
+import { EntryRouter } from '../../../../EntryRouter';
 
 @CustomDialog
 struct PrivacyDialogContent {
@@ -42,12 +41,11 @@ struct PrivacyDialogContent {
 @Entry
 @Component
 struct Index {
-  private navPathStack: NavPathStack = new NavPathStack();
+  @Provide('pathInfos') pathInfos: NavPathStack = new NavPathStack();
   @State private showPrivacyDialog: boolean = true;
   private isLogin: boolean = false;
 
   aboutToAppear(): void {
-    routerInitNavPathStack(this.navPathStack);
     this.getLoginStatus();
   }
 
@@ -57,10 +55,10 @@ struct Index {
       this.privacyDialogController.open();
     } else {
       this.getLoginStatus();
-      if (this.isLogin) {
-        replacePage(EntryRouter.VaultPage);
+      if (!this.isLogin) {
+        this.pathInfos.pushPath({ name: EntryRouter.LoginPage });
       } else {
-        replacePage(EntryRouter.LoginPage);
+        this.pathInfos.pushPath({ name: EntryRouter.VaultPage });
       }
     }
   }
@@ -100,11 +98,6 @@ struct Index {
     }
   }
 
-  @Builder
-  routerMap(builderName: string, param: Object) {
-    routerReturnBuilder(builderName).builder(param)
-  }
-
   onPrivacyRejected() {
     (this.getUIContext().getHostContext() as common.UIAbilityContext)?.terminateSelf();
   }
@@ -112,12 +105,13 @@ struct Index {
   onPrivacyAgreed() {
     DataPreferences.getInstance().putSync(PRIVACY_AGREED_KEY, 1);
     createTables();
-    replacePage(EntryRouter.LoginPage);
+    this.pathInfos.pushPath({ name: EntryRouter.LoginPage });
   }
 
   build() {
-    Navigation(this.navPathStack) {
-
-    }.navDestination(this.routerMap)
+    Navigation(this.pathInfos) {
+    }
+    .width('100%')
+    .mode(NavigationMode.Stack)
   }
 }
