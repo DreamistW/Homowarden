@@ -16,7 +16,7 @@ export struct AddCipherPage {
   @State notes: string = '';
   @State isSubmitting: boolean = false;
   pathInfos: NavPathStack = new NavPathStack();
-  EditItemBtn: NavigationMenuItem = {
+  ConfirmBtn: NavigationMenuItem = {
     'value': '', 'icon': 'resources/base/media/icon_confirm.svg', isEnabled: false, 'action': () => {
       this.saveCipher();
     }
@@ -167,7 +167,7 @@ export struct AddCipherPage {
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
     })
-    .menus([this.EditItemBtn])
+    .menus([this.ConfirmBtn])
   }
 
   private getTypeName(type: number): string {

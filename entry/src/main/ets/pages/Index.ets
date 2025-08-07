@@ -1,8 +1,8 @@
 import { DataPreferences } from '@abner/datastore';
 import { LOGIN_STATUS_KEY, PRIVACY_AGREED_KEY } from '../utils/Constants';
-import { createTables } from '../utils/DatabaseUtil';
 import { common } from '@kit.AbilityKit';
 import { EntryRouter } from '../../../../EntryRouter';
+import { DatabaseUtil } from '../utils/DatabaseUtil';
 
 @CustomDialog
 struct PrivacyDialogContent {
@@ -86,7 +86,7 @@ struct Index {
 
   onPrivacyAgreed() {
     DataPreferences.getInstance().putSync(PRIVACY_AGREED_KEY, 1);
-    createTables();
+    DatabaseUtil.getInstance().createTable();
     this.pathInfos.pushPath({ name: EntryRouter.LoginPage });
   }
 

@@ -75,8 +75,25 @@ export async function getServerConfig(): Promise<ServerConfig> {
 // 处理表单内容
 export function toFormUrlEncoded<T extends object>(data: T, keys: (keyof T)[]): string {
   return keys
-    .map(key => encodeURIComponent(String(key)) + '=' + encodeURIComponent((data[key] as string) ?? ''))
+    .map(key => {
+      const keyStr = String(key);
+      const value = (data[key] as string) ?? '';
+      // 对键进行URL编码，对值进行表单编码
+      return keyStr + '=' + value;
+    })
     .join('&');
+}
+
+// 表单值编码函数，排除token中的符号不做处理
+function encodeFormValue(value: string): string {
+  return value.replace(/[^A-Za-z0-9\-._~=]/g, (char) => {
+    switch (char) {
+      case ' ': return '+';  // 空格编码为+
+      case '&': return '%26'; // &编码为%26
+      case '+': return '%2B'; // +编码为%2B
+      default: return encodeURIComponent(char);
+    }
+  });
 }
 
 export function encodeStringToBase64(str: string): string {

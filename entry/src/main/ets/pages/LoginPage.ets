@@ -240,6 +240,22 @@ export struct LoginPage {
 
   // 处理登录逻辑
   private async handleLogin(): Promise<void> {
+    if (this.viewModel.email.length == 0 || this.viewModel.password.length == 0) {
+      let promptAction: PromptAction = this.getUIContext().getPromptAction();
+      promptAction.showToast({
+        message: '邮箱和密码不能为空',
+        duration: 2000
+      })
+      return;
+    }
+    if (this.viewModel.serverType == ServerType.SELF_HOSTED && this.viewModel.serverAddress == undefined) {
+      let promptAction: PromptAction = this.getUIContext().getPromptAction();
+      promptAction.showToast({
+        message: '服务器地址不能为空',
+        duration: 2000
+      })
+      return;
+    }
     this.twoFactorInputError = false;
     this.viewModel.clearError();
     this.isLoading = true;

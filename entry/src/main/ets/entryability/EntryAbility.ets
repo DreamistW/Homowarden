@@ -2,7 +2,8 @@ import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.Ab
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { IBestInit } from "@ibestservices/ibest-ui"
-import { DataPreferences, DbUtil } from '@abner/datastore';
+import { DataPreferences } from '@abner/datastore';
+import { DatabaseUtil } from '../utils/DatabaseUtil';
 
 const DOMAIN = 0x0000;
 
@@ -10,6 +11,8 @@ export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
+    DataPreferences.getInstance().init(this.context);
+    DatabaseUtil.init(this.context);
   }
 
   onDestroy(): void {
@@ -25,8 +28,6 @@ export default class EntryAbility extends UIAbility {
         hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
         return;
       }
-      DataPreferences.getInstance().init(this.context);
-      DbUtil.getInstance().init(this.context, { name: 'homowarden.sql', securityLevel: 4, encrypt: true });
       IBestInit(windowStage, this.context);
       hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
     });
