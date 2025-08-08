@@ -1,25 +1,13 @@
 import { Logger } from "@nzy/logger";
 import { relationalStore } from "@kit.ArkData";
 import { Context } from "@kit.AbilityKit";
+import { BusinessError } from "@kit.BasicServicesKit";
 
 // 关系型数据库操作类
 export class DatabaseUtil {
   private static instance: DatabaseUtil;
-  private store: relationalStore.RdbStore | null = null;
-
-  private constructor(context: Context) {
-    const STORE_CONFIG: relationalStore.StoreConfig = {
-      name: "homowarden.sql",
-      securityLevel: relationalStore.SecurityLevel.S4,
-      encrypt: true
-    }
-    relationalStore.getRdbStore(context, STORE_CONFIG, async (err, store) => {
-      if (err) {
-        Logger.error(`Failed to get RdbStore, message: ${err.message}`);
-      }
-      this.store = store;
-    })
-  }
+  private static store: relationalStore.RdbStore | null = null;
+  private static initPromise: Promise<void> | null = null;
 
   public static getInstance(): DatabaseUtil {
     if (DatabaseUtil.instance == null) {
@@ -28,22 +16,38 @@ export class DatabaseUtil {
     return DatabaseUtil.instance;
   }
 
-  public static init(context: Context) {
-    if (DatabaseUtil.instance != null) {
-      return;
+  public static async init(context: Context): Promise<void> {
+    const STORE_CONFIG: relationalStore.StoreConfig = {
+      name: "homowarden.sql",
+      securityLevel: relationalStore.SecurityLevel.S4,
+      encrypt: true
     }
-    DatabaseUtil.instance = new DatabaseUtil(context);
+    if (!DatabaseUtil.initPromise) {
+      DatabaseUtil.instance = new DatabaseUtil();
+      DatabaseUtil.initPromise = new Promise((resolve, reject) => {
+        relationalStore.getRdbStore(context, STORE_CONFIG, (err, store) => {
+          if (err) {
+            reject(err);
+            Logger.error(`Failed to get RdbStore, message: ${err.message}`);
+            return;
+          }
+          DatabaseUtil.store = store;
+          resolve();
+        });
+      });
+    }
+    return DatabaseUtil.initPromise;
   }
 
   async executeSql(sql: string): Promise<boolean> {
-    return new Promise((resolve, reject)=>{
-      if (this.store != null) {
-        this.store.executeSql(sql, (err) => {
+    await DatabaseUtil.initPromise;
+    return new Promise((resolve, reject) => {
+      if (DatabaseUtil.store != null) {
+        DatabaseUtil.store.executeSql(sql, (err) => {
           if (err) {
             Logger.error(`Failed to execute sql: ${sql}, error message: ${err.message}`);
             reject(err);
           } else {
-            this.store?.commit();
             resolve(true);
           }
         })
@@ -55,16 +59,17 @@ export class DatabaseUtil {
   }
 
   async insertData(table: string, data: relationalStore.ValuesBucket): Promise<number> {
+    await DatabaseUtil.initPromise;
     return new Promise((resolve, reject) => {
-      if (this.store != null) {
-        this.store.insert(table, data, (err, rowId) => {
+      if (DatabaseUtil.store != null) {
+        DatabaseUtil.store.insert(table, data, (err, rowId) => {
           if (err) {
             Logger.error(`Insert into ${table} failed, message is ${err.message}`);
             reject(err);
             return;
           }
           Logger.debug(`Insert into ${table} successful, rowId = ${rowId}`);
-          this.store?.commit();
+          DatabaseUtil.store?.commit();
           resolve(rowId);
         })
       } else {
@@ -75,18 +80,19 @@ export class DatabaseUtil {
   }
 
   async updateData(table: string, id: string, data: relationalStore.ValuesBucket): Promise<void> {
-    return new Promise((resolve, reject)=>{
+    await DatabaseUtil.initPromise;
+    return new Promise((resolve, reject) => {
       let predicates = new relationalStore.RdbPredicates(table);
       predicates.equalTo("id", id);
-      if (this.store != null) {
-        this.store.update(data, predicates, (err, rows) => {
+      if (DatabaseUtil.store != null) {
+        DatabaseUtil.store.update(data, predicates, (err, rows) => {
           if (err) {
             Logger.error(`Update ${table} failed, message is ${err.message}`);
             reject(err);
             return;
           }
           Logger.debug(`Updated ${table}, row count: ${rows}`);
-          this.store?.commit();
+          DatabaseUtil.store?.commit();
           resolve();
         })
       } else {
@@ -96,34 +102,41 @@ export class DatabaseUtil {
     })
   }
 
-  deleteData(table: string, id: string) {
-    let predicates = new relationalStore.RdbPredicates(table);
-    predicates.equalTo("id", id);
-    if (this.store != null) {
-      this.store.delete(predicates, (err, rows) => {
-        if (err) {
-          Logger.error(`Delete from ${table} failed, message is ${err.message}`);
-          return;
-        }
-        Logger.debug(`Deleted from ${table}, row count: ${rows}`);
-        this.store?.commit();
-      })
-    } else {
-      Logger.error(`Database is undefined`);
-    }
-  }
-
-  async deleteAllData(table: string): Promise<void> {
+  async deleteData(table: string, id: string): Promise<void> {
+    await DatabaseUtil.initPromise;
     return new Promise((resolve, reject)=>{
       let predicates = new relationalStore.RdbPredicates(table);
-      if (this.store != null) {
-        this.store.delete(predicates, (err, rows) => {
+      predicates.equalTo("id", id);
+      if (DatabaseUtil.store != null) {
+        DatabaseUtil.store.delete(predicates, (err, rows) => {
           if (err) {
             Logger.error(`Delete from ${table} failed, message is ${err.message}`);
             resolve();
           }
           Logger.debug(`Deleted from ${table}, row count: ${rows}`);
-          this.store?.commit();
+          DatabaseUtil.store?.commit();
+          resolve();
+        })
+      } else {
+        Logger.error(`Database is undefined`);
+        reject(new Error(`Database is undefined`));
+      }
+    })
+
+  }
+
+  async deleteAllData(table: string): Promise<void> {
+    await DatabaseUtil.initPromise;
+    return new Promise((resolve, reject) => {
+      let predicates = new relationalStore.RdbPredicates(table);
+      if (DatabaseUtil.store != null) {
+        DatabaseUtil.store.delete(predicates, (err, rows) => {
+          if (err) {
+            Logger.error(`Delete from ${table} failed, message is ${err.message}`);
+            resolve();
+          }
+          Logger.debug(`Deleted from ${table}, row count: ${rows}`);
+          DatabaseUtil.store?.commit();
           resolve();
         })
       } else {
@@ -134,11 +147,12 @@ export class DatabaseUtil {
   }
 
   async queryAllData(table: string): Promise<relationalStore.ValuesBucket[]> {
-    return new Promise((resolve, reject)=>{
+    await DatabaseUtil.initPromise;
+    return new Promise((resolve, reject) => {
       let result: relationalStore.ValuesBucket[] = [];
       let predicates = new relationalStore.RdbPredicates(table);
-      if (this.store != null) {
-        this.store.query(predicates, async (err, resultSet) => {
+      if (DatabaseUtil.store != null) {
+        DatabaseUtil.store.query(predicates, async (err, resultSet) => {
           if (err) {
             Logger.error(`Query ${table} failed, message is ${err.message}`);
             reject(err);
@@ -158,13 +172,14 @@ export class DatabaseUtil {
     })
   }
 
-  async querySingleData(table: string, id: string): Promise<relationalStore.ValuesBucket>{
-    return new Promise((resolve, reject)=>{
+  async querySingleRow(table: string, id: string): Promise<relationalStore.ValuesBucket> {
+    await DatabaseUtil.initPromise;
+    return new Promise((resolve, reject) => {
       let result: relationalStore.ValuesBucket = {};
       let predicates = new relationalStore.RdbPredicates(table);
       predicates.equalTo("id", id);
-      if (this.store != null) {
-        this.store.query(predicates, async (err, resultSet) => {
+      if (DatabaseUtil.store != null) {
+        DatabaseUtil.store.query(predicates, async (err, resultSet) => {
           if (err) {
             Logger.error(`Query ${table} failed, message is ${err.message}`);
             reject(err);
@@ -184,7 +199,28 @@ export class DatabaseUtil {
     })
   }
 
-  createTable(){
+  querySingleData(table: string, whereColumn: string, whereValue: string,
+    needColumn: string): relationalStore.ValueType {
+    let result: relationalStore.ValueType = '';
+    try {
+      let predicates = new relationalStore.RdbPredicates(table);
+      predicates.equalTo(whereColumn, whereValue);
+      if (DatabaseUtil.store != null) {
+        const resultSet = DatabaseUtil.store.querySync(predicates, [needColumn]);
+        if (resultSet.goToNextRow()) {
+          result = resultSet.getValue(resultSet.getColumnIndex(needColumn));
+        }
+      } else {
+        Logger.error(`Database is undefined`);
+      }
+    } catch (err) {
+      const error = err as BusinessError;
+      Logger.error(`Query ${table} failed, message is ${error.message}`);
+    }
+    return result;
+  }
+
+  createTable() {
     // 创建密码项主表
     const createCiphersTable = `
     CREATE TABLE IF NOT EXISTS ciphers (

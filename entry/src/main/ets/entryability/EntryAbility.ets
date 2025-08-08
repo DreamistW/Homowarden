@@ -12,7 +12,9 @@ export default class EntryAbility extends UIAbility {
     this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
     DataPreferences.getInstance().init(this.context);
-    DatabaseUtil.init(this.context);
+    DatabaseUtil.init(this.context).then(() => {
+      hilog.info(DOMAIN, 'testTag', '%{public}s', 'Database initialized');
+    });
   }
 
   onDestroy(): void {

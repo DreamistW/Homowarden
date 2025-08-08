@@ -1,30 +1,19 @@
 import { Cipher } from '../model/CipherModels.ets';
 import { IBestIcon } from "@ibestservices/ibest-ui";
-import { CipherItemType } from '../utils/Constants';
+import { CipherItemType, DBTableName } from '../utils/Constants';
+import { DatabaseUtil } from '../utils/DatabaseUtil';
 
 @Component
 export struct CipherItem {
   cipher: Cipher = {} as Cipher;
   onTap?: () => void;
-  onFavorite?: (isFavorite: boolean) => void;
 
   @Builder
   CipherTypeIcon() {
     IBestIcon({
       name: this.getTypeIcon(),
       iconSize: 24
-    })
-  }
-
-  @Builder
-  FavoriteButton() {
-    IBestIcon({
-      name: this.cipher.favorite ? 'star' : 'star-o',
-      iconSize: 20,
-      onIconClick: () => {
-        this.onFavorite?.(!this.cipher.favorite);
-      }
-    })
+    }).margin({ right: 8 })
   }
 
   private getTypeIcon(): string {
@@ -43,10 +32,13 @@ export struct CipherItem {
   }
 
   private getSubtitle(): string {
-    if (this.cipher.login && this.cipher.login.username) {
-      return this.cipher.login.username;
-    }
-    if (this.cipher.notes) {
+    if (this.cipher.type == CipherItemType.LOGIN) {
+      const username =
+        DatabaseUtil.getInstance().querySingleData(DBTableName.LOGINS, 'cipher_id', this.cipher.id, 'username');
+      if (username != '') {
+        return username as string;
+      }
+    } else if (this.cipher.notes) {
       return this.cipher.notes.length > 50 ?
         this.cipher.notes.substring(0, 50) + '...' :
       this.cipher.notes;
@@ -91,13 +83,9 @@ export struct CipherItem {
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
-
-      // 收藏按钮
-      this.FavoriteButton()
     }
     .width('100%')
     .padding(16)
-    .backgroundColor(Color.White)
     .borderRadius(8)
     .margin({ bottom: 8 })
     .onClick(() => {

@@ -6,6 +6,7 @@ import { IBestDialog } from '@ibestservices/ibest-ui';
 import { DataPreferences } from '@abner/datastore';
 import { LOGIN_STATUS_KEY } from '../utils/Constants';
 import { PromptAction } from '@kit.ArkUI';
+import { CipherItem } from '../component/CipherItem';
 
 @Builder
 export function VaultPageBuilder() {
@@ -96,35 +97,9 @@ export struct VaultPage {
           List() {
             ForEach(this.viewModel.filteredCiphers, (cipher: Cipher) => {
               ListItem() {
-                Row() {
-                  Column() {
-                    Text(cipher.name)
-                      .fontSize(16)
-                      .fontWeight(FontWeight.Medium)
-
-                    Text(cipher.login?.username || cipher.card?.number || '')
-                      .fontSize(14)
-                      .fontColor('#666666')
-                      .margin({ top: 2 })
-                  }
-                  .layoutWeight(1)
-                  .alignItems(HorizontalAlign.Start)
-
-                  Button() {
-                    Text(cipher.favorite ? '★' : '☆')
-                      .fontSize(20)
-                  }
-                  .backgroundColor(Color.Transparent)
-                  .onClick(() => {
-                    cipher.favorite = !cipher.favorite;
-                  })
-                }
-                .width('100%')
-                .padding(16)
-                .borderRadius(8)
-                .margin({ bottom: 8 })
-                .onClick(() => {
-                  this.navigateToDetail(cipher);
+                CipherItem({
+                  cipher: cipher,
+                  onTap: ()=>{this.navigateToDetail(cipher);}
                 })
               }
             })
