@@ -28,6 +28,10 @@ export class VaultViewModel {
     try {
       this.isLoading = true;
       this.errorMessage = '';
+
+      // 启用数据库外键
+      const enableForeignKeys = `PRAGMA foreign_keys = ON`;
+      await DatabaseUtil.getInstance().executeSql(enableForeignKeys);
       
       // 从数据库加载密码项
       const ciphersData = await DatabaseUtil.getInstance().queryAllData(DBTableName.MAIN);
@@ -59,11 +63,6 @@ export class VaultViewModel {
         Logger.debug(`Received ${response.data.length} ciphers from server`);
         
         // 删除数据库中所有密码项
-        await DatabaseUtil.getInstance().deleteAllData(DBTableName.NOTES);
-        await DatabaseUtil.getInstance().deleteAllData(DBTableName.FIELDS);
-        await DatabaseUtil.getInstance().deleteAllData(DBTableName.IDENTITIES);
-        await DatabaseUtil.getInstance().deleteAllData(DBTableName.CARDS);
-        await DatabaseUtil.getInstance().deleteAllData(DBTableName.LOGINS);
         await DatabaseUtil.getInstance().deleteAllData(DBTableName.MAIN);
         
         // 将服务器数据保存到数据库
