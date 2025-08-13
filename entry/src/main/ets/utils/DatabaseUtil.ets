@@ -2,6 +2,9 @@ import { Logger } from "@nzy/logger";
 import { relationalStore } from "@kit.ArkData";
 import { Context } from "@kit.AbilityKit";
 import { BusinessError } from "@kit.BasicServicesKit";
+import { Cipher, CipherField } from "../model/CipherModels";
+import { DBTableName } from "./Constants";
+import { CipherItemType } from "./Constants";
 
 // 关系型数据库操作类
 export class DatabaseUtil {
@@ -324,5 +327,114 @@ export class DatabaseUtil {
     this.executeSql(createFieldsTable);
 
     Logger.debug('Database tables created successfully');
+  }
+
+  /**
+   * 保存密码项到数据库
+   * @param cipher 密码项对象
+   */
+  async saveCipherToDatabase(cipher: Cipher) {
+    try {
+      // 保存主表数据
+      const cipherData: relationalStore.ValuesBucket = {
+        id: cipher.id,
+        type: cipher.type,
+        name: cipher.name,
+        favorite: cipher.favorite ? 1 : 0,
+        edit: cipher.edit ? 1 : 0,
+        folder_id: cipher.folderId || null,
+        organization_id: cipher.organizationId || null,
+        creation_date: cipher.creationDate,
+        revision_date: cipher.revisionDate || null,
+        deleted_date: cipher.deletedDate || null,
+        notes: cipher.notes || null,
+        reprompt: cipher.reprompt
+      };
+      await DatabaseUtil.getInstance().insertData(DBTableName.MAIN, cipherData);
+
+      // 保存登录信息
+      if (cipher.login && cipher.type == CipherItemType.LOGIN) {
+        const loginData: relationalStore.ValuesBucket = {
+          id: `${cipher.id}_login`,
+          cipher_id: cipher.id,
+          username: cipher.login.username || '',
+          password: cipher.login.password || '',
+          password_revision_date: cipher.login.passwordRevisionDate || null,
+          totp: cipher.login.totp || null,
+          uris: cipher.login.uris ? JSON.stringify(cipher.login.uris) : null
+        };
+        await DatabaseUtil.getInstance().insertData(DBTableName.LOGINS, loginData);
+      }
+
+      // 保存卡片信息
+      if (cipher.card && cipher.type == CipherItemType.CARD) {
+        const cardData: relationalStore.ValuesBucket = {
+          id: `${cipher.id}_card`,
+          cipher_id: cipher.id,
+          cardholder_name: cipher.card.cardholderName || '',
+          brand: cipher.card.brand || '',
+          number: cipher.card.number || '',
+          exp_month: cipher.card.expMonth || '',
+          exp_year: cipher.card.expYear || '',
+          code: cipher.card.code || ''
+        };
+        await DatabaseUtil.getInstance().insertData(DBTableName.CARDS, cardData);
+      }
+
+      // 保存身份信息
+      if (cipher.identity && cipher.type == CipherItemType.IDENTITY) {
+        const identityData: relationalStore.ValuesBucket = {
+          id: `${cipher.id}_identity`,
+          cipher_id: cipher.id,
+          title: cipher.identity.title || null,
+          first_name: cipher.identity.firstName || null,
+          middle_name: cipher.identity.middleName || null,
+          last_name: cipher.identity.lastName || null,
+          address1: cipher.identity.address1 || null,
+          address2: cipher.identity.address2 || null,
+          address3: cipher.identity.address3 || null,
+          city: cipher.identity.city || null,
+          state: cipher.identity.state || null,
+          postal_code: cipher.identity.postalCode || null,
+          country: cipher.identity.country || null,
+          company: cipher.identity.company || null,
+          email: cipher.identity.email || null,
+          phone: cipher.identity.phone || null,
+          ssn: cipher.identity.ssn || null,
+          username: cipher.identity.username || null,
+          passport_number: cipher.identity.passportNumber || null,
+          license_number: cipher.identity.licenseNumber || null
+        };
+        await DatabaseUtil.getInstance().insertData(DBTableName.IDENTITIES, identityData);
+      }
+
+      // 保存安全笔记
+      if (cipher.secureNote && cipher.type == CipherItemType.NOTE) {
+        const noteData: relationalStore.ValuesBucket = {
+          id: `${cipher.id}_note`,
+          cipher_id: cipher.id,
+          type: cipher.secureNote.type || 0
+        };
+        await DatabaseUtil.getInstance().insertData(DBTableName.NOTES, noteData);
+      }
+
+      // 保存自定义字段
+      if (cipher.fields && Array.isArray(cipher.fields)) {
+        for (let i = 0; i < cipher.fields.length; i++) {
+          const field = cipher.fields[i] as CipherField;
+          const fieldData: relationalStore.ValuesBucket = {
+            id: `${cipher.id}_field_${i}`,
+            cipher_id: cipher.id,
+            name: field.name || '',
+            value: field.value || '',
+            type: field.type || 0
+          };
+          await DatabaseUtil.getInstance().insertData(DBTableName.FIELDS, fieldData);
+        }
+      }
+    } catch (err) {
+      const error = err as BusinessError;
+      Logger.error(`Failed to save cipher to database, error message: ${error.message}`);
+    }
   }
 }

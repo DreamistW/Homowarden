@@ -1,10 +1,11 @@
-import { getAllCiphers, updateCipher } from '../network/CipherApi.ets';
-import { Cipher, CipherField } from '../model/CipherModels.ets';
+import { getAllCiphers } from '../network/CipherApi.ets';
+import { Cipher } from '../model/CipherModels.ets';
 import { Logger } from '@nzy/logger';
-import { CipherItemType, DBTableName } from '../utils/Constants';
+import { CipherItemType, DBTableName, FilterType } from '../utils/Constants';
 import { relationalStore } from '@kit.ArkData';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
+import { IBestDropdownMenuOption } from '@ibestservices/ibest-ui';
 
 /**
  * 密码库ViewModel
@@ -20,6 +21,10 @@ export class VaultViewModel {
   errorMessage: string = '';
   // 重新登录回调
   onReLoginRequired?: () => void;
+  // 类型统计
+  stats: CipherStats = {} as CipherStats;
+  // 筛选菜单
+  filterOptions: IBestDropdownMenuOption[] = [];
 
   /**
    * 加载所有密码项
@@ -28,14 +33,16 @@ export class VaultViewModel {
     try {
       this.isLoading = true;
       this.errorMessage = '';
-      
+
       // 从数据库加载密码项
       const ciphersData = await DatabaseUtil.getInstance().queryAllData(DBTableName.MAIN);
       this.allCiphers = await this.buildCiphersFromData(ciphersData);
-      this.filteredCiphers = [...this.allCiphers];
-      
+      this.filteredCiphers = this.allCiphers.filter(cipher => cipher.deletedDate == null);
+      this.stats = await this.getCipherTypeStats();
+      this.buildFilterOptions();
+
       Logger.debug(`Loaded ${this.allCiphers.length} ciphers from database`);
-      
+
       // 异步从服务器同步数据
       this.syncCiphersFromServer();
     } catch (error) {
@@ -52,35 +59,36 @@ export class VaultViewModel {
   private async syncCiphersFromServer(): Promise<void> {
     try {
       Logger.debug('Starting to sync ciphers from server...');
-      
+
       const response = await getAllCiphers();
-      
+
       if (response && response.data && Array.isArray(response.data)) {
         Logger.debug(`Received ${response.data.length} ciphers from server`);
 
         // 启用数据库外键
         const enableForeignKeys = `PRAGMA foreign_keys = ON`;
         await DatabaseUtil.getInstance().executeSql(enableForeignKeys);
-        
+
         // 删除数据库中所有密码项
         await DatabaseUtil.getInstance().deleteAllData(DBTableName.MAIN);
-        
+
         // 将服务器数据保存到数据库
         for (const cipher of response.data) {
-          await this.saveCipherToDatabase(cipher);
+          await DatabaseUtil.getInstance().saveCipherToDatabase(cipher);
         }
-        
+
         // 重新从数据库加载并显示
         const ciphersData = await DatabaseUtil.getInstance().queryAllData(DBTableName.MAIN);
         this.allCiphers = await this.buildCiphersFromData(ciphersData);
-        this.filteredCiphers = [...this.allCiphers];
-        
+        this.filteredCiphers = this.allCiphers.filter(cipher => cipher.deletedDate == null);
+        this.stats = await this.getCipherTypeStats();
+
         Logger.debug(`Successfully synced ${this.allCiphers.length} ciphers from server`);
       }
     } catch (error) {
       const businessError = error as BusinessError;
       Logger.error(`Failed to sync ciphers from server: ${businessError.message}`);
-      
+
       // 检查是否是认证错误（需要重新登录）
       if (businessError.message.includes('401') || businessError.message.includes('403')) {
         this.errorMessage = '登录已过期，请重新登录';
@@ -105,7 +113,7 @@ export class VaultViewModel {
    */
   private async buildCiphersFromData(ciphersData: relationalStore.ValuesBucket[]): Promise<Cipher[]> {
     const ciphers: Cipher[] = [];
-    
+
     for (const cipherData of ciphersData) {
       const cipher: Cipher = {
         id: cipherData.id as string,
@@ -138,29 +146,42 @@ export class VaultViewModel {
 
       ciphers.push(cipher);
     }
-    
+
     return ciphers;
   }
 
   /**
    * 筛选密码项
-   * @param filterType 筛选类型：all, favorites, folders
+   * @param type 筛选类型：all, favorites, folders
    * @param searchText 搜索文本
    */
-  filterCiphers(filterType: string, searchText: string): void {
+  filterCiphers(type: FilterType | string, searchText: string): void {
     let filtered = [...this.allCiphers];
 
     // 按类型筛选
-    switch (filterType) {
-      case 'favorites':
-        filtered = filtered.filter(cipher => cipher.favorite);
+    switch (type) {
+      case FilterType.ALL:
+        filtered = filtered.filter(cipher => cipher.deletedDate == null);
         break;
-      case 'folders':
-        filtered = filtered.filter(cipher => cipher.folderId !== null);
+      case FilterType.LOGINS:
+        filtered = filtered.filter(cipher => cipher.type == CipherItemType.LOGIN && cipher.deletedDate == null);
         break;
-      case 'all':
+      case FilterType.NOTES:
+        filtered = filtered.filter(cipher => cipher.type == CipherItemType.NOTE && cipher.deletedDate == null);
+        break;
+      case FilterType.CARDS:
+        filtered = filtered.filter(cipher => cipher.type == CipherItemType.CARD && cipher.deletedDate == null);
+        break;
+      case FilterType.IDENTITIES:
+        filtered = filtered.filter(cipher => cipher.type == CipherItemType.IDENTITY && cipher.deletedDate == null);
+        break;
+      case FilterType.FAVORITE:
+        filtered = filtered.filter(cipher => cipher.favorite && cipher.deletedDate == null);
+        break;
+      case FilterType.DELETED:
+        filtered = filtered.filter(cipher => cipher.deletedDate != null);
+        break;
       default:
-        // 不筛选
         break;
     }
 
@@ -172,40 +193,23 @@ export class VaultViewModel {
         if (cipher.name.toLowerCase().includes(searchLower)) {
           return true;
         }
-        
+
         // 搜索用户名（如果是登录类型）
-        if (cipher.login && cipher.login.username && 
-            cipher.login.username.toLowerCase().includes(searchLower)) {
+        if (cipher.login && cipher.login.username &&
+        cipher.login.username.toLowerCase().includes(searchLower)) {
           return true;
         }
-        
+
         // 搜索备注
         if (cipher.notes && cipher.notes.toLowerCase().includes(searchLower)) {
           return true;
         }
-        
+
         return false;
       });
     }
 
     this.filteredCiphers = filtered;
-  }
-
-  /**
-   * 切换收藏状态
-   * @param cipher 密码项
-   * @param isFavorite 是否收藏
-   */
-  async toggleFavorite(cipher: Cipher, isFavorite: boolean): Promise<void> {
-    cipher.favorite = isFavorite;
-    updateCipher(cipher.id, cipher);
-  }
-
-  /**
-   * 清除错误信息
-   */
-  clearError(): void {
-    this.errorMessage = '';
   }
 
   /**
@@ -222,17 +226,22 @@ export class VaultViewModel {
     const stats: CipherStats = {} as CipherStats;
     try {
       const ciphersData = await DatabaseUtil.getInstance().queryAllData(DBTableName.MAIN);
-      
+
       for (const cipherData of ciphersData) {
         const type = cipherData.type as number;
         const favorite = cipherData.favorite as number;
-        
+        const deleted = cipherData.deletedDate;
+
         stats.total++;
-        
+
         if (favorite === 1) {
           stats.favorite++;
         }
-        
+
+        if (deleted != null) {
+          stats.deleted++;
+        }
+
         switch (type) {
           case CipherItemType.LOGIN:
             stats.login++;
@@ -248,7 +257,7 @@ export class VaultViewModel {
             break;
         }
       }
-      
+
       Logger.debug(`Cipher stats: ${JSON.stringify(stats)}`);
     } catch (error) {
       Logger.error(`Failed to get cipher stats: ${error}`);
@@ -257,117 +266,22 @@ export class VaultViewModel {
     return stats;
   }
 
-  /**
-   * 保存密码项到数据库
-   * @param cipher 密码项对象
-   */
-  async saveCipherToDatabase(cipher: Cipher) {
-    try {
-      // 保存主表数据
-      const cipherData: relationalStore.ValuesBucket = {
-        id: cipher.id,
-        type: cipher.type,
-        name: cipher.name,
-        favorite: cipher.favorite ? 1 : 0,
-        edit: cipher.edit ? 1 : 0,
-        folder_id: cipher.folderId || null,
-        organization_id: cipher.organizationId || null,
-        creation_date: cipher.creationDate,
-        revision_date: cipher.revisionDate || null,
-        deleted_date: cipher.deletedDate || null,
-        notes: cipher.notes || null,
-        reprompt: cipher.reprompt
-      };
-      await DatabaseUtil.getInstance().insertData(DBTableName.MAIN, cipherData);
-
-      // 保存登录信息
-      if (cipher.login && cipher.type == CipherItemType.LOGIN) {
-        const loginData: relationalStore.ValuesBucket = {
-          id: `${cipher.id}_login`,
-          cipher_id: cipher.id,
-          username: cipher.login.username || '',
-          password: cipher.login.password || '',
-          password_revision_date: cipher.login.passwordRevisionDate || null,
-          totp: cipher.login.totp || null,
-          uris: cipher.login.uris ? JSON.stringify(cipher.login.uris) : null
-        };
-        await DatabaseUtil.getInstance().insertData(DBTableName.LOGINS, loginData);
-      }
-
-      // 保存卡片信息
-      if (cipher.card && cipher.type == CipherItemType.CARD) {
-        const cardData: relationalStore.ValuesBucket = {
-          id: `${cipher.id}_card`,
-          cipher_id: cipher.id,
-          cardholder_name: cipher.card.cardholderName || '',
-          brand: cipher.card.brand || '',
-          number: cipher.card.number || '',
-          exp_month: cipher.card.expMonth || '',
-          exp_year: cipher.card.expYear || '',
-          code: cipher.card.code || ''
-        };
-        await DatabaseUtil.getInstance().insertData(DBTableName.CARDS, cardData);
-      }
-
-      // 保存身份信息
-      if (cipher.identity && cipher.type == CipherItemType.IDENTITY) {
-        const identityData: relationalStore.ValuesBucket = {
-          id: `${cipher.id}_identity`,
-          cipher_id: cipher.id,
-          title: cipher.identity.title || null,
-          first_name: cipher.identity.firstName || null,
-          middle_name: cipher.identity.middleName || null,
-          last_name: cipher.identity.lastName || null,
-          address1: cipher.identity.address1 || null,
-          address2: cipher.identity.address2 || null,
-          address3: cipher.identity.address3 || null,
-          city: cipher.identity.city || null,
-          state: cipher.identity.state || null,
-          postal_code: cipher.identity.postalCode || null,
-          country: cipher.identity.country || null,
-          company: cipher.identity.company || null,
-          email: cipher.identity.email || null,
-          phone: cipher.identity.phone || null,
-          ssn: cipher.identity.ssn || null,
-          username: cipher.identity.username || null,
-          passport_number: cipher.identity.passportNumber || null,
-          license_number: cipher.identity.licenseNumber || null
-        };
-        await DatabaseUtil.getInstance().insertData(DBTableName.IDENTITIES, identityData);
-      }
-
-      // 保存安全笔记
-      if (cipher.secureNote && cipher.type == CipherItemType.NOTE) {
-        const noteData: relationalStore.ValuesBucket = {
-          id: `${cipher.id}_note`,
-          cipher_id: cipher.id,
-          type: cipher.secureNote.type || 0
-        };
-        await DatabaseUtil.getInstance().insertData(DBTableName.NOTES, noteData);
-      }
-
-      // 保存自定义字段
-      if (cipher.fields && Array.isArray(cipher.fields)) {
-        for (let i = 0; i < cipher.fields.length; i++) {
-          const field = cipher.fields[i] as CipherField;
-          const fieldData: relationalStore.ValuesBucket = {
-            id: `${cipher.id}_field_${i}`,
-            cipher_id: cipher.id,
-            name: field.name || '',
-            value: field.value || '',
-            type: field.type || 0
-          };
-          await DatabaseUtil.getInstance().insertData(DBTableName.FIELDS, fieldData);
-        }
-      }
-    } catch (err) {
-      const error = err as BusinessError;
-      Logger.error(`Failed to save cipher to database, error message: ${error.message}`);
-    }
+  // 构建筛选选项
+  buildFilterOptions() {
+    this.filterOptions = [];
+    // 基础类型，包括全部、登录项、安全笔记、卡片、联系人、收藏、回收站
+    this.filterOptions.push({ text: '全部', value: FilterType.ALL });
+    this.filterOptions.push({ text: '登录项', value: FilterType.LOGINS });
+    this.filterOptions.push({ text: '笔记', value: FilterType.NOTES });
+    this.filterOptions.push({ text: '卡片', value: FilterType.CARDS });
+    this.filterOptions.push({ text: '联系人', value: FilterType.IDENTITIES });
+    this.filterOptions.push({ text: '收藏', value: FilterType.FAVORITE });
+    this.filterOptions.push({ text: '回收站', value: FilterType.DELETED });
+    // TODO: 添加文件夹筛选
   }
 }
 
-interface CipherStats{
+export interface CipherStats {
   total: number,
   login: number,
   note: number,

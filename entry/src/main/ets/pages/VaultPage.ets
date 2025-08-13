@@ -2,9 +2,9 @@ import { EntryRouter } from '../../../../EntryRouter';
 import { Cipher } from '../model/CipherModels';
 import { VaultViewModel } from '../viewmodel/VaultViewModel';
 import { common } from '@kit.AbilityKit';
-import { IBestDialog } from '@ibestservices/ibest-ui';
+import { IBestDialog, IBestDropdownItem, IBestDropdownMenu, IBestDropdownMenuOption } from '@ibestservices/ibest-ui';
 import { DataPreferences } from '@abner/datastore';
-import { LOGIN_STATUS_KEY } from '../utils/Constants';
+import { FilterType, LOGIN_STATUS_KEY } from '../utils/Constants';
 import { PromptAction } from '@kit.ArkUI';
 import { CipherItem } from '../component/CipherItem';
 
@@ -18,6 +18,7 @@ export struct VaultPage {
   @State viewModel: VaultViewModel = new VaultViewModel();
   @State searchText: string = '';
   @State needReLogin: boolean = false;
+  @State selectedType: FilterType | string = 0;
   private exitTime: number = 0;
   pathInfos: NavPathStack = new NavPathStack();
   AddItemBtn: NavigationMenuItem = {
@@ -30,6 +31,7 @@ export struct VaultPage {
       this.pathInfos.pushPath({ name: EntryRouter.SettingsPage });
     }
   }
+  groupId: string = 'filter_menu';
 
   aboutToAppear() {
     this.loadCiphers();
@@ -47,7 +49,7 @@ export struct VaultPage {
   @Builder
   reLoginDialogContent() {
     Column() {
-      Text('需要重新登录才能使用')
+      Text(this.viewModel.errorMessage)
         .margin(12)
     }
   }
@@ -57,6 +59,20 @@ export struct VaultPage {
       Column() {
         // 搜索栏
         Row() {
+          Column() {
+            IBestDropdownMenu({ groupId: this.groupId }) {
+              IBestDropdownItem({
+                groupId: this.groupId,
+                options: this.viewModel.filterOptions,
+                value: this.selectedType,
+                onChange: value => {
+                  this.viewModel.filterCiphers(value, this.searchText);
+                  this.selectedType = value;
+                }
+              })
+            }
+          }.width('30%')
+
           TextInput({
             placeholder: '搜索密码项...',
             text: this.searchText
@@ -66,6 +82,8 @@ export struct VaultPage {
               this.searchText = value;
               this.viewModel.filterCiphers('all', value);
             })
+            .width('70%')
+            .borderRadius(0)
         }
         .width('100%')
         .padding({ left: 16, right: 16, bottom: 8 })
@@ -99,7 +117,9 @@ export struct VaultPage {
               ListItem() {
                 CipherItem({
                   cipher: cipher,
-                  onTap: ()=>{this.navigateToDetail(cipher);}
+                  onTap: () => {
+                    this.navigateToDetail(cipher);
+                  }
                 })
               }
             })

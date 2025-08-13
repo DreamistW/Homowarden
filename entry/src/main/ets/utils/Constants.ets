@@ -93,3 +93,13 @@ export enum DBTableName {
   FIELDS = 'cipher_fields',
   NOTES = 'cipher_secure_notes'
 }
+
+export enum FilterType{
+  ALL = 0,
+  LOGINS = 1,
+  NOTES = 2,
+  CARDS = 3,
+  IDENTITIES = 4,
+  FAVORITE = 5,
+  DELETED = 6
+}

@@ -19,13 +19,13 @@ export struct CipherItem {
   private getTypeIcon(): string {
     switch (this.cipher.type) {
       case CipherItemType.LOGIN:
-        return 'contact-o';
+        return 'sign';
       case CipherItemType.NOTE:
         return 'notes-o';
       case CipherItemType.CARD:
         return 'credit-pay';
       case CipherItemType.IDENTITY:
-        return 'idcard';
+        return 'friends-o';
       default:
         return 'cross';
     }

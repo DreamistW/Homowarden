@@ -6,7 +6,7 @@
     "@ohos/crypto-js": "^2.0.4",
     "@ohos/axios": "^2.2.6",
     "@nzy/logger": "^1.0.7",
-    "@ibestservices/ibest-ui": "^2.1.2",
+    "@ibestservices/ibest-ui": "^2.1.4",
     "@abner/datastore": "^1.0.6",
   },
   "devDependencies": {
