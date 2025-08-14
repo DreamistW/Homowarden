@@ -12,8 +12,8 @@ export interface Cipher {
   folderId?: string | null; // 文件夹ID
   organizationId?: string | null; // 组织ID
   creationDate: string; // 创建时间
-  revisionDate?: string | null; // 最后修改时间
-  deletedDate?: string | null; // 删除时间
+  revisionDate: string; // 最后修改时间
+  deletedDate: string | null; // 删除时间
   notes?: string | null; // 备注
   login?: CipherLogin | null; // 登录信息（type=1时）
   card?: CipherCard | null; // 卡片信息（type=3时）

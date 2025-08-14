@@ -33,18 +33,8 @@ export class VaultViewModel {
     try {
       this.isLoading = true;
       this.errorMessage = '';
-
-      // 从数据库加载密码项
-      const ciphersData = await DatabaseUtil.getInstance().queryAllData(DBTableName.MAIN);
-      this.allCiphers = await this.buildCiphersFromData(ciphersData);
-      this.filteredCiphers = this.allCiphers.filter(cipher => cipher.deletedDate == null);
-      this.stats = await this.getCipherTypeStats();
-      this.buildFilterOptions();
-
-      Logger.debug(`Loaded ${this.allCiphers.length} ciphers from database`);
-
-      // 异步从服务器同步数据
-      this.syncCiphersFromServer();
+      // 从服务器同步数据
+      await this.syncCiphersFromServer();
     } catch (error) {
       Logger.error(`Failed to load ciphers: ${error}`);
       this.errorMessage = '加载密码项失败';
@@ -76,14 +66,6 @@ export class VaultViewModel {
         for (const cipher of response.data) {
           await DatabaseUtil.getInstance().saveCipherToDatabase(cipher);
         }
-
-        // 重新从数据库加载并显示
-        const ciphersData = await DatabaseUtil.getInstance().queryAllData(DBTableName.MAIN);
-        this.allCiphers = await this.buildCiphersFromData(ciphersData);
-        this.filteredCiphers = this.allCiphers.filter(cipher => cipher.deletedDate == null);
-        this.stats = await this.getCipherTypeStats();
-
-        Logger.debug(`Successfully synced ${this.allCiphers.length} ciphers from server`);
       }
     } catch (error) {
       const businessError = error as BusinessError;
@@ -94,7 +76,15 @@ export class VaultViewModel {
         this.errorMessage = '登录已过期，请重新登录';
         this.handleReLoginRequired();
       }
-      // 其他错误不处理，保持本地数据显示
+    } finally {
+      // 从数据库加载并显示
+      const ciphersData = await DatabaseUtil.getInstance().queryAllData(DBTableName.MAIN);
+      this.allCiphers = await this.buildCiphersFromData(ciphersData);
+      this.filteredCiphers = this.allCiphers.filter(cipher => cipher.deletedDate == null);
+      this.stats = await this.getCipherTypeStats();
+      this.buildFilterOptions();
+
+      Logger.debug(`Successfully synced ${this.allCiphers.length} ciphers from server`);
     }
   }
 
@@ -124,26 +114,17 @@ export class VaultViewModel {
         folderId: cipherData.folder_id as string || null,
         organizationId: cipherData.organization_id as string || null,
         creationDate: cipherData.creation_date as string,
-        revisionDate: cipherData.revision_date as string || null,
+        revisionDate: cipherData.revision_date as string,
         deletedDate: cipherData.deleted_date as string || null,
         notes: cipherData.notes as string || null,
         reprompt: cipherData.reprompt as number
       };
-
-      // 根据类型加载详细信息
-      // if (cipher.type === CipherItemType.LOGIN) {
-      //   cipher.login = await this.getCipherLogin(cipher.id!);
-      // } else if (cipher.type === CipherItemType.CARD) {
-      //   cipher.card = await this.getCipherCard(cipher.id!);
-      // } else if (cipher.type === CipherItemType.IDENTITY) {
-      //   cipher.identity = await this.getCipherIdentity(cipher.id!);
-      // } else if (cipher.type === CipherItemType.NOTE) {
-      //   cipher.secureNote = await this.getCipherSecureNote(cipher.id!);
-      // }
-      //
-      // // 加载自定义字段
-      // cipher.fields = await this.getCipherFields(cipher.id!);
-
+      // 格式化日期时间
+      cipher.creationDate = this.formatDateTime(cipher.creationDate);
+      cipher.revisionDate = this.formatDateTime(cipher.revisionDate);
+      if (cipher.deletedDate != null) {
+        cipher.deletedDate = this.formatDateTime(cipher.deletedDate);
+      }
       ciphers.push(cipher);
     }
 
@@ -223,38 +204,41 @@ export class VaultViewModel {
    * 获取各类型密码项数量统计
    */
   async getCipherTypeStats(): Promise<CipherStats> {
-    const stats: CipherStats = {} as CipherStats;
+    let stats: CipherStats = {
+      total: 0,
+      login: 0,
+      note: 0,
+      card: 0,
+      identity: 0,
+      favorite: 0,
+      deleted: 0
+    };
     try {
       const ciphersData = await DatabaseUtil.getInstance().queryAllData(DBTableName.MAIN);
 
       for (const cipherData of ciphersData) {
-        const type = cipherData.type as number;
-        const favorite = cipherData.favorite as number;
-        const deleted = cipherData.deletedDate;
-
-        stats.total++;
-
-        if (favorite === 1) {
+        if (cipherData.favorite as number === 1) {
           stats.favorite++;
         }
 
-        if (deleted != null) {
+        if (cipherData.deleted_date != null) {
           stats.deleted++;
-        }
-
-        switch (type) {
-          case CipherItemType.LOGIN:
-            stats.login++;
-            break;
-          case CipherItemType.NOTE:
-            stats.note++;
-            break;
-          case CipherItemType.CARD:
-            stats.card++;
-            break;
-          case CipherItemType.IDENTITY:
-            stats.identity++;
-            break;
+        } else {
+          stats.total++;
+          switch (cipherData.type as number) {
+            case CipherItemType.LOGIN:
+              stats.login++;
+              break;
+            case CipherItemType.NOTE:
+              stats.note++;
+              break;
+            case CipherItemType.CARD:
+              stats.card++;
+              break;
+            case CipherItemType.IDENTITY:
+              stats.identity++;
+              break;
+          }
         }
       }
 
@@ -270,14 +254,29 @@ export class VaultViewModel {
   buildFilterOptions() {
     this.filterOptions = [];
     // 基础类型，包括全部、登录项、安全笔记、卡片、联系人、收藏、回收站
-    this.filterOptions.push({ text: '全部', value: FilterType.ALL });
-    this.filterOptions.push({ text: '登录项', value: FilterType.LOGINS });
-    this.filterOptions.push({ text: '笔记', value: FilterType.NOTES });
-    this.filterOptions.push({ text: '卡片', value: FilterType.CARDS });
-    this.filterOptions.push({ text: '联系人', value: FilterType.IDENTITIES });
-    this.filterOptions.push({ text: '收藏', value: FilterType.FAVORITE });
-    this.filterOptions.push({ text: '回收站', value: FilterType.DELETED });
+    this.filterOptions.push({ text: '全部(' + this.stats.total + ')', value: FilterType.ALL });
+    this.filterOptions.push({ text: '登录项(' + this.stats.login + ')', value: FilterType.LOGINS });
+    this.filterOptions.push({ text: '笔记(' + this.stats.note + ')', value: FilterType.NOTES });
+    this.filterOptions.push({ text: '卡片(' + this.stats.card + ')', value: FilterType.CARDS });
+    this.filterOptions.push({ text: '联系人(' + this.stats.identity + ')', value: FilterType.IDENTITIES });
+    this.filterOptions.push({ text: '收藏(' + this.stats.favorite + ')', value: FilterType.FAVORITE });
+    this.filterOptions.push({ text: '回收站(' + this.stats.deleted + ')', value: FilterType.DELETED });
     // TODO: 添加文件夹筛选
+  }
+
+  // 格式化日期时间
+  private formatDateTime(dateStr: string): string {
+    if (!dateStr) {
+      return '---';
+    }
+    const date = new Date(dateStr);
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
   }
 }
 

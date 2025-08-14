@@ -1,9 +1,34 @@
 import { Logger } from "@nzy/logger";
-import { CipherCard, CipherField, CipherIdentity, CipherLogin, CipherSecureNote } from "../model/CipherModels";
+import { Cipher, CipherCard, CipherField, CipherIdentity, CipherLogin, CipherSecureNote } from "../model/CipherModels";
 import { CipherFieldType, DBTableName } from "../utils/Constants";
 import { DatabaseUtil } from "../utils/DatabaseUtil";
 
 export class CipherDetailViewModel {
+  /**
+   * 获取完整的密码项详情
+   */
+  async getCipherDetail(cipher: Cipher): Promise<Cipher> {
+    // 根据类型获取详细信息
+    switch (cipher.type) {
+      case 1: // LOGIN
+        cipher.login = await this.getCipherLogin(cipher.id);
+        break;
+      case 2: // NOTE
+        cipher.secureNote = await this.getCipherSecureNote(cipher.id);
+        break;
+      case 3: // CARD
+        cipher.card = await this.getCipherCard(cipher.id);
+        break;
+      case 4: // IDENTITY
+        cipher.identity = await this.getCipherIdentity(cipher.id);
+        break;
+    }
+
+    // 获取自定义字段
+    cipher.fields = await this.getCipherFields(cipher.id);
+    return cipher;
+  }
+
   /**
    * 获取登录信息
    */

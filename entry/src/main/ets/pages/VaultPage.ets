@@ -169,6 +169,6 @@ export struct VaultPage {
   }
 
   private navigateToDetail(cipher: Cipher) {
-    this.pathInfos.pushPath({ name: EntryRouter.CipherDetailPage, param: cipher.id });
+    this.pathInfos.pushPath({ name: EntryRouter.CipherDetailPage, param: cipher });
   }
 } 

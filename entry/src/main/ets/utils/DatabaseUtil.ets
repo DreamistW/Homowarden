@@ -107,7 +107,7 @@ export class DatabaseUtil {
 
   async deleteData(table: string, id: string): Promise<void> {
     await DatabaseUtil.initPromise;
-    return new Promise((resolve, reject)=>{
+    return new Promise((resolve, reject) => {
       let predicates = new relationalStore.RdbPredicates(table);
       predicates.equalTo("id", id);
       if (DatabaseUtil.store != null) {
@@ -345,7 +345,7 @@ export class DatabaseUtil {
         folder_id: cipher.folderId || null,
         organization_id: cipher.organizationId || null,
         creation_date: cipher.creationDate,
-        revision_date: cipher.revisionDate || null,
+        revision_date: cipher.revisionDate,
         deleted_date: cipher.deletedDate || null,
         notes: cipher.notes || null,
         reprompt: cipher.reprompt
