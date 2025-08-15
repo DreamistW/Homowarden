@@ -1,8 +1,7 @@
 import { Cipher, CipherField, CipherUri } from '../model/CipherModels';
-import { CipherItemType, CipherFieldType } from '../utils/Constants';
+import { CipherFieldType, CipherItemType } from '../utils/Constants';
 import { CipherDetailViewModel } from '../viewmodel/CipherDetailViewModel';
-import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
-import { Logger } from '@nzy/logger';
+import { CipherDetailTextItem } from '../component/CipherDetailTextItem';
 
 @Builder
 export function CipherDetailPageBuilder() {
@@ -103,7 +102,7 @@ export struct CipherDetailPage {
 
                   Text(this.cipher.notes)
                     .fontSize(14)
-                    .fontColor('#333333')
+                    .fontColor('#666666')
                 }
                 .width('100%')
                 .padding(16)
@@ -181,112 +180,32 @@ export struct CipherDetailPage {
         .margin({ bottom: 12 })
 
       // 用户名
-      Row() {
-        Text('用户名')
-          .fontSize(14)
-          .fontColor('#666666')
-          .width(80)
-
-        Text(this.cipher.login?.username || '')
-          .fontSize(14)
-          .layoutWeight(1)
-
-        Button() {
-          Text('复制')
-            .fontSize(12)
-        }
-        .backgroundColor(Color.Transparent)
-        .onClick(() => {
-          this.copyText(this.cipher.login?.username);
-        })
-      }
-      .width('100%')
-      .padding({ top: 8, bottom: 8 })
+      CipherDetailTextItem({
+        label: '用户名',
+        content: this.cipher.login?.username,
+      })
 
       // 密码
-      Row() {
-        Text('密码')
-          .fontSize(14)
-          .fontColor('#666666')
-          .width(80)
-
-        Text(this.showPassword ? (this.cipher.login?.password || '') : '••••••••')
-          .fontSize(14)
-          .layoutWeight(1)
-
-        Button() {
-          Text(this.showPassword ? '隐藏' : '显示')
-            .fontSize(12)
-        }
-        .backgroundColor(Color.Transparent)
-        .onClick(() => {
-          this.showPassword = !this.showPassword;
-        })
-        .margin({right: 8})
-
-        Button() {
-          Text('复制')
-            .fontSize(12)
-        }
-        .backgroundColor(Color.Transparent)
-        .onClick(() => {
-          this.copyText(this.cipher.login?.password);
-        })
-      }
-      .width('100%')
-      .padding({ top: 8, bottom: 8 })
+      CipherDetailTextItem({
+        label: '密码',
+        content: this.cipher.login?.password,
+        showContent: this.showPassword,
+        showHideButton: true,
+      })
 
       // 网址
       if (this.cipher.login?.uris && this.cipher.login.uris.length > 0) {
         ForEach(this.cipher.login.uris as CipherUri[], (uri: CipherUri) => {
-          Row() {
-            Text('网站')
-              .fontSize(14)
-              .fontColor('#666666')
-              .width(80)
-
-            Text(uri.uri)
-              .fontSize(14)
-              .layoutWeight(1)
-              .fontColor('#666666')
-
-            Button() {
-              Text('复制')
-                .fontSize(12)
-            }
-            .backgroundColor(Color.Transparent)
-            .onClick(() => {
-              this.copyText(uri.uri);
-            })
-          }
-          .width('100%')
-          .padding({ top: 8, bottom: 8 })
+          CipherDetailTextItem({
+            label: '网站',
+            content: uri.uri,
+          })
         })
       }
 
       // TOTP
       if (this.cipher.login?.totp) {
-        Row() {
-          Text('TOTP')
-            .fontSize(14)
-            .fontColor('#666666')
-            .width(80)
-
-          Text(this.cipher.login.totp)
-            .fontSize(14)
-            .layoutWeight(1)
-
-          Button() {
-            Text('复制')
-              .fontSize(12)
-          }
-          .backgroundColor(Color.Transparent)
-          .onClick(() => {
-            this.copyText(this.cipher.login?.totp);
-          })
-        }
-        .width('100%')
-        .padding({ top: 8, bottom: 8 })
+        // TODO: 显示实时TOTP验证码
       }
     }
     .width('100%')
@@ -304,129 +223,46 @@ export struct CipherDetailPage {
 
       // 持卡人姓名
       if (this.cipher.card?.cardholderName) {
-        Row() {
-          Text('持卡人')
-            .fontSize(14)
-            .fontColor('#666666')
-            .width(80)
-
-          Text(this.cipher.card.cardholderName)
-            .fontSize(14)
-            .layoutWeight(1)
-
-          Button() {
-            Text('复制')
-              .fontSize(12)
-          }
-          .backgroundColor(Color.Transparent)
-          .onClick(() => {
-            this.copyText(this.cipher.card?.cardholderName);
-          })
-        }
-        .width('100%')
-        .padding({ top: 8, bottom: 8 })
+        CipherDetailTextItem({
+          label: '持卡人',
+          content: this.cipher.card.cardholderName,
+        })
       }
 
       // 品牌
       if (this.cipher.card?.brand) {
-        Row() {
-          Text('品牌')
-            .fontSize(14)
-            .fontColor('#666666')
-            .width(80)
-
-          Text(this.cipher.card.brand)
-            .fontSize(14)
-            .layoutWeight(1)
-        }
-        .width('100%')
-        .padding({ top: 8, bottom: 8 })
+        CipherDetailTextItem({
+          label: '品牌',
+          content: this.cipher.card.brand,
+        })
       }
 
       // 卡号
       if (this.cipher.card?.number) {
-        Row() {
-          Text('卡号')
-            .fontSize(14)
-            .fontColor('#666666')
-            .width(80)
-
-          Text(this.showCardNumber ? this.cipher.card.number : '•••• •••• •••• ••••')
-            .fontSize(14)
-            .layoutWeight(1)
-
-          Button() {
-            Text(this.showCardNumber ? '隐藏' : '显示')
-              .fontSize(12)
-          }
-          .backgroundColor(Color.Transparent)
-          .onClick(() => {
-            this.showCardNumber = !this.showCardNumber;
-          })
-          .margin({right: 8})
-
-          Button() {
-            Text('复制')
-              .fontSize(12)
-          }
-          .backgroundColor(Color.Transparent)
-          .onClick(() => {
-            this.copyText(this.cipher.card?.number);
-          })
-        }
-        .width('100%')
-        .padding({ top: 8, bottom: 8 })
+        CipherDetailTextItem({
+          label: '卡号',
+          content: this.cipher.card.number,
+          showContent: this.showCardNumber,
+          showHideButton: true,
+        })
       }
 
       // 有效期
       if (this.cipher.card?.expMonth || this.cipher.card?.expYear) {
-        Row() {
-          Text('有效期')
-            .fontSize(14)
-            .fontColor('#666666')
-            .width(80)
-
-          Text(`${this.cipher.card?.expMonth || ''}/${this.cipher.card?.expYear || ''}`)
-            .fontSize(14)
-            .layoutWeight(1)
-        }
-        .width('100%')
-        .padding({ top: 8, bottom: 8 })
+        CipherDetailTextItem({
+          label: '有效期',
+          content: `${this.cipher.card?.expMonth || ''}/${this.cipher.card?.expYear || ''}`,
+        })
       }
 
       // 安全码
       if (this.cipher.card?.code) {
-        Row() {
-          Text('安全码')
-            .fontSize(14)
-            .fontColor('#666666')
-            .width(80)
-
-          Text(this.showCardCode ? this.cipher.card.code : '•••')
-            .fontSize(14)
-            .layoutWeight(1)
-
-          Button() {
-            Text(this.showCardCode ? '隐藏' : '显示')
-              .fontSize(12)
-          }
-          .backgroundColor(Color.Transparent)
-          .onClick(() => {
-            this.showCardCode = !this.showCardCode;
-          })
-          .margin({right: 8})
-
-          Button() {
-            Text('复制')
-              .fontSize(12)
-          }
-          .backgroundColor(Color.Transparent)
-          .onClick(() => {
-            this.copyText(this.cipher.card?.code);
-          })
-        }
-        .width('100%')
-        .padding({ top: 8, bottom: 8 })
+        CipherDetailTextItem({
+          label: '安全码',
+          content: this.cipher.card.code,
+          showContent: this.showCardCode,
+          showHideButton: true,
+        })
       }
     }
     .width('100%')
@@ -444,129 +280,43 @@ export struct CipherDetailPage {
 
       // 姓名
       if (this.cipher.identity?.firstName || this.cipher.identity?.lastName) {
-        Row() {
-          Text('姓名')
-            .fontSize(14)
-            .fontColor('#666666')
-            .width(80)
-
-          Text(`${this.cipher.identity?.firstName || ''} ${this.cipher.identity?.lastName || ''}`.trim())
-            .fontSize(14)
-            .layoutWeight(1)
-
-          Button() {
-            Text('复制')
-              .fontSize(12)
-          }
-          .backgroundColor(Color.Transparent)
-          .onClick(() => {
-            this.copyText(`${this.cipher.identity?.firstName || ''} ${this.cipher.identity?.lastName || ''}`.trim());
-          })
-        }
-        .width('100%')
-        .padding({ top: 8, bottom: 8 })
+        CipherDetailTextItem({
+          label: '姓名',
+          content: `${this.cipher.identity?.firstName || ''} ${this.cipher.identity?.lastName || ''}`.trim(),
+        })
       }
 
       // 邮箱
       if (this.cipher.identity?.email) {
-        Row() {
-          Text('邮箱')
-            .fontSize(14)
-            .fontColor('#666666')
-            .width(80)
-
-          Text(this.cipher.identity.email)
-            .fontSize(14)
-            .layoutWeight(1)
-
-          Button() {
-            Text('复制')
-              .fontSize(12)
-          }
-          .backgroundColor(Color.Transparent)
-          .onClick(() => {
-            this.copyText(this.cipher.identity?.email);
-          })
-        }
-        .width('100%')
-        .padding({ top: 8, bottom: 8 })
+        CipherDetailTextItem({
+          label: '邮箱',
+          content: this.cipher.identity.email,
+        })
       }
 
       // 电话
       if (this.cipher.identity?.phone) {
-        Row() {
-          Text('电话')
-            .fontSize(14)
-            .fontColor('#666666')
-            .width(80)
-
-          Text(this.cipher.identity.phone)
-            .fontSize(14)
-            .layoutWeight(1)
-
-          Button() {
-            Text('复制')
-              .fontSize(12)
-          }
-          .backgroundColor(Color.Transparent)
-          .onClick(() => {
-            this.copyText(this.cipher.identity?.phone);
-          })
-        }
-        .width('100%')
-        .padding({ top: 8, bottom: 8 })
+        CipherDetailTextItem({
+          label: '电话',
+          content: this.cipher.identity.phone,
+        })
       }
 
       // 公司
       if (this.cipher.identity?.company) {
-        Row() {
-          Text('公司')
-            .fontSize(14)
-            .fontColor('#666666')
-            .width(80)
-
-          Text(this.cipher.identity.company)
-            .fontSize(14)
-            .layoutWeight(1)
-
-          Button() {
-            Text('复制')
-              .fontSize(12)
-          }
-          .backgroundColor(Color.Transparent)
-          .onClick(() => {
-            this.copyText(this.cipher.identity?.company);
-          })
-        }
-        .width('100%')
-        .padding({ top: 8, bottom: 8 })
+        CipherDetailTextItem({
+          label: '公司',
+          content: this.cipher.identity.company,
+        })
       }
 
       // 地址
       if (this.cipher.identity?.address1 || this.cipher.identity?.city || this.cipher.identity?.state) {
-        Row() {
-          Text('地址')
-            .fontSize(14)
-            .fontColor('#666666')
-            .width(80)
-
-          Text(`${this.cipher.identity?.address1 || ''} ${this.cipher.identity?.city ||
-            ''} ${this.cipher.identity?.state || ''}`.trim())
-            .fontSize(14)
-            .layoutWeight(1)
-
-          Button() {
-            Text('复制')
-              .fontSize(12)
-          }
-          .backgroundColor(Color.Transparent)
-          .onClick(() => {
-            this.copyText(`${this.cipher.identity?.address1 || ''} ${this.cipher.identity?.city ||
-              ''} ${this.cipher.identity?.state || ''}`.trim());
-          })
-        }
-        .width('100%')
-        .padding({ top: 8, bottom: 8 })
+        CipherDetailTextItem({
+          label: '地址',
+          content: `${this.cipher.identity?.address1 || ''} ${this.cipher.identity?.city ||
+            ''} ${this.cipher.identity?.state || ''}`.trim(),
+        })
       }
     }
     .width('100%')
@@ -596,55 +346,12 @@ export struct CipherDetailPage {
         .margin({ bottom: 12 })
 
       ForEach(this.cipher.fields as CipherField[], (field: CipherField) => {
-        Row() {
-          Text(field.name)
-            .fontSize(14)
-            .fontColor('#666666')
-            .width(80)
-
-          if (field.type === CipherFieldType.HIDE) {
-            Text(this.showHideField ? field.value : '••••••••')
-              .fontSize(14)
-              .layoutWeight(1)
-
-            Button() {
-              Text(this.showHideField ? '隐藏' : '显示')
-                .fontSize(12)
-            }
-            .backgroundColor(Color.Transparent)
-            .onClick(() => {
-              this.showHideField = !this.showHideField;
-            })
-            .margin({right: 8})
-
-            Button() {
-              Text('复制')
-                .fontSize(12)
-            }
-            .backgroundColor(Color.Transparent)
-            .onClick(() => {
-              this.copyText(field.value);
-            })
-          } else if (field.type === CipherFieldType.BOOL) {
-            Text(field.value === 'true' ? '是' : '否')
-              .fontSize(14)
-              .layoutWeight(1)
-          } else {
-            Text(field.value)
-              .fontSize(14)
-              .layoutWeight(1)
-            Button() {
-              Text('复制')
-                .fontSize(12)
-            }
-            .backgroundColor(Color.Transparent)
-            .onClick(() => {
-              this.copyText(field.value);
-            })
-          }
-        }
-        .width('100%')
-        .padding({ top: 8, bottom: 8 })
+        CipherDetailTextItem({
+          label: field.name,
+          content: this.getFieldValue(field),
+          showContent: (field.type == CipherFieldType.HIDE) ? this.showHideField : true,
+          showHideButton: (field.type == CipherFieldType.HIDE) ? true : false,
+        })
       })
     }
     .width('100%')
@@ -662,16 +369,13 @@ export struct CipherDetailPage {
     console.log('Delete cipher');
   }
 
-  private async copyText(text: string | null | undefined) {
-    if(text == undefined || !text)
-      return;
-    try {
-      const pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, text);
-      const systemPasteboard = pasteboard.getSystemPasteboard();
-      await systemPasteboard.setData(pasteData);
-    } catch (error) {
-      const err = error as BusinessError;
-      Logger.error(`Failed to paste, error message: ${err.message}}`);
+  private getFieldValue(field: CipherField): string {
+    let returnStr: string = '';
+    if (field.type == CipherFieldType.BOOL) {
+      (field.value == 'true') ? returnStr = '是' : returnStr = '否';
+    } else {
+      returnStr = field.value;
     }
+    return returnStr;
   }
 } 

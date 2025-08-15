@@ -2,7 +2,13 @@ import { EntryRouter } from '../../../../EntryRouter';
 import { Cipher } from '../model/CipherModels';
 import { VaultViewModel } from '../viewmodel/VaultViewModel';
 import { common } from '@kit.AbilityKit';
-import { IBestDialog, IBestDropdownItem, IBestDropdownMenu, IBestDropdownMenuOption } from '@ibestservices/ibest-ui';
+import {
+  IBestDialog,
+  IBestDropdownItem,
+  IBestDropdownMenu,
+  IBestField,
+  IBestFieldValueType
+} from '@ibestservices/ibest-ui';
 import { DataPreferences } from '@abner/datastore';
 import { FilterType, LOGIN_STATUS_KEY } from '../utils/Constants';
 import { PromptAction } from '@kit.ArkUI';
@@ -73,17 +79,19 @@ export struct VaultPage {
             }
           }.width('30%')
 
-          TextInput({
-            placeholder: '搜索密码项...',
-            text: this.searchText
-          })
-            .layoutWeight(1)
-            .onChange((value: string) => {
-              this.searchText = value;
-              this.viewModel.filterCiphers('all', value);
-            })
-            .width('70%')
+          IBestField({
+            value: this.searchText,
+            placeholder: "搜索密码项...",
+            showLabel: false,
+            hasBorder: false,
+            clearable: true,
+            onChange: (value: IBestFieldValueType) => {
+              this.searchText = value as string;
+              this.viewModel.filterCiphers('all', this.searchText);
+            }
+          }).width('70%')
             .borderRadius(0)
+            .layoutWeight(1)
         }
         .width('100%')
         .padding({ left: 16, right: 16, bottom: 8 })
