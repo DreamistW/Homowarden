@@ -1,7 +1,6 @@
 import { Cipher } from '../model/CipherModels.ets';
 import { IBestIcon } from "@ibestservices/ibest-ui";
-import { CipherItemType, DBTableName } from '../utils/Constants';
-import { DatabaseUtil } from '../utils/DatabaseUtil';
+import { CipherItemType } from '../utils/Constants';
 
 @Component
 export struct CipherItem {
@@ -31,36 +30,6 @@ export struct CipherItem {
     }
   }
 
-  private getSubtitle(): string {
-    if (this.cipher.type == CipherItemType.LOGIN) {
-      const username =
-        DatabaseUtil.getInstance().querySingleData(DBTableName.LOGINS, 'cipher_id', this.cipher.id, 'username');
-      if (username != '') {
-        return username as string;
-      }
-    } else if (this.cipher.notes) {
-      return this.cipher.notes.length > 50 ?
-        this.cipher.notes.substring(0, 50) + '...' :
-      this.cipher.notes;
-    }
-    return this.getTypeName();
-  }
-
-  private getTypeName(): string {
-    switch (this.cipher.type) {
-      case CipherItemType.LOGIN:
-        return '登录';
-      case CipherItemType.NOTE:
-        return '安全笔记';
-      case CipherItemType.CARD:
-        return '卡片';
-      case CipherItemType.IDENTITY:
-        return '身份信息';
-      default:
-        return '未知';
-    }
-  }
-
   build() {
     Row() {
       // 类型图标
@@ -74,7 +43,7 @@ export struct CipherItem {
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-        Text(this.getSubtitle())
+        Text(this.cipher.subtitle)
           .fontSize(14)
           .fontColor('#666666')
           .maxLines(1)

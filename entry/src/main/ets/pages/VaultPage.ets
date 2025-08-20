@@ -1,5 +1,5 @@
 import { EntryRouter } from '../../../../EntryRouter';
-import { Cipher } from '../model/CipherModels';
+import { Cipher, CipherDetailParams } from '../model/CipherModels';
 import { VaultViewModel } from '../viewmodel/VaultViewModel';
 import { common } from '@kit.AbilityKit';
 import {
@@ -177,6 +177,9 @@ export struct VaultPage {
   }
 
   private navigateToDetail(cipher: Cipher) {
-    this.pathInfos.pushPath({ name: EntryRouter.CipherDetailPage, param: cipher });
+    this.pathInfos.pushPath({
+      name: EntryRouter.CipherDetailPage,
+      param: { cipher: cipher, symmetricKey: this.viewModel.symmetricKey } as CipherDetailParams
+    });
   }
 } 

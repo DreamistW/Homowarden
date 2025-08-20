@@ -21,7 +21,8 @@ export interface Cipher {
   secureNote?: CipherSecureNote; // 安全笔记（type=2时）
   fields?: CipherField[]; // 自定义字段
   collectionIds?: string[]; // 所属集合ID
-  reprompt: number // 是否需要验证主密码才能查看
+  reprompt: number; // 是否需要验证主密码才能查看
+  subtitle?: string;  // 副标题，显示在密码库界面
 }
 
 /**
@@ -94,4 +95,12 @@ export interface CipherUri {
   uri: string;
   match?: number | null;
   uriChecksum?: string;
+}
+
+/*
+ * 从密码库跳转到详情页的参数
+ */
+export interface CipherDetailParams {
+  cipher: Cipher;
+  symmetricKey: string;
 }

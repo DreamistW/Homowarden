@@ -1,11 +1,14 @@
 import { getAllCiphers } from '../network/CipherApi.ets';
 import { Cipher } from '../model/CipherModels.ets';
 import { Logger } from '@nzy/logger';
-import { CipherItemType, DBTableName, FilterType } from '../utils/Constants';
+import { CipherItemType, DBTableName, FilterType, MASTER_KEY, USER_KEY } from '../utils/Constants';
 import { relationalStore } from '@kit.ArkData';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
 import { IBestDropdownMenuOption } from '@ibestservices/ibest-ui';
+import { queryAssetSync } from '../utils/Asset';
+import { util } from '@kit.ArkTS';
+import { Crypto } from '../utils/Crypto';
 
 /**
  * 密码库ViewModel
@@ -25,6 +28,8 @@ export class VaultViewModel {
   stats: CipherStats = {} as CipherStats;
   // 筛选菜单
   filterOptions: IBestDropdownMenuOption[] = [];
+  // 对称密钥
+  symmetricKey: string = '';
 
   /**
    * 加载所有密码项
@@ -78,6 +83,7 @@ export class VaultViewModel {
       }
     } finally {
       // 从数据库加载并显示
+      this.symmetricKey = await this.getSymmetricKey();
       const ciphersData = await DatabaseUtil.getInstance().queryAllData(DBTableName.MAIN);
       this.allCiphers = await this.buildCiphersFromData(ciphersData);
       this.filteredCiphers = this.allCiphers.filter(cipher => cipher.deletedDate == null);
@@ -125,10 +131,32 @@ export class VaultViewModel {
       if (cipher.deletedDate != null) {
         cipher.deletedDate = this.formatDateTime(cipher.deletedDate);
       }
+      cipher.name = await Crypto.decryptField(cipher.name, this.symmetricKey);
+      cipher.subtitle = await this.getSubtitle(cipher);
+      cipher.notes = await Crypto.decryptField(cipher.notes as string, this.symmetricKey);
       ciphers.push(cipher);
     }
 
     return ciphers;
+  }
+
+  // 获得对称密钥
+  private async getSymmetricKey(): Promise<string> {
+    const masterKey = queryAssetSync(MASTER_KEY);
+    const masterKeyBytes = new util.Base64Helper().decodeSync(masterKey, util.Type.BASIC);
+    const encKey = await Crypto.deriveKeyHKDF(masterKeyBytes, 'enc');
+    const macKey = await Crypto.deriveKeyHKDF(masterKeyBytes, 'mac');
+    const encKeyBytes = new util.Base64Helper().decodeSync(encKey, util.Type.BASIC);
+    const userKey = queryAssetSync(USER_KEY);
+    // MAC验证
+    const macKeyBytes = new util.Base64Helper().decodeSync(macKey, util.Type.BASIC);
+    const macResult = await Crypto.verifyHMAC(userKey, macKeyBytes);
+    if (macResult) {
+      const symKey = await Crypto.decryptAESCBC(userKey, encKeyBytes);
+      return symKey;
+    } else {
+      throw new Error(`MAC verification failed`);
+    }
   }
 
   /**
@@ -277,6 +305,53 @@ export class VaultViewModel {
     const minutes = date.getMinutes().toString().padStart(2, '0');
     const seconds = date.getSeconds().toString().padStart(2, '0');
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  }
+
+  // 写入密码项副标题
+  async getSubtitle(cipher: Cipher): Promise<string> {
+    // 根据不同的项目类型返回对应的副标题
+    if (cipher.type == CipherItemType.LOGIN) {
+      const encUsername =
+        DatabaseUtil.getInstance().querySingleData(DBTableName.LOGINS, 'cipher_id', cipher.id, 'username');
+      if (encUsername != '') {
+        const username = await Crypto.decryptField(encUsername as string, this.symmetricKey);
+        return username;
+      }
+    } else if (cipher.type == CipherItemType.CARD) {
+      const encCardNumber =
+        DatabaseUtil.getInstance().querySingleData(DBTableName.CARDS, 'cipher_id', cipher.id, 'number');
+      if (encCardNumber && encCardNumber.toString().length > 5) {
+        const cardNumber = await Crypto.decryptField(encCardNumber as string, this.symmetricKey);
+        return '*' + cardNumber.slice(-4);
+      }
+    } else if (cipher.type == CipherItemType.IDENTITY) {
+      const encFirstName =
+        DatabaseUtil.getInstance().querySingleData(DBTableName.IDENTITIES, 'cipher_id', cipher.id, 'first_name');
+      const encLastName =
+        DatabaseUtil.getInstance().querySingleData(DBTableName.IDENTITIES, 'cipher_id', cipher.id, 'last_name');
+      if (encFirstName != '' && encLastName != '') {
+        const firstName = await Crypto.decryptField(encFirstName as string, this.symmetricKey);
+        const lastName = await Crypto.decryptField(encLastName as string, this.symmetricKey);
+        return `${firstName} ${lastName}`;
+      }
+    }
+    return this.getTypeName(cipher);
+  }
+
+  // 返回类型名称
+  getTypeName(cipher: Cipher): string {
+    switch (cipher.type) {
+      case CipherItemType.LOGIN:
+        return '登录';
+      case CipherItemType.NOTE:
+        return '安全笔记';
+      case CipherItemType.CARD:
+        return '卡片';
+      case CipherItemType.IDENTITY:
+        return '身份信息';
+      default:
+        return '未知';
+    }
   }
 }
 

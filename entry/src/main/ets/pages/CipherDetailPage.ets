@@ -1,4 +1,4 @@
-import { Cipher, CipherField, CipherUri } from '../model/CipherModels';
+import { Cipher, CipherDetailParams, CipherField, CipherUri } from '../model/CipherModels';
 import { CipherFieldType, CipherItemType } from '../utils/Constants';
 import { CipherDetailViewModel } from '../viewmodel/CipherDetailViewModel';
 import { CipherDetailTextItem } from '../component/CipherDetailTextItem';
@@ -11,10 +11,7 @@ export function CipherDetailPageBuilder() {
 @Component
 export struct CipherDetailPage {
   @State cipher: Cipher = {} as Cipher;
-  @State showPassword: boolean = false;
   @State isLoading: boolean = true;
-  @State showCardNumber: boolean = false;
-  @State showCardCode: boolean = false;
   @State showHideField: boolean = false;
   pathInfos: NavPathStack = new NavPathStack();
   private viewModel: CipherDetailViewModel = new CipherDetailViewModel();
@@ -162,9 +159,10 @@ export struct CipherDetailPage {
     .title('详情')
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
-      const paramCipher = ctx.pathInfo.param as Cipher;
-      if (paramCipher && paramCipher.id) {
-        this.cipher = paramCipher;
+      const param = ctx.pathInfo.param as CipherDetailParams;
+      if (param.cipher && param.cipher.id) {
+        this.cipher = param.cipher;
+        this.viewModel.symmetricKey = param.symmetricKey;
         this.loadCipherDetail();
       }
     })
@@ -189,7 +187,7 @@ export struct CipherDetailPage {
       CipherDetailTextItem({
         label: '密码',
         content: this.cipher.login?.password,
-        showContent: this.showPassword,
+        showContent: this.showHideField,
         showHideButton: true,
       })
 
@@ -242,7 +240,7 @@ export struct CipherDetailPage {
         CipherDetailTextItem({
           label: '卡号',
           content: this.cipher.card.number,
-          showContent: this.showCardNumber,
+          showContent: this.showHideField,
           showHideButton: true,
         })
       }
@@ -260,7 +258,7 @@ export struct CipherDetailPage {
         CipherDetailTextItem({
           label: '安全码',
           content: this.cipher.card.code,
-          showContent: this.showCardCode,
+          showContent: this.showHideField,
           showHideButton: true,
         })
       }
@@ -282,7 +280,52 @@ export struct CipherDetailPage {
       if (this.cipher.identity?.firstName || this.cipher.identity?.lastName) {
         CipherDetailTextItem({
           label: '姓名',
-          content: `${this.cipher.identity?.firstName || ''} ${this.cipher.identity?.lastName || ''}`.trim(),
+          content: `${this.cipher.identity?.firstName || ''} ${this.cipher.identity?.middleName ||
+            ''} ${this.cipher.identity?.lastName || ''} ${this.cipher.identity?.title || ''}`.trim(),
+        })
+      }
+
+      // 用户名
+      if (this.cipher.identity?.username) {
+        CipherDetailTextItem({
+          label: '用户名',
+          content: this.cipher.identity.username,
+        })
+      }
+
+      // 公司
+      if (this.cipher.identity?.company) {
+        CipherDetailTextItem({
+          label: '公司',
+          content: this.cipher.identity.company,
+        })
+      }
+
+      // 社会保障号码
+      if (this.cipher.identity?.ssn) {
+        CipherDetailTextItem({
+          label: '社会保障号码',
+          content: this.cipher.identity.ssn,
+          showContent: this.showHideField,
+          showHideButton: true,
+        })
+      }
+
+      // 护照号码
+      if (this.cipher.identity?.passportNumber) {
+        CipherDetailTextItem({
+          label: '社会保障号码',
+          content: this.cipher.identity.passportNumber,
+          showContent: this.showHideField,
+          showHideButton: true,
+        })
+      }
+
+      // 许可证号码
+      if (this.cipher.identity?.licenseNumber) {
+        CipherDetailTextItem({
+          label: '许可证号码',
+          content: this.cipher.identity.licenseNumber,
         })
       }
 
@@ -302,13 +345,6 @@ export struct CipherDetailPage {
         })
       }
 
-      // 公司
-      if (this.cipher.identity?.company) {
-        CipherDetailTextItem({
-          label: '公司',
-          content: this.cipher.identity.company,
-        })
-      }
 
       // 地址
       if (this.cipher.identity?.address1 || this.cipher.identity?.city || this.cipher.identity?.state) {

@@ -1,36 +1,13 @@
 import { argon2Hash, HashOption } from '@huozhiniao/argon2';
-import { Logger } from '@nzy/logger';
 import { util } from '@kit.ArkTS';
 import { cryptoFramework } from '@kit.CryptoArchitectureKit';
-import { CryptoJS } from '@ohos/crypto-js'
-import { EncryptedStringResult } from '../model/CryptoModels';
+import { BusinessError } from '@kit.BasicServicesKit';
+import { Logger } from '@nzy/logger';
 
 /**
  * 加密工具类
  */
 export class Crypto {
-  /**
-   * 生成随机盐（Base64字符串）
-   */
-  static async generateSalt(length: number = 32): Promise<string> {
-    let rand = cryptoFramework.createRandom();
-    let seed = new Uint8Array([1, 2, 3]);
-    rand.setSeed({ data: seed });
-    let randOutput = await rand.generateRandom(length);
-    return new util.Base64Helper().encodeToStringSync(randOutput.data, util.Type.BASIC);
-  }
-
-  /**
-   * 生成随机IV（Base64字符串）
-   */
-  static async generateIV(length: number = 16): Promise<string> {
-    let rand = cryptoFramework.createRandom();
-    let seed = new Uint8Array([1, 2, 3]);
-    rand.setSeed({ data: seed });
-    let randOutput = await rand.generateRandom(length);
-    return new util.Base64Helper().encodeToStringSync(randOutput.data, util.Type.BASIC);
-  }
-
   /**
    * PBKDF2密钥派生
    * @param password 明文密码
@@ -39,7 +16,8 @@ export class Crypto {
    * @param keyLen 派生密钥长度（字节）
    * @returns Base64字符串
    */
-  static deriveKeyPBKDF2(password: string | Uint8Array, salt: string, iterations: number, keyLen: number = 32): Promise<string> {
+  static deriveKeyPBKDF2(password: string | Uint8Array, salt: string, iterations: number,
+    keyLen: number = 32): Promise<string> {
     const saltBuffer = new util.TextEncoder().encodeInto(salt);
     let spec: cryptoFramework.PBKDF2Spec = {
       algName: 'PBKDF2',
@@ -50,6 +28,38 @@ export class Crypto {
     }
     let kdf = cryptoFramework.createKdf('PBKDF2|SHA256');
     let kdfPromise = kdf.generateSecret(spec);
+    return kdfPromise.then((secret) => {
+      return new util.Base64Helper().encodeToStringSync(secret.data, util.Type.BASIC);
+    })
+  }
+
+  /**
+   * HKDF密钥派生
+   * @param key 原始密钥
+   * @param salt 盐
+   * @param info 可选上下文
+   * @param keyLen 密钥字节长度
+   * @returns Base64字符串
+   */
+  static deriveKeyHKDF(key: string | Uint8Array, info?: string, salt?: string,
+    keyLen: number = 32): Promise<string> {
+    let saltBuffer = new Uint8Array(32);
+    let infoBuffer = new Uint8Array();
+    if (salt) {
+      saltBuffer = new util.TextEncoder().encodeInto(salt);
+    }
+    if (info) {
+      infoBuffer = new util.TextEncoder().encodeInto(info);
+    }
+    const spec: cryptoFramework.HKDFSpec = {
+      algName: "HKDF",
+      key: key,
+      salt: saltBuffer,
+      info: infoBuffer,
+      keySize: keyLen
+    };
+    const kdf = cryptoFramework.createKdf('HKDF|SHA256|EXPAND_ONLY');
+    const kdfPromise = kdf.generateSecret(spec);
     return kdfPromise.then((secret) => {
       return new util.Base64Helper().encodeToStringSync(secret.data, util.Type.BASIC);
     })
@@ -84,94 +94,102 @@ export class Crypto {
   }
 
   /**
-   * AES-256-CBC加密
-   * @param data 明文
-   * @param key Base64密钥
-   * @param iv Base64 IV
-   * @returns Base64密文
+   * 转换密钥类型
+   * @param symKeyData 要转换的密钥字节序列
+   * @returns 密钥类型对象
    */
-  static async encryptAES(data: string, key: string, iv: string): Promise<string> {
-    // 解析Base64密钥和IV
-    const keyWordArray = CryptoJS.enc.Base64.parse(key);
-    const ivWordArray = CryptoJS.enc.Base64.parse(iv);
-    // 明文转为WordArray
-    const dataWordArray = CryptoJS.enc.Utf8.parse(data);
-    // 执行加密
-    const encrypted = CryptoJS.AES.encrypt(dataWordArray, keyWordArray, {
-      iv: ivWordArray,
-      mode: CryptoJS.mode.CBC,
-      padding: CryptoJS.pad.Pkcs7
-    });
-    // 返回Base64密文
-    return encrypted.ciphertext.toString(CryptoJS.enc.Base64);
+  static async genSymKeyByData(symKeyData: Uint8Array): Promise<cryptoFramework.SymKey> {
+    try {
+      const symKeyBlob: cryptoFramework.DataBlob = { data: symKeyData };
+      const aesGenerator = cryptoFramework.createSymKeyGenerator('AES256');
+      const symKey = await aesGenerator.convertKey(symKeyBlob);
+      return symKey;
+    } catch (err) {
+      const error = err as BusinessError;
+      Logger.error(`Failed to generate symmetric key, error message: ${error.message}`);
+      throw new Error(err);
+    }
   }
 
   /**
-   * AES-256-CBC解密
-   * @param encryptedData Base64密文
-   * @param key Base64密钥
-   * @param iv Base64 IV
-   * @returns 明文
+   * AES256-CBC解密
+   * @param cipherText 完整的密文
+   * @param key 对称密钥
+   * @returns 解密后的base64字符串
    */
-  static async decryptAES(encryptedData: string, key: string, iv: string): Promise<string> {
-    // 解析Base64密钥和IV
-    const keyWordArray = CryptoJS.enc.Base64.parse(key);
-    const ivWordArray = CryptoJS.enc.Base64.parse(iv);
-    // 解析Base64密文
-    const encryptedWordArray = CryptoJS.enc.Base64.parse(encryptedData);
-    // 构造CipherParams对象
-    const cipherParams = CryptoJS.lib.CipherParams.create({
-      ciphertext: encryptedWordArray
-    });
-    // 执行解密
-    const decrypted = CryptoJS.AES.decrypt(cipherParams, keyWordArray, {
-      iv: ivWordArray,
-      mode: CryptoJS.mode.CBC,
-      padding: CryptoJS.pad.Pkcs7
-    });
-    // 返回明文字符串
-    return decrypted.toString(CryptoJS.enc.Utf8);
+  static async decryptAESCBC(cipherText: string, key: Uint8Array): Promise<string> {
+    try {
+      const partsOfText = cipherText.substring(2).split('|');
+      const cipherBlob: cryptoFramework.DataBlob =
+        { data: new util.Base64Helper().decodeSync(partsOfText[1], util.Type.BASIC) };
+      const symKey = await Crypto.genSymKeyByData(key);
+      Logger.debug(`cipherText length: ${cipherBlob.data.length}`);
+      Logger.debug(`key length: ${key.length}`);
+      const decoder = cryptoFramework.createCipher('AES256|CBC|PKCS7');
+      const paramSpec: cryptoFramework.IvParamsSpec = {
+        algName: 'IvParamsSpec',
+        iv: { data: new util.Base64Helper().decodeSync(partsOfText[0], util.Type.BASIC) },
+      }
+      Logger.debug(`iv length: ${paramSpec.iv.data.length}`);
+      await decoder.init(cryptoFramework.CryptoMode.DECRYPT_MODE, symKey, paramSpec);
+      const decryptedData = await decoder.doFinal(cipherBlob);
+      return new util.Base64Helper().encodeToStringSync(decryptedData.data)
+    } catch (err) {
+      const error = err as BusinessError;
+      Logger.error(`Failed to decrypt, error message: ${error.message}`);
+      throw new Error(err);
+    }
   }
 
   /**
-   * SHA256哈希
+   * HMAC-SHA256校验，密文内自带的HMAC与根据MAC Key生成的HMAC进行比较
+   * @param cipherText 完整的密文
+   * @param macKey 需要比较的MAC Key
+   * @returns 比较结果
    */
-  static sha256(data: string): string {
-    return CryptoJS.SHA256(data).toString(CryptoJS.enc.Hex);
+  static async verifyHMAC(cipherText: string, macKey: Uint8Array): Promise<boolean> {
+    const partsOfText = cipherText.substring(2).split('|');
+    const ivBytes = new util.Base64Helper().decodeSync(partsOfText[0]);
+    const cipherBytes = new util.Base64Helper().decodeSync(partsOfText[1]);
+    const macData = new Uint8Array(ivBytes.length + cipherBytes.length);
+    macData.set(ivBytes, 0);
+    macData.set(cipherBytes, ivBytes.length);
+    let mac = cryptoFramework.createMac('SHA256');
+    await mac.init(await Crypto.genSymKeyByData(macKey));
+    await mac.update({ data: macData });
+    let macResult = await mac.doFinal();
+    const macResultStr = new util.Base64Helper().encodeToStringSync(macResult.data, util.Type.BASIC);
+    if (partsOfText[2] == macResultStr) {
+      return true;
+    } else {
+      return false;
+    }
   }
 
   /**
-   * HMAC-SHA256
+   * 解密字段
+   * @param cipherText 完整的密文
+   * @param symKey 对称密钥
+   * @returns 明文字符串
    */
-  static hmacSha256(data: string, key: string): string {
-    return CryptoJS.HmacSHA256(data, key).toString(CryptoJS.enc.Hex);
+  static async decryptField(cipherText: string, symKey: string) {
+    if(!cipherText || cipherText.length == 0) return '';
+    const keyBytes = new util.Base64Helper().decodeSync(symKey, util.Type.BASIC);
+    // MAC验证
+    const macKeyBytes = keyBytes.slice(32);
+    const macResult = await Crypto.verifyHMAC(cipherText, macKeyBytes);
+    if (macResult) {
+      const plainText = await Crypto.decryptAESCBC(cipherText, keyBytes.slice(0, 32));
+      return Crypto.base64DecodeToString(plainText);
+    } else {
+      throw new Error(`MAC verification failed`);
+    }
   }
 
-  /**
-   * 加密字符串（自动生成IV）
-   */
-  static async encryptString(data: string, key: string): Promise<EncryptedStringResult> {
-    const iv = await Crypto.generateIV();
-    let encrypted = '';
-    Crypto.encryptAES(data, key, iv).then((result) => {
-      encrypted = result;
-    });
-    return { encrypted, iv };
-  }
-
-  /**
-   * 解密字符串
-   */
-  static async decryptString(encrypted: string, key: string, iv: string): Promise<string> {
-    return Crypto.decryptAES(encrypted, key, iv);
-  }
-
-  /**
-   * 清理敏感数据
-   */
-  static clearSensitiveData(data: string): void {
-    data = "";
-    Logger.debug('Sensitive data cleared');
+  // Base64字符串解码
+  static base64DecodeToString(base64: string): string {
+    const bytes = new util.Base64Helper().decodeSync(base64);
+    const str = new util.TextDecoder().decodeToString(bytes);
+    return str;
   }
 }
-
