@@ -1,5 +1,5 @@
 import { IBestActionSheet, IBestDialog, IBestSwitch } from '@ibestservices/ibest-ui';
-import { queryAssetSync } from '../utils/Asset';
+import { queryAssetSync } from '../utils/AssetUtil';
 import { EMAIL_KEY, ServerType } from '../utils/Constants';
 import { LoginViewModel } from '../viewmodel/LoginViewModel';
 import { EntryRouter } from '../../../../EntryRouter';

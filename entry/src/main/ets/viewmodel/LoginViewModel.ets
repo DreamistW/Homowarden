@@ -1,31 +1,31 @@
-import { prelogin, accessToken } from '../network/AuthApi.ets';
+import { accessToken, prelogin } from '../network/AuthApi.ets';
 import {
-  ServerType,
-  DeviceType,
-  SERVER_TYPE_KEY,
-  SERVER_ADDRESS_KEY,
-  EMAIL_KEY,
   ACCESS_TOKEN_KEY_1,
   ACCESS_TOKEN_KEY_2,
-  REFRESH_TOKEN_KEY,
-  TOKEN_EXPIRE_TIME_KEY,
+  DeviceType,
+  EMAIL_KEY,
+  GrantType,
+  Header_Client_Name,
+  KDF_PARAM_KEY,
+  LOGIN_STATUS_KEY,
+  MASTER_KEY,
   PRIVATE_KEY_1,
   PRIVATE_KEY_2,
-  USER_KEY,
-  KDF_PARAM_KEY,
-  Header_Client_Name,
-  GrantType,
+  REFRESH_TOKEN_KEY,
   SCOPE_KEY,
-  MASTER_KEY,
+  SERVER_ADDRESS_KEY,
+  SERVER_TYPE_KEY,
+  ServerType,
+  TOKEN_EXPIRE_TIME_KEY,
   TWO_FACTOR_TOKEN_KEY,
-  LOGIN_STATUS_KEY
+  USER_KEY
 } from '../utils/Constants.ets';
 import { Logger } from '@nzy/logger';
-import { Crypto } from '../utils/Crypto.ets';
+import { CryptoUtil } from '../utils/CryptoUtil';
 import { DeviceUtil } from '../utils/DeviceUtil';
 import { DataPreferences } from '@abner/datastore';
 import { util } from '@kit.ArkTS';
-import { addAsset, deleteAsset, queryAssetSync, updateAsset } from '../utils/Asset';
+import { addAsset, deleteAsset, queryAssetSync, updateAsset } from '../utils/AssetUtil';
 import { AssetModel } from '../model/AssetModel';
 import { asset } from '@kit.AssetStoreKit';
 import { getServerConfig } from '../network/HttpClient';
@@ -153,7 +153,7 @@ export class LoginViewModel {
 
       if (this.kdfType === 0) {
         // PBKDF2
-        this.masterKey = await Crypto.deriveKeyPBKDF2(
+        this.masterKey = await CryptoUtil.deriveKeyPBKDF2(
           this.password,
           salt,
           this.kdfIterations,
@@ -161,7 +161,7 @@ export class LoginViewModel {
         );
       } else if (this.kdfType === 1) {
         // Argon2id
-        this.masterKey = await Crypto.deriveKeyArgon2id(
+        this.masterKey = await CryptoUtil.deriveKeyArgon2id(
           this.password,
           salt,
           this.kdfIterations,
@@ -187,8 +187,8 @@ export class LoginViewModel {
   async hashMasterKey(): Promise<boolean> {
     try {
       // 将Base64主密钥解码为Uint8Array
-      const masterKeyBytes = new util.Base64Helper().decodeSync(this.masterKey, util.Type.BASIC);
-      this.loginPassword = await Crypto.deriveKeyPBKDF2(
+      const masterKeyBytes = new util.Base64Helper().decodeSync(this.masterKey);
+      this.loginPassword = await CryptoUtil.deriveKeyPBKDF2(
         masterKeyBytes,
         this.password,
         1,

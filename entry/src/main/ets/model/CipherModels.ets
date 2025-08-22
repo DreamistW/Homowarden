@@ -15,14 +15,14 @@ export interface Cipher {
   revisionDate: string; // 最后修改时间
   deletedDate: string | null; // 删除时间
   notes: string | null; // 备注
-  login?: CipherLogin; // 登录信息（type=1时）
-  card?: CipherCard; // 卡片信息（type=3时）
-  identity?: CipherIdentity; // 身份信息（type=4时）
-  secureNote?: CipherSecureNote; // 安全笔记（type=2时）
+  login: CipherLogin | null; // 登录信息（type=1时）
+  card: CipherCard | null; // 卡片信息（type=3时）
+  identity: CipherIdentity | null; // 身份信息（type=4时）
+  secureNote: CipherSecureNote | null; // 安全笔记（type=2时）
   fields?: CipherField[]; // 自定义字段
   collectionIds?: string[]; // 所属集合ID
   reprompt: number; // 是否需要验证主密码才能查看
-  subtitle?: string;  // 副标题，显示在密码库界面
+  subtitle?: string; // 副标题，显示在密码库界面
 }
 
 /**
@@ -33,7 +33,7 @@ export interface CipherLogin {
   password: string; // 密码
   passwordRevisionDate: string | null; // 密码更新时间
   totp: string | null; // TOTP密钥
-  uris?: CipherUri[]; // 关联网址
+  uris: CipherUri[]; // 关联网址
 }
 
 /**
@@ -94,7 +94,7 @@ export interface CipherField {
 export interface CipherUri {
   uri: string;
   match?: number | null;
-  uriChecksum?: string;
+  uriChecksum: string;
 }
 
 /*

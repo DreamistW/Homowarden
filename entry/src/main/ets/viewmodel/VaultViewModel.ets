@@ -6,9 +6,9 @@ import { relationalStore } from '@kit.ArkData';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
 import { IBestDropdownMenuOption } from '@ibestservices/ibest-ui';
-import { queryAssetSync } from '../utils/Asset';
+import { queryAssetSync } from '../utils/AssetUtil';
 import { util } from '@kit.ArkTS';
-import { Crypto } from '../utils/Crypto';
+import { CryptoUtil } from '../utils/CryptoUtil';
 
 /**
  * 密码库ViewModel
@@ -123,7 +123,11 @@ export class VaultViewModel {
         revisionDate: cipherData.revision_date as string,
         deletedDate: cipherData.deleted_date as string || null,
         notes: cipherData.notes as string || null,
-        reprompt: cipherData.reprompt as number
+        reprompt: cipherData.reprompt as number,
+        login: null,
+        identity: null,
+        secureNote: null,
+        card: null
       };
       // 格式化日期时间
       cipher.creationDate = this.formatDateTime(cipher.creationDate);
@@ -131,9 +135,10 @@ export class VaultViewModel {
       if (cipher.deletedDate != null) {
         cipher.deletedDate = this.formatDateTime(cipher.deletedDate);
       }
-      cipher.name = await Crypto.decryptField(cipher.name, this.symmetricKey);
+      // 解密基本字段
+      cipher.name = await CryptoUtil.decryptField(cipher.name, this.symmetricKey);
       cipher.subtitle = await this.getSubtitle(cipher);
-      cipher.notes = await Crypto.decryptField(cipher.notes as string, this.symmetricKey);
+      cipher.notes = await CryptoUtil.decryptField(cipher.notes as string, this.symmetricKey);
       ciphers.push(cipher);
     }
 
@@ -143,16 +148,16 @@ export class VaultViewModel {
   // 获得对称密钥
   private async getSymmetricKey(): Promise<string> {
     const masterKey = queryAssetSync(MASTER_KEY);
-    const masterKeyBytes = new util.Base64Helper().decodeSync(masterKey, util.Type.BASIC);
-    const encKey = await Crypto.deriveKeyHKDF(masterKeyBytes, 'enc');
-    const macKey = await Crypto.deriveKeyHKDF(masterKeyBytes, 'mac');
-    const encKeyBytes = new util.Base64Helper().decodeSync(encKey, util.Type.BASIC);
+    const masterKeyBytes = new util.Base64Helper().decodeSync(masterKey);
+    const encKey = await CryptoUtil.deriveKeyHKDF(masterKeyBytes, 'enc');
+    const macKey = await CryptoUtil.deriveKeyHKDF(masterKeyBytes, 'mac');
+    const encKeyBytes = new util.Base64Helper().decodeSync(encKey);
     const userKey = queryAssetSync(USER_KEY);
     // MAC验证
-    const macKeyBytes = new util.Base64Helper().decodeSync(macKey, util.Type.BASIC);
-    const macResult = await Crypto.verifyHMAC(userKey, macKeyBytes);
+    const macKeyBytes = new util.Base64Helper().decodeSync(macKey);
+    const macResult = await CryptoUtil.verifyHMAC(userKey, macKeyBytes);
     if (macResult) {
-      const symKey = await Crypto.decryptAESCBC(userKey, encKeyBytes);
+      const symKey = await CryptoUtil.decryptAESCBC(userKey, encKeyBytes);
       return symKey;
     } else {
       throw new Error(`MAC verification failed`);
@@ -314,14 +319,14 @@ export class VaultViewModel {
       const encUsername =
         DatabaseUtil.getInstance().querySingleData(DBTableName.LOGINS, 'cipher_id', cipher.id, 'username');
       if (encUsername != '') {
-        const username = await Crypto.decryptField(encUsername as string, this.symmetricKey);
+        const username = await CryptoUtil.decryptField(encUsername as string, this.symmetricKey);
         return username;
       }
     } else if (cipher.type == CipherItemType.CARD) {
       const encCardNumber =
         DatabaseUtil.getInstance().querySingleData(DBTableName.CARDS, 'cipher_id', cipher.id, 'number');
       if (encCardNumber && encCardNumber.toString().length > 5) {
-        const cardNumber = await Crypto.decryptField(encCardNumber as string, this.symmetricKey);
+        const cardNumber = await CryptoUtil.decryptField(encCardNumber as string, this.symmetricKey);
         return '*' + cardNumber.slice(-4);
       }
     } else if (cipher.type == CipherItemType.IDENTITY) {
@@ -330,8 +335,8 @@ export class VaultViewModel {
       const encLastName =
         DatabaseUtil.getInstance().querySingleData(DBTableName.IDENTITIES, 'cipher_id', cipher.id, 'last_name');
       if (encFirstName != '' && encLastName != '') {
-        const firstName = await Crypto.decryptField(encFirstName as string, this.symmetricKey);
-        const lastName = await Crypto.decryptField(encLastName as string, this.symmetricKey);
+        const firstName = await CryptoUtil.decryptField(encFirstName as string, this.symmetricKey);
+        const lastName = await CryptoUtil.decryptField(encLastName as string, this.symmetricKey);
         return `${firstName} ${lastName}`;
       }
     }

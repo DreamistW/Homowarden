@@ -9,7 +9,7 @@ import {
   CipherUri
 } from '../model/CipherModels';
 import { CipherFieldType, CipherItemType, DBTableName } from '../utils/Constants';
-import { Crypto } from '../utils/Crypto';
+import { CryptoUtil } from '../utils/CryptoUtil';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
 
 export class CipherDetailViewModel {
@@ -49,9 +49,9 @@ export class CipherDetailViewModel {
       const loginRecord = loginData.find(data => data.cipher_id === cipherId);
 
       if (loginRecord) {
-        const username = await Crypto.decryptField(loginRecord.username as string, this.symmetricKey);
-        const password = await Crypto.decryptField(loginRecord.password as string, this.symmetricKey);
-        const totp = await Crypto.decryptField(loginRecord.totp as string, this.symmetricKey);
+        const username = await CryptoUtil.decryptField(loginRecord.username as string, this.symmetricKey);
+        const password = await CryptoUtil.decryptField(loginRecord.password as string, this.symmetricKey);
+        const totp = await CryptoUtil.decryptField(loginRecord.totp as string, this.symmetricKey);
         let uris: CipherUri[] = [];
         if (loginRecord.uris) {
           uris = await this.parseUris(JSON.parse(loginRecord.uris as string));
@@ -75,8 +75,8 @@ export class CipherDetailViewModel {
   async parseUris(uris: CipherUri[]): Promise<CipherUri[]> {
     return await Promise.all(
       uris.map(async (item: CipherUri) => {
-        const uriStr = await Crypto.decryptField(item.uri, this.symmetricKey);
-        item.uri = uriStr;
+        item.uri = await CryptoUtil.decryptField(item.uri, this.symmetricKey);
+        item.uriChecksum = await CryptoUtil.decryptField(item.uriChecksum, this.symmetricKey);
         return item;
       })
     );
@@ -91,12 +91,12 @@ export class CipherDetailViewModel {
       const cardRecord = cardData.find(data => data.cipher_id === cipherId);
 
       if (cardRecord) {
-        const cardholderName = await Crypto.decryptField(cardRecord.cardholder_name as string, this.symmetricKey);
-        const brand = await Crypto.decryptField(cardRecord.brand as string, this.symmetricKey);
-        const number = await Crypto.decryptField(cardRecord.number as string, this.symmetricKey);
-        const expMonth = await Crypto.decryptField(cardRecord.exp_month as string, this.symmetricKey);
-        const expYear = await Crypto.decryptField(cardRecord.exp_year as string, this.symmetricKey);
-        const code = await Crypto.decryptField(cardRecord.code as string, this.symmetricKey);
+        const cardholderName = await CryptoUtil.decryptField(cardRecord.cardholder_name as string, this.symmetricKey);
+        const brand = await CryptoUtil.decryptField(cardRecord.brand as string, this.symmetricKey);
+        const number = await CryptoUtil.decryptField(cardRecord.number as string, this.symmetricKey);
+        const expMonth = await CryptoUtil.decryptField(cardRecord.exp_month as string, this.symmetricKey);
+        const expYear = await CryptoUtil.decryptField(cardRecord.exp_year as string, this.symmetricKey);
+        const code = await CryptoUtil.decryptField(cardRecord.code as string, this.symmetricKey);
         const cardItem: CipherCard = {
           cardholderName: cardholderName,
           brand: brand,
@@ -121,24 +121,25 @@ export class CipherDetailViewModel {
       const identityRecord = identityData.find(data => data.cipher_id === cipherId);
 
       if (identityRecord) {
-        const address1 = await Crypto.decryptField(identityRecord.address1 as string, this.symmetricKey);
-        const address2 = await Crypto.decryptField(identityRecord.address2 as string, this.symmetricKey);
-        const address3 = await Crypto.decryptField(identityRecord.address3 as string, this.symmetricKey);
-        const city = await Crypto.decryptField(identityRecord.city as string, this.symmetricKey);
-        const company = await Crypto.decryptField(identityRecord.company as string, this.symmetricKey);
-        const country = await Crypto.decryptField(identityRecord.country as string, this.symmetricKey);
-        const email = await Crypto.decryptField(identityRecord.email as string, this.symmetricKey);
-        const firstName = await Crypto.decryptField(identityRecord.first_name as string, this.symmetricKey);
-        const lastName = await Crypto.decryptField(identityRecord.last_name as string, this.symmetricKey);
-        const licenseNumber = await Crypto.decryptField(identityRecord.license_number as string, this.symmetricKey);
-        const middleName = await Crypto.decryptField(identityRecord.middle_name as string, this.symmetricKey);
-        const passportNumber = await Crypto.decryptField(identityRecord.passport_number as string, this.symmetricKey);
-        const phone = await Crypto.decryptField(identityRecord.phone as string, this.symmetricKey);
-        const postalCode = await Crypto.decryptField(identityRecord.postal_code as string, this.symmetricKey);
-        const ssn = await Crypto.decryptField(identityRecord.ssn as string, this.symmetricKey);
-        const state = await Crypto.decryptField(identityRecord.state as string, this.symmetricKey);
-        const title = await Crypto.decryptField(identityRecord.title as string, this.symmetricKey);
-        const username = await Crypto.decryptField(identityRecord.username as string, this.symmetricKey);
+        const address1 = await CryptoUtil.decryptField(identityRecord.address1 as string, this.symmetricKey);
+        const address2 = await CryptoUtil.decryptField(identityRecord.address2 as string, this.symmetricKey);
+        const address3 = await CryptoUtil.decryptField(identityRecord.address3 as string, this.symmetricKey);
+        const city = await CryptoUtil.decryptField(identityRecord.city as string, this.symmetricKey);
+        const company = await CryptoUtil.decryptField(identityRecord.company as string, this.symmetricKey);
+        const country = await CryptoUtil.decryptField(identityRecord.country as string, this.symmetricKey);
+        const email = await CryptoUtil.decryptField(identityRecord.email as string, this.symmetricKey);
+        const firstName = await CryptoUtil.decryptField(identityRecord.first_name as string, this.symmetricKey);
+        const lastName = await CryptoUtil.decryptField(identityRecord.last_name as string, this.symmetricKey);
+        const licenseNumber = await CryptoUtil.decryptField(identityRecord.license_number as string, this.symmetricKey);
+        const middleName = await CryptoUtil.decryptField(identityRecord.middle_name as string, this.symmetricKey);
+        const passportNumber =
+          await CryptoUtil.decryptField(identityRecord.passport_number as string, this.symmetricKey);
+        const phone = await CryptoUtil.decryptField(identityRecord.phone as string, this.symmetricKey);
+        const postalCode = await CryptoUtil.decryptField(identityRecord.postal_code as string, this.symmetricKey);
+        const ssn = await CryptoUtil.decryptField(identityRecord.ssn as string, this.symmetricKey);
+        const state = await CryptoUtil.decryptField(identityRecord.state as string, this.symmetricKey);
+        const title = await CryptoUtil.decryptField(identityRecord.title as string, this.symmetricKey);
+        const username = await CryptoUtil.decryptField(identityRecord.username as string, this.symmetricKey);
         const identityItem: CipherIdentity = {
           address1: address1,
           address2: address2,
@@ -195,8 +196,8 @@ export class CipherDetailViewModel {
 
       for (const fieldData of fieldsData) {
         if (fieldData.cipher_id === cipherId) {
-          const fieldName = await Crypto.decryptField(fieldData.name as string, this.symmetricKey);
-          const fieldValue = await Crypto.decryptField(fieldData.value as string, this.symmetricKey);
+          const fieldName = await CryptoUtil.decryptField(fieldData.name as string, this.symmetricKey);
+          const fieldValue = await CryptoUtil.decryptField(fieldData.value as string, this.symmetricKey);
           fields.push({
             name: fieldName,
             value: fieldValue,

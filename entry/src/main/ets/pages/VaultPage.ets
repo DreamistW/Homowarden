@@ -29,7 +29,7 @@ export struct VaultPage {
   pathInfos: NavPathStack = new NavPathStack();
   AddItemBtn: NavigationMenuItem = {
     'value': '', 'icon': 'resources/base/media/icon_add.svg', 'action': () => {
-      this.pathInfos.pushPath({ name: EntryRouter.AddCipherPage });
+      this.pathInfos.pushPath({ name: EntryRouter.AddCipherPage, param: this.viewModel.symmetricKey });
     }
   }
   SettingsBtn: NavigationMenuItem = {

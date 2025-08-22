@@ -1,6 +1,6 @@
 import { Logger } from '@nzy/logger';
 import { DataPreferences } from '@abner/datastore';
-import { DeviceType, DEVICE_ID_KEY } from './Constants.ets';
+import { DEVICE_ID_KEY, DeviceType } from './Constants.ets';
 import { DeviceInfo } from '../model/DeviceInfo';
 
 /**
@@ -143,5 +143,11 @@ export class DeviceUtil {
   static async clearDeviceIdentifier(): Promise<void> {
     DataPreferences.getInstance().delete(DEVICE_ID_KEY);
     Logger.debug('Device identifier cleared from DataStore');
+  }
+
+  // 生成时间戳
+  static getISOTimestamp() {
+    const now = new Date();
+    return now.toISOString();
   }
 }

@@ -198,6 +198,10 @@ export struct CipherDetailPage {
             label: '网站',
             content: uri.uri,
           })
+          // CipherDetailTextItem({
+          //   label: '校验和',
+          //   content: uri.uriChecksum,
+          // })
         })
       }
 

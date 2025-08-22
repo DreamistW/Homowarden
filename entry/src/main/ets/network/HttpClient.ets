@@ -99,5 +99,5 @@ function encodeFormValue(value: string): string {
 export function encodeStringToBase64(str: string): string {
   const encoder = new util.TextEncoder();
   const data: Uint8Array = encoder.encodeInto(str);
-  return new util.Base64Helper().encodeToStringSync(data, util.Type.BASIC);
+  return new util.Base64Helper().encodeToStringSync(data);
 }

@@ -2,17 +2,17 @@ import { createHttpClient, getServerConfig } from './HttpClient';
 import { Cipher } from '../model/CipherModels';
 import { Logger } from '@nzy/logger';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { deleteAsset, queryAssetSync, updateAsset } from '../utils/Asset';
+import { deleteAsset, queryAssetSync, updateAsset } from '../utils/AssetUtil';
 import {
-  TOKEN_EXPIRE_TIME_KEY,
   ACCESS_TOKEN_KEY_1,
   ACCESS_TOKEN_KEY_2,
-  ServerType,
-  SERVER_BASE_URL_US,
-  SERVER_BASE_URL_EU,
-  REFRESH_TOKEN_KEY,
+  GrantType,
   Header_Client_Name,
-  GrantType
+  REFRESH_TOKEN_KEY,
+  SERVER_BASE_URL_EU,
+  SERVER_BASE_URL_US,
+  ServerType,
+  TOKEN_EXPIRE_TIME_KEY
 } from '../utils/Constants';
 import { refreshToken } from './AuthApi';
 import { AxiosResponse } from '@ohos/axios';
@@ -138,7 +138,7 @@ export async function createCipher(cipher: Cipher): Promise<Cipher> {
   const baseURL = await getApiBaseUrl();
   const client = createHttpClient(baseURL);
   const token = await getAccessToken();
-  return client.post('/ciphers/create', cipher, {
+  return client.post('/ciphers', cipher, {
     headers: {
       'Authorization': `Bearer ${token}`
     }
