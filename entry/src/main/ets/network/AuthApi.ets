@@ -54,14 +54,14 @@ export async function accessToken(request: AccessTokenRequest): Promise<AccessTo
   const client = createHttpClient(baseURL);
 
   let fields = [
-    'grant_type',
-    'username',
-    'password',
     'scope',
     'client_id',
     'deviceType',
     'deviceIdentifier',
-    'deviceName'
+    'deviceName',
+    'grant_type',
+    'username',
+    'password',
   ] as (keyof AccessTokenRequest)[];
 
   if (request.twoFactorToken != '') {
