@@ -94,7 +94,7 @@ export enum DBTableName {
   NOTES = 'cipher_secure_notes'
 }
 
-export enum FilterType{
+export enum FilterType {
   ALL = 0,
   LOGINS = 1,
   NOTES = 2,
@@ -102,4 +102,27 @@ export enum FilterType{
   IDENTITIES = 4,
   FAVORITE = 5,
   DELETED = 6
+}
+
+export enum IdentityTitleType {
+  NONE = 0,
+  MR = 1,
+  MRS = 2,
+  MISS = 3,
+  MX = 4,
+  DR = 5
+}
+
+export enum CardBrandType {
+  NONE = 0,
+  VISA = 1,
+  MASTER = 2,
+  AME = 3,
+  DISCOVER = 4,
+  DINERS = 5,
+  JCB = 6,
+  MAESTRO = 7,
+  UNIONPAY = 8,
+  RUPAY = 9,
+  OTHER = 10
 }

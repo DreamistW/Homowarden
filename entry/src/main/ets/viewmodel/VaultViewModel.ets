@@ -1,5 +1,5 @@
-import { getAllCiphers } from '../network/CipherApi.ets';
-import { Cipher } from '../model/CipherModels.ets';
+import { getAllCiphers } from '../network/CipherApi';
+import { Cipher } from '../model/CipherModels';
 import { Logger } from '@nzy/logger';
 import { CipherItemType, DBTableName, FilterType, MASTER_KEY, USER_KEY } from '../utils/Constants';
 import { relationalStore } from '@kit.ArkData';
@@ -288,10 +288,10 @@ export class VaultViewModel {
     this.filterOptions = [];
     // 基础类型，包括全部、登录项、安全笔记、卡片、联系人、收藏、回收站
     this.filterOptions.push({ text: '全部(' + this.stats.total + ')', value: FilterType.ALL });
-    this.filterOptions.push({ text: '登录项(' + this.stats.login + ')', value: FilterType.LOGINS });
+    this.filterOptions.push({ text: '登录(' + this.stats.login + ')', value: FilterType.LOGINS });
     this.filterOptions.push({ text: '笔记(' + this.stats.note + ')', value: FilterType.NOTES });
-    this.filterOptions.push({ text: '卡片(' + this.stats.card + ')', value: FilterType.CARDS });
-    this.filterOptions.push({ text: '联系人(' + this.stats.identity + ')', value: FilterType.IDENTITIES });
+    this.filterOptions.push({ text: '支付卡(' + this.stats.card + ')', value: FilterType.CARDS });
+    this.filterOptions.push({ text: '身份(' + this.stats.identity + ')', value: FilterType.IDENTITIES });
     this.filterOptions.push({ text: '收藏(' + this.stats.favorite + ')', value: FilterType.FAVORITE });
     this.filterOptions.push({ text: '回收站(' + this.stats.deleted + ')', value: FilterType.DELETED });
     // TODO: 添加文件夹筛选
