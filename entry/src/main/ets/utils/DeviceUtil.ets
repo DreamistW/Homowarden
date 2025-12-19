@@ -14,7 +14,7 @@ export class DeviceUtil {
    */
   static getDeviceType(): number {
     // 使用Android设备类型
-    return DeviceType.ANDROID;
+    return DeviceType.CHROME;
   }
 
   /**

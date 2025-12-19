@@ -29,7 +29,7 @@ export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
       config.headers['bitwarden-client-name'] = Header_Client_Name;
       config.headers['bitwarden-client-version'] = Header_Client_Version;
       config.headers['device-type'] = DeviceUtil.getDeviceType();
-      config.headers['accept-Language'] = "zh-CN,zh;q=0.9";
+      config.headers['Accept-Language'] = "zh-CN,zh;q=0.9";
       // config.headers['accept'] = 'application/json';
       // config.headers['origin'] = config.baseURL
       Logger.debug(`[HTTP] ${config.method?.toUpperCase()} ${config.baseURL ||
@@ -78,8 +78,8 @@ export function toFormUrlEncoded<T extends object>(data: T, keys: (keyof T)[]): 
     .map(key => {
       const keyStr = String(key);
       const value = (data[key] as string) ?? '';
-      // 对键进行URL编码，对值进行表单编码
-      return keyStr + '=' + value;
+      // 对值进行表单编码
+      return keyStr + '=' + encodeURIComponent(value);
     })
     .join('&');
 }

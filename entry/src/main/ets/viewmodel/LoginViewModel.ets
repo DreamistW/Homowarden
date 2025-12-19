@@ -128,7 +128,7 @@ export class LoginViewModel {
         deleteAsset(EMAIL_KEY);
       }
       const request: PreloginRequest = {
-        email: this.email.trim()
+        email: this.email.trim().toLowerCase()
       };
       const response: PreloginResponse = await prelogin(request);
 
@@ -213,7 +213,7 @@ export class LoginViewModel {
 
       const request: AccessTokenRequest = {
         grant_type: GrantType.PASSWORD,
-        username: this.email.trim(),
+        username: this.email.trim().toLowerCase(),
         password: this.loginPassword,
         scope: SCOPE_KEY,
         client_id: Header_Client_Name,
@@ -247,7 +247,7 @@ export class LoginViewModel {
     try {
       const request: AccessTokenRequest = {
         grant_type: GrantType.PASSWORD,
-        username: this.email.trim(),
+        username: this.email.trim().toLowerCase(),
         password: this.loginPassword,
         scope: SCOPE_KEY,
         client_id: Header_Client_Name,

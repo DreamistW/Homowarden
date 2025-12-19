@@ -259,6 +259,7 @@ export struct LoginPage {
     this.twoFactorInputError = false;
     this.viewModel.clearError();
     this.isLoading = true;
+    this.viewModel.needTwoFactor = false;
     const loginSuccess = await this.viewModel.login();
     if (this.viewModel.needTwoFactor) {
       this.isNeed2FA = true;
