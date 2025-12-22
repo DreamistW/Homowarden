@@ -13,16 +13,29 @@ export struct CipherDetailPage {
   @State cipher: Cipher = {} as Cipher;
   @State isLoading: boolean = true;
   @State showHideField: boolean = false;
+  @State isEditable: boolean = false;
   pathInfos: NavPathStack = new NavPathStack();
   private viewModel: CipherDetailViewModel = new CipherDetailViewModel();
   EditItemBtn: NavigationMenuItem = {
     'value': '', 'icon': 'resources/base/media/icon_edit.svg', 'action': () => {
-      this.navigateToEdit();
+      this.isEditable = true;
     }
   }
   DeleteItemBtn: NavigationMenuItem = {
     'value': '', 'icon': 'resources/base/media/icon_delete.svg', 'action': () => {
       this.deleteCipher();
+    }
+  }
+  ConfirmEditBtn: NavigationMenuItem = {
+    'value': '', 'icon': 'resources/base/media/icon_confirm.svg', 'action': () => {
+      this.isEditable = false;
+      // this.viewModel.updateCipher(this.cipher);
+    }
+  }
+  CancelEditBtn: NavigationMenuItem = {
+    'value': '', 'icon': 'resources/base/media/icon_cancel.svg', 'action': () => {
+      this.isEditable = false;
+      this.loadCipherDetail();
     }
   }
 
@@ -97,9 +110,17 @@ export struct CipherDetailPage {
                     .fontWeight(FontWeight.Medium)
                     .margin({ bottom: 12 })
 
-                  Text(this.cipher.notes)
-                    .fontSize(14)
-                    .fontColor('#666666')
+                  if (this.isEditable) {
+                    TextInput({ text: this.cipher.notes })
+                      .onChange((value: string) => {
+                        this.cipher.notes = value;
+                      })
+                      .margin({ left: 16, right: 16 })
+                  } else {
+                    Text(this.cipher.notes)
+                      .fontSize(14)
+                      .fontColor('#666666')
+                  }
                 }
                 .width('100%')
                 .padding(16)
@@ -166,7 +187,7 @@ export struct CipherDetailPage {
         this.loadCipherDetail();
       }
     })
-    .menus([this.EditItemBtn, this.DeleteItemBtn])
+    .menus(this.isEditable ? [this.CancelEditBtn, this.ConfirmEditBtn] : [this.EditItemBtn, this.DeleteItemBtn])
   }
 
   @Builder
@@ -181,6 +202,7 @@ export struct CipherDetailPage {
       CipherDetailTextItem({
         label: '用户名',
         content: this.cipher.login?.username,
+        isEditable: this.isEditable
       })
 
       // 密码
@@ -189,6 +211,7 @@ export struct CipherDetailPage {
         content: this.cipher.login?.password,
         showContent: this.showHideField,
         showHideButton: true,
+        isEditable: this.isEditable
       })
 
       // 网址
@@ -197,6 +220,7 @@ export struct CipherDetailPage {
           CipherDetailTextItem({
             label: '网站',
             content: uri.uri,
+            isEditable: this.isEditable
           })
           // CipherDetailTextItem({
           //   label: '校验和',
@@ -228,6 +252,7 @@ export struct CipherDetailPage {
         CipherDetailTextItem({
           label: '持卡人',
           content: this.cipher.card.cardholderName,
+          isEditable: this.isEditable
         })
       }
 
@@ -236,6 +261,7 @@ export struct CipherDetailPage {
         CipherDetailTextItem({
           label: '品牌',
           content: this.cipher.card.brand,
+          isEditable: this.isEditable
         })
       }
 
@@ -246,6 +272,7 @@ export struct CipherDetailPage {
           content: this.cipher.card.number,
           showContent: this.showHideField,
           showHideButton: true,
+          isEditable: this.isEditable
         })
       }
 
@@ -254,6 +281,7 @@ export struct CipherDetailPage {
         CipherDetailTextItem({
           label: '有效期',
           content: `${this.cipher.card?.expMonth || ''}/${this.cipher.card?.expYear || ''}`,
+          isEditable: this.isEditable
         })
       }
 
@@ -264,6 +292,7 @@ export struct CipherDetailPage {
           content: this.cipher.card.code,
           showContent: this.showHideField,
           showHideButton: true,
+          isEditable: this.isEditable
         })
       }
     }
@@ -286,6 +315,7 @@ export struct CipherDetailPage {
           label: '姓名',
           content: `${this.cipher.identity?.firstName || ''} ${this.cipher.identity?.middleName ||
             ''} ${this.cipher.identity?.lastName || ''} ${this.cipher.identity?.title || ''}`.trim(),
+          isEditable: this.isEditable
         })
       }
 
@@ -294,6 +324,7 @@ export struct CipherDetailPage {
         CipherDetailTextItem({
           label: '用户名',
           content: this.cipher.identity.username,
+          isEditable: this.isEditable
         })
       }
 
@@ -302,6 +333,7 @@ export struct CipherDetailPage {
         CipherDetailTextItem({
           label: '公司',
           content: this.cipher.identity.company,
+          isEditable: this.isEditable
         })
       }
 
@@ -312,6 +344,7 @@ export struct CipherDetailPage {
           content: this.cipher.identity.ssn,
           showContent: this.showHideField,
           showHideButton: true,
+          isEditable: this.isEditable
         })
       }
 
@@ -322,6 +355,7 @@ export struct CipherDetailPage {
           content: this.cipher.identity.passportNumber,
           showContent: this.showHideField,
           showHideButton: true,
+          isEditable: this.isEditable
         })
       }
 
@@ -330,6 +364,7 @@ export struct CipherDetailPage {
         CipherDetailTextItem({
           label: '许可证号码',
           content: this.cipher.identity.licenseNumber,
+          isEditable: this.isEditable
         })
       }
 
@@ -338,6 +373,7 @@ export struct CipherDetailPage {
         CipherDetailTextItem({
           label: '邮箱',
           content: this.cipher.identity.email,
+          isEditable: this.isEditable
         })
       }
 
@@ -346,6 +382,7 @@ export struct CipherDetailPage {
         CipherDetailTextItem({
           label: '电话',
           content: this.cipher.identity.phone,
+          isEditable: this.isEditable
         })
       }
 
@@ -356,6 +393,7 @@ export struct CipherDetailPage {
           label: '地址',
           content: `${this.cipher.identity?.address1 || ''} ${this.cipher.identity?.city ||
             ''} ${this.cipher.identity?.state || ''}`.trim(),
+          isEditable: this.isEditable
         })
       }
     }
@@ -391,17 +429,13 @@ export struct CipherDetailPage {
           content: this.getFieldValue(field),
           showContent: (field.type == CipherFieldType.HIDE) ? this.showHideField : true,
           showHideButton: (field.type == CipherFieldType.HIDE) ? true : false,
+          isEditable: this.isEditable
         })
       })
     }
     .width('100%')
     .padding(16)
     .margin({ bottom: 8 })
-  }
-
-  private navigateToEdit() {
-    // 跳转到编辑页面
-    console.log('Navigate to edit page');
   }
 
   private deleteCipher() {

@@ -16,6 +16,8 @@ export struct CipherDetailTextItem {
   @Prop showCopyButton: boolean = true;
   // 占位符样式
   @Prop placeholder: string = '••••••••';
+  // 是否编辑模式
+  @Prop isEditable: boolean = false;
 
   build() {
     Row() {
@@ -24,11 +26,21 @@ export struct CipherDetailTextItem {
         .fontColor('#666666')
         .width(80)
 
-      Text(this.showContent ? this.content : this.placeholder)
-        .fontSize(14)
-        .layoutWeight(1)
+      if (this.isEditable) {
+        TextInput({ text: this.content })
+          .fontSize(14)
+          .layoutWeight(1)
+          .margin({ left: 16, right: 16 })
+          .onChange((value: string) => this.content = value)
+          .type(this.showHideButton ? InputType.Password : InputType.Normal)
+      }
+      else {
+        Text(this.showContent ? this.content : this.placeholder)
+          .fontSize(14)
+          .layoutWeight(1)
+      }
 
-      if (this.showHideButton) {
+      if (this.showHideButton && !this.isEditable) {
         Button() {
           Text(this.showContent ? '隐藏' : '显示')
             .fontSize(12)
@@ -38,7 +50,7 @@ export struct CipherDetailTextItem {
         .margin({ right: 8 })
       }
 
-      if (this.showCopyButton) {
+      if (this.showCopyButton && !this.isEditable) {
         Button() {
           Text('复制')
             .fontSize(12)
