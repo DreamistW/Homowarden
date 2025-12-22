@@ -1,6 +1,6 @@
 import { Logger } from '@nzy/logger';
 import { DataPreferences } from '@abner/datastore';
-import { DEVICE_ID_KEY, DeviceType } from './Constants.ets';
+import { DEVICE_ID_KEY, DeviceType } from './Constants';
 import { DeviceInfo } from '../model/DeviceInfo';
 
 /**

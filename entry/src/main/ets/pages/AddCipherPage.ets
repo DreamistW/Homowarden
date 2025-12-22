@@ -41,29 +41,22 @@ export struct AddCipherPage {
               group: this.itemTypeGroup,
               active: $cipherType,
               placeDirection: Axis.Horizontal,
-              space: 12
+              space: 12,
+              onChange: () => {
+                this.viewModel.type = this.cipherType;
+              }
             }) {
               IBestRadio({
                 group: this.itemTypeGroup,
                 label: '登录',
                 name: CipherItemType.LOGIN,
                 labelDisabled: true,
-                onChange: (checked) => {
-                  if (checked) {
-                    this.cipherType = CipherItemType.LOGIN;
-                  }
-                }
               })
               IBestRadio({
                 group: this.itemTypeGroup,
                 label: '安全笔记',
                 name: CipherItemType.NOTE,
                 labelDisabled: true,
-                onChange: (checked) => {
-                  if (checked) {
-                    this.cipherType = CipherItemType.NOTE;
-                  }
-                }
               })
             }
 
@@ -72,29 +65,22 @@ export struct AddCipherPage {
             IBestRadioGroup({
               group: this.itemTypeGroup,
               active: $cipherType,
-              placeDirection: Axis.Horizontal
+              placeDirection: Axis.Horizontal,
+              onChange: () => {
+                this.viewModel.type = this.cipherType;
+              }
             }) {
               IBestRadio({
                 group: this.itemTypeGroup,
                 label: '支付卡',
                 name: CipherItemType.CARD,
                 labelDisabled: true,
-                onChange: (checked) => {
-                  if (checked) {
-                    this.cipherType = CipherItemType.CARD;
-                  }
-                }
               })
               IBestRadio({
                 group: this.itemTypeGroup,
                 label: '身份',
                 name: CipherItemType.IDENTITY,
                 labelDisabled: true,
-                onChange: (checked) => {
-                  if (checked) {
-                    this.cipherType = CipherItemType.IDENTITY;
-                  }
-                }
               })
             }
           }
@@ -654,6 +640,7 @@ export struct AddCipherPage {
     const ok = await this.viewModel.submitCreate();
     this.isSubmitting = false;
     if (ok) {
+      IBestToast.show("创建成功");
       this.pathInfos.pop();
     }
   }

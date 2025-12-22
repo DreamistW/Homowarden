@@ -142,6 +142,19 @@ export class VaultViewModel {
       ciphers.push(cipher);
     }
 
+    ciphers.sort((a: Cipher, b: Cipher) => {
+      if (!a.name && !b.name) {
+        return 0;
+      }
+      if (!a.name) {
+        return 1;
+      }
+      if (!b.name) {
+        return -1;
+      }
+      return a.name.localeCompare(b.name, 'zh-CN');
+    })
+
     return ciphers;
   }
 

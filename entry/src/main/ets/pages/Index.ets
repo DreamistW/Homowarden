@@ -1,12 +1,12 @@
 import { DataPreferences } from '@abner/datastore';
 import { LOGIN_STATUS_KEY, PRIVACY_AGREED_KEY } from '../utils/Constants';
-import { common } from '@kit.AbilityKit';
+import { common, Want } from '@kit.AbilityKit';
 import { EntryRouter } from '../../../../EntryRouter';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
 
 @CustomDialog
 struct PrivacyDialogContent {
-  controller?: CustomDialogController
+  dialogController?: CustomDialogController
   cancel: () => void = () => {
   }
   confirm: () => void = () => {
@@ -14,23 +14,41 @@ struct PrivacyDialogContent {
 
   build() {
     Column() {
-      Text("隐私协议")
+      Text("隐私政策")
         .fontSize(20)
         .margin({ top: 20, bottom: 10 })
 
-      Text("请仔细阅读并同意用户协议与隐私政策")
-        .fontSize(16)
-        .margin({ bottom: 20 })
+      Text() {
+        Span('请仔细阅读并同意')
+        Span('隐私政策')
+          .fontColor(Color.Blue)
+          .decoration({ type: TextDecorationType.Underline })
+          .onClick(() => {
+            const context = getContext(this) as common.UIAbilityContext;
+            const want: Want = {
+              uri: 'https://agreement-drcn.hispace.dbankcloud.cn/index.html?lang=zh&agreementId=1846508510607638400'
+            };
+            context.startAbility(want).catch((err: Error) => {
+              console.error(`Failed to open url. Error: ${err.message}`);
+              this.getUIContext().getPromptAction().showToast({
+                message: '无法打开页面'
+              });
+            });
+          })
+      }
+      .fontSize(16)
+      .margin({ bottom: 20 })
 
       Row() {
         Button('不同意')
           .onClick(() => {
-            this.controller?.close();
+            this.dialogController?.close();
             this.cancel();
           })
+          .margin({ right: 12 })
         Button('同意')
           .onClick(() => {
-            this.controller?.close();
+            this.dialogController?.close();
             this.confirm();
           })
       }.justifyContent(FlexAlign.SpaceEvenly)
@@ -44,10 +62,6 @@ struct Index {
   pathInfos: NavPathStack = new NavPathStack();
   @State private showPrivacyDialog: boolean = true;
   private isLogin: boolean = false;
-
-  onPageHide(): void {
-    this.privacyDialogController.close();
-  }
 
   aboutToDisappear(): void {
     this.privacyDialogController.close();

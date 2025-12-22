@@ -7,7 +7,8 @@ import {
   IBestDropdownItem,
   IBestDropdownMenu,
   IBestField,
-  IBestFieldValueType
+  IBestFieldValueType,
+  IBestPullRefresh
 } from '@ibestservices/ibest-ui';
 import { DataPreferences } from '@abner/datastore';
 import { FilterType, LOGIN_STATUS_KEY } from '../utils/Constants';
@@ -22,9 +23,11 @@ export function VaultPageBuilder() {
 @Component
 export struct VaultPage {
   @State viewModel: VaultViewModel = new VaultViewModel();
+  private listScroller: ListScroller = new ListScroller();
   @State searchText: string = '';
   @State needReLogin: boolean = false;
   @State selectedType: FilterType | string = 0;
+  @State isLoading: boolean = false;
   private exitTime: number = 0;
   pathInfos: NavPathStack = new NavPathStack();
   AddItemBtn: NavigationMenuItem = {
@@ -50,6 +53,7 @@ export struct VaultPage {
     };
 
     await this.viewModel.loadCiphers();
+    this.isLoading = false;
   }
 
   @Builder
@@ -57,6 +61,54 @@ export struct VaultPage {
     Column() {
       Text(this.viewModel.errorMessage)
         .margin(12)
+    }
+  }
+
+  @Builder
+  listContent() {
+    Scroll(this.listScroller) {
+      // 密码项列表
+      if (this.viewModel.isLoading) {
+        Column() {
+          LoadingProgress()
+            .width(40)
+            .height(40)
+          Text('加载中...')
+            .fontSize(14)
+            .fontColor(Color.Gray)
+            .margin({ top: 8 })
+        }
+        .width('100%')
+        .height('100%')
+        .justifyContent(FlexAlign.Center)
+      } else if (this.viewModel.filteredCiphers.length === 0) {
+        Column() {
+          Text('暂无密码项')
+            .fontSize(16)
+            .fontColor(Color.Gray)
+        }
+        .width('100%')
+        .height('100%')
+        .justifyContent(FlexAlign.Center)
+      } else {
+        List({ scroller: this.listScroller }) {
+          ForEach(this.viewModel.filteredCiphers, (cipher: Cipher) => {
+            ListItem() {
+              CipherItem({
+                cipher: cipher,
+                onTap: () => {
+                  this.navigateToDetail(cipher);
+                }
+              })
+            }
+          })
+        }
+        .width('100%')
+        .height('100%')
+        .padding({ left: 16, right: 16 })
+        .safeAreaPadding({ bottom: $r('app.float.safe_area_bottom') })
+        .edgeEffect(EdgeEffect.None)
+      }
     }
   }
 
@@ -96,46 +148,13 @@ export struct VaultPage {
         .width('100%')
         .padding({ left: 16, right: 16, bottom: 8 })
 
-        // 密码项列表
-        if (this.viewModel.isLoading) {
-          Column() {
-            LoadingProgress()
-              .width(40)
-              .height(40)
-            Text('加载中...')
-              .fontSize(14)
-              .fontColor(Color.Gray)
-              .margin({ top: 8 })
-          }
-          .width('100%')
-          .height('100%')
-          .justifyContent(FlexAlign.Center)
-        } else if (this.viewModel.filteredCiphers.length === 0) {
-          Column() {
-            Text('暂无密码项')
-              .fontSize(16)
-              .fontColor(Color.Gray)
-          }
-          .width('100%')
-          .height('100%')
-          .justifyContent(FlexAlign.Center)
-        } else {
-          List() {
-            ForEach(this.viewModel.filteredCiphers, (cipher: Cipher) => {
-              ListItem() {
-                CipherItem({
-                  cipher: cipher,
-                  onTap: () => {
-                    this.navigateToDetail(cipher);
-                  }
-                })
-              }
-            })
-          }
-          .width('100%')
-          .height('100%')
-          .padding({ left: 16, right: 16 })
-        }
+        IBestPullRefresh({
+          loading: $isLoading,
+          scroller: this.listScroller,
+          defaultContent: () => this.listContent(),
+          onRefresh: () => this.loadCiphers(),
+          isEnableSlideUp: false
+        })
 
         // 重新登录弹框
         IBestDialog({
@@ -158,6 +177,9 @@ export struct VaultPage {
     .hideBackButton(true)
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
+    })
+    .onShown(() => {
+      this.loadCiphers();
     })
     .onBackPressed(() => {
       const currentTime = new Date().getTime();
