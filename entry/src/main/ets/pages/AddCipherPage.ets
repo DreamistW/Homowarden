@@ -549,7 +549,11 @@ export struct AddCipherPage {
               })
             TextInput()
               .onChange((v: string) => {
-                this.viewModel.cardItem.expMonth = v;
+                // 校验月份：只允许1-12
+                const month = parseInt(v);
+                if (v === '' || (!isNaN(month) && month >= 1 && month <= 12)) {
+                  this.viewModel.cardItem.expMonth = v;
+                }
               })
               .margin({ left: 16, right: 16 })
               .type(InputType.NUMBER_DECIMAL)
@@ -566,7 +570,11 @@ export struct AddCipherPage {
               })
             TextInput()
               .onChange((v: string) => {
-                this.viewModel.cardItem.expYear = v;
+                // 校验年份：只允许合理的公元年份（1900-9999）
+                const year = parseInt(v);
+                if (v === '' || (!isNaN(year) && year >= 1900 && year <= 9999)) {
+                  this.viewModel.cardItem.expYear = v;
+                }
               })
               .margin({ left: 16, right: 16 })
               .type(InputType.NUMBER_DECIMAL)

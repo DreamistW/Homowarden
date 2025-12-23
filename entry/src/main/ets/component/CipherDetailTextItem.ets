@@ -1,6 +1,6 @@
-import { BusinessError, pasteboard } from "@kit.BasicServicesKit";
-import { PromptAction } from "@kit.ArkUI";
-import { Logger } from "@nzy/logger";
+import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
+import { PromptAction } from '@kit.ArkUI';
+import { Logger } from '@nzy/logger';
 
 @Component
 export struct CipherDetailTextItem {
@@ -18,6 +18,10 @@ export struct CipherDetailTextItem {
   @Prop placeholder: string = '••••••••';
   // 是否编辑模式
   @Prop isEditable: boolean = false;
+  // 是否只能输入数字
+  @Prop isNumberOnly: boolean = false;
+  // 内容变化回调
+  onValueChange?: (value: string) => void;
 
   build() {
     Row() {
@@ -31,16 +35,20 @@ export struct CipherDetailTextItem {
           .fontSize(14)
           .layoutWeight(1)
           .margin({ left: 16, right: 16 })
-          .onChange((value: string) => this.content = value)
-          .type(this.showHideButton ? InputType.Password : InputType.Normal)
-      }
-      else {
-        Text(this.showContent ? this.content : this.placeholder)
+          .onChange((value: string) => {
+            if (this.onValueChange) {
+              this.onValueChange(value);
+            }
+          })
+          .type((this.showHideButton ? InputType.Password : InputType.Normal) |
+            (this.isNumberOnly ? InputType.Number : InputType.Normal))
+      } else {
+        Text(this.content ? (this.showContent ? this.content : this.placeholder) : '')
           .fontSize(14)
           .layoutWeight(1)
       }
 
-      if (this.showHideButton && !this.isEditable) {
+      if (this.showHideButton && !this.isEditable && this.content) {
         Button() {
           Text(this.showContent ? '隐藏' : '显示')
             .fontSize(12)
@@ -50,7 +58,7 @@ export struct CipherDetailTextItem {
         .margin({ right: 8 })
       }
 
-      if (this.showCopyButton && !this.isEditable) {
+      if (this.showCopyButton && !this.isEditable && this.content) {
         Button() {
           Text('复制')
             .fontSize(12)

@@ -1,7 +1,10 @@
 import { Cipher, CipherDetailParams, CipherField, CipherUri } from '../model/CipherModels';
-import { CipherFieldType, CipherItemType } from '../utils/Constants';
+import { CardBrandType, CipherFieldType, CipherItemType, IdentityTitleType } from '../utils/Constants';
 import { CipherDetailViewModel } from '../viewmodel/CipherDetailViewModel';
 import { CipherDetailTextItem } from '../component/CipherDetailTextItem';
+import { CipherDetailDropdownItem } from '../component/CipherDetailDropdownItem';
+import { IBestDropdownMenuOption } from '@ibestservices/ibest-ui';
+import { Logger } from '@nzy/logger';
 
 @Builder
 export function CipherDetailPageBuilder() {
@@ -12,10 +15,90 @@ export function CipherDetailPageBuilder() {
 export struct CipherDetailPage {
   @State cipher: Cipher = {} as Cipher;
   @State isLoading: boolean = true;
+  @State isSaving: boolean = false;
   @State showHideField: boolean = false;
   @State isEditable: boolean = false;
+  @State selectedCardBrand: CardBrandType | string = CardBrandType.NONE;
+  @State selectedIdentityTitle: IdentityTitleType | string = IdentityTitleType.NONE;
   pathInfos: NavPathStack = new NavPathStack();
   private viewModel: CipherDetailViewModel = new CipherDetailViewModel();
+  private identityTitleGroup: string = 'identityTitleSelector';
+  private cardBrandGroup: string = 'cardBrandSelector';
+  // 下拉菜单选项
+  private identityTitleOptions: IBestDropdownMenuOption[] = [
+    { text: '无', value: IdentityTitleType.NONE },
+    { text: '先生', value: IdentityTitleType.MR },
+    { text: '夫人', value: IdentityTitleType.MRS },
+    { text: '女士', value: IdentityTitleType.MISS },
+    { text: 'Mx', value: IdentityTitleType.MX },
+    { text: '博士', value: IdentityTitleType.DR }
+  ];
+  private cardBrandOptions: IBestDropdownMenuOption[] = [
+    { text: '无', value: CardBrandType.NONE },
+    { text: 'Visa', value: CardBrandType.VISA },
+    { text: 'MasterCard', value: CardBrandType.MASTER },
+    { text: 'American Express', value: CardBrandType.AME },
+    { text: 'Discover', value: CardBrandType.DISCOVER },
+    { text: 'Diners Club', value: CardBrandType.DINERS },
+    { text: 'JCB', value: CardBrandType.JCB },
+    { text: 'Maestro', value: CardBrandType.MAESTRO },
+    { text: 'UnionPay', value: CardBrandType.UNIONPAY },
+    { text: 'RuPay', value: CardBrandType.RUPAY },
+    { text: '其他', value: CardBrandType.OTHER },
+  ];
+
+  // 将身份标题文本转换为枚举值
+  private getIdentityTitleEnum(title: string | null | undefined): IdentityTitleType {
+    if (!title) {
+      return IdentityTitleType.NONE;
+    }
+    switch (title) {
+      case '先生':
+        return IdentityTitleType.MR;
+      case '夫人':
+        return IdentityTitleType.MRS;
+      case '女士':
+        return IdentityTitleType.MISS;
+      case 'Mx':
+        return IdentityTitleType.MX;
+      case '博士':
+        return IdentityTitleType.DR;
+      default:
+        return IdentityTitleType.NONE;
+    }
+  }
+
+  // 将卡品牌文本转换为枚举值
+  private getCardBrandEnum(brand: string | null | undefined): CardBrandType {
+    if (!brand) {
+      return CardBrandType.NONE;
+    }
+    switch (brand) {
+      case 'Visa':
+        return CardBrandType.VISA;
+      case 'MasterCard':
+        return CardBrandType.MASTER;
+      case 'American Express':
+        return CardBrandType.AME;
+      case 'Discover':
+        return CardBrandType.DISCOVER;
+      case 'Diners Club':
+        return CardBrandType.DINERS;
+      case 'JCB':
+        return CardBrandType.JCB;
+      case 'Maestro':
+        return CardBrandType.MAESTRO;
+      case 'UnionPay':
+        return CardBrandType.UNIONPAY;
+      case 'RuPay':
+        return CardBrandType.RUPAY;
+      case '其他':
+        return CardBrandType.OTHER;
+      default:
+        return CardBrandType.NONE;
+    }
+  }
+
   EditItemBtn: NavigationMenuItem = {
     'value': '', 'icon': 'resources/base/media/icon_edit.svg', 'action': () => {
       this.isEditable = true;
@@ -27,9 +110,8 @@ export struct CipherDetailPage {
     }
   }
   ConfirmEditBtn: NavigationMenuItem = {
-    'value': '', 'icon': 'resources/base/media/icon_confirm.svg', 'action': () => {
-      this.isEditable = false;
-      // this.viewModel.updateCipher(this.cipher);
+    'value': '', 'icon': 'resources/base/media/icon_confirm.svg', 'action': async () => {
+      await this.saveCipher();
     }
   }
   CancelEditBtn: NavigationMenuItem = {
@@ -45,11 +127,35 @@ export struct CipherDetailPage {
       const cipherDetail = await this.viewModel.getCipherDetail(this.cipher);
       if (cipherDetail) {
         this.cipher = cipherDetail;
+        // 初始化下拉菜单的选中值
+        if (this.cipher.card?.brand) {
+          this.selectedCardBrand = this.getCardBrandEnum(this.cipher.card.brand);
+        }
+        if (this.cipher.identity?.title) {
+          this.selectedIdentityTitle = this.getIdentityTitleEnum(this.cipher.identity.title);
+        }
       }
     } catch (error) {
-      console.error('Failed to load cipher detail:', error);
+      Logger.error('Failed to load cipher detail:', error);
     } finally {
       this.isLoading = false;
+    }
+  }
+
+  /**
+   * 保存密码项
+   */
+  private async saveCipher() {
+    this.isSaving = true;
+    try {
+      // 调用 ViewModel 的 updateCipher 方法
+      await this.viewModel.updateCipher(this.cipher);
+      // 保存成功，退出编辑模式
+      this.isEditable = false;
+    } catch (error) {
+      Logger.error('Failed to save cipher:', error);
+    } finally {
+      this.isSaving = false;
     }
   }
 
@@ -103,29 +209,27 @@ export struct CipherDetailPage {
               }
 
               // 备注
-              if (this.cipher.notes) {
-                Column() {
-                  Text('备注')
-                    .fontSize(16)
-                    .fontWeight(FontWeight.Medium)
-                    .margin({ bottom: 12 })
+              Column() {
+                Text('备注')
+                  .fontSize(16)
+                  .fontWeight(FontWeight.Medium)
+                  .margin({ bottom: 12 })
 
-                  if (this.isEditable) {
-                    TextInput({ text: this.cipher.notes })
-                      .onChange((value: string) => {
-                        this.cipher.notes = value;
-                      })
-                      .margin({ left: 16, right: 16 })
-                  } else {
-                    Text(this.cipher.notes)
-                      .fontSize(14)
-                      .fontColor('#666666')
-                  }
+                if (this.isEditable) {
+                  TextInput({ text: this.cipher.notes })
+                    .onChange((value: string) => {
+                      this.cipher.notes = value;
+                    })
+                    .margin({ left: 16, right: 16 })
+                } else {
+                  Text(this.cipher.notes)
+                    .fontSize(14)
+                    .fontColor('#666666')
                 }
-                .width('100%')
-                .padding(16)
-                .margin({ bottom: 8 })
               }
+              .width('100%')
+              .padding(16)
+              .margin({ bottom: 8 })
 
               // 元数据
               Column() {
@@ -202,7 +306,12 @@ export struct CipherDetailPage {
       CipherDetailTextItem({
         label: '用户名',
         content: this.cipher.login?.username,
-        isEditable: this.isEditable
+        isEditable: this.isEditable,
+        onValueChange: (value: string) => {
+          if (this.cipher.login) {
+            this.cipher.login.username = value;
+          }
+        }
       })
 
       // 密码
@@ -211,7 +320,12 @@ export struct CipherDetailPage {
         content: this.cipher.login?.password,
         showContent: this.showHideField,
         showHideButton: true,
-        isEditable: this.isEditable
+        isEditable: this.isEditable,
+        onValueChange: (value: string) => {
+          if (this.cipher.login) {
+            this.cipher.login.password = value;
+          }
+        }
       })
 
       // 网址
@@ -220,12 +334,11 @@ export struct CipherDetailPage {
           CipherDetailTextItem({
             label: '网站',
             content: uri.uri,
-            isEditable: this.isEditable
+            isEditable: this.isEditable,
+            onValueChange: (value: string) => {
+              uri.uri = value;
+            }
           })
-          // CipherDetailTextItem({
-          //   label: '校验和',
-          //   content: uri.uriChecksum,
-          // })
         })
       }
 
@@ -248,53 +361,126 @@ export struct CipherDetailPage {
         .margin({ bottom: 12 })
 
       // 持卡人姓名
-      if (this.cipher.card?.cardholderName) {
-        CipherDetailTextItem({
-          label: '持卡人',
-          content: this.cipher.card.cardholderName,
-          isEditable: this.isEditable
-        })
-      }
-
-      // 品牌
-      if (this.cipher.card?.brand) {
-        CipherDetailTextItem({
-          label: '品牌',
-          content: this.cipher.card.brand,
-          isEditable: this.isEditable
-        })
-      }
+      CipherDetailTextItem({
+        label: '持卡人姓名',
+        content: this.cipher.card?.cardholderName ?? '',
+        isEditable: this.isEditable,
+        onValueChange: (value: string) => {
+          if (this.cipher.card) {
+            this.cipher.card.cardholderName = value;
+          }
+        }
+      })
 
       // 卡号
-      if (this.cipher.card?.number) {
-        CipherDetailTextItem({
-          label: '卡号',
-          content: this.cipher.card.number,
-          showContent: this.showHideField,
-          showHideButton: true,
-          isEditable: this.isEditable
-        })
-      }
+      CipherDetailTextItem({
+        label: '号码',
+        content: this.cipher.card?.number ?? '',
+        showContent: this.showHideField,
+        showHideButton: true,
+        isEditable: this.isEditable,
+        onValueChange: (value: string) => {
+          if (this.cipher.card) {
+            this.cipher.card.number = value;
+          }
+        }
+      })
 
-      // 有效期
-      if (this.cipher.card?.expMonth || this.cipher.card?.expYear) {
-        CipherDetailTextItem({
-          label: '有效期',
-          content: `${this.cipher.card?.expMonth || ''}/${this.cipher.card?.expYear || ''}`,
-          isEditable: this.isEditable
-        })
-      }
+      // 品牌
+      CipherDetailDropdownItem({
+        label: '品牌',
+        content: this.cipher.card?.brand ?? '',
+        dropdownOptions: this.cardBrandOptions,
+        groupId: this.cardBrandGroup,
+        selectedValue: this.selectedCardBrand,
+        onValueChange: (value) => {
+          this.selectedCardBrand = value as CardBrandType;
+          switch (value) {
+            case CardBrandType.NONE:
+              this.cipher.card!.brand = '';
+              break;
+            case CardBrandType.VISA:
+              this.cipher.card!.brand = 'Visa';
+              break;
+            case CardBrandType.MASTER:
+              this.cipher.card!.brand = 'MasterCard';
+              break;
+            case CardBrandType.AME:
+              this.cipher.card!.brand = 'American Express';
+              break;
+            case CardBrandType.DISCOVER:
+              this.cipher.card!.brand = 'Discover';
+              break;
+            case CardBrandType.DINERS:
+              this.cipher.card!.brand = 'Diners Club';
+              break;
+            case CardBrandType.JCB:
+              this.cipher.card!.brand = 'JCB';
+              break;
+            case CardBrandType.MAESTRO:
+              this.cipher.card!.brand = 'Maestro';
+              break;
+            case CardBrandType.UNIONPAY:
+              this.cipher.card!.brand = 'UnionPay';
+              break;
+            case CardBrandType.RUPAY:
+              this.cipher.card!.brand = 'RuPay';
+              break;
+            case CardBrandType.OTHER:
+              this.cipher.card!.brand = '其他';
+              break;
+          }
+        },
+        isEditable: this.isEditable
+      })
+
+      // 过期月份
+      CipherDetailTextItem({
+        label: '过期月份',
+        content: this.cipher.card?.expMonth ?? '',
+        isEditable: this.isEditable,
+        isNumberOnly: true,
+        onValueChange: (value: string) => {
+          // 校验月份：只允许1-12
+          const month = parseInt(value);
+          if (value === '' || (!isNaN(month) && month >= 1 && month <= 12)) {
+            if (this.cipher.card) {
+              this.cipher.card.expMonth = value;
+            }
+          }
+        }
+      })
+
+      // 过期年份
+      CipherDetailTextItem({
+        label: '过期年份',
+        content: this.cipher.card?.expYear ?? '',
+        isEditable: this.isEditable,
+        isNumberOnly: true,
+        onValueChange: (value: string) => {
+          // 校验年份：只允许合理的公元年份（1900-9999）
+          const year = parseInt(value);
+          if (value === '' || (!isNaN(year) && year >= 1900 && year <= 9999)) {
+            if (this.cipher.card) {
+              this.cipher.card.expYear = value;
+            }
+          }
+        }
+      })
 
       // 安全码
-      if (this.cipher.card?.code) {
-        CipherDetailTextItem({
-          label: '安全码',
-          content: this.cipher.card.code,
-          showContent: this.showHideField,
-          showHideButton: true,
-          isEditable: this.isEditable
-        })
-      }
+      CipherDetailTextItem({
+        label: '安全码',
+        content: this.cipher.card?.code ?? '',
+        showContent: this.showHideField,
+        showHideButton: true,
+        isEditable: this.isEditable,
+        onValueChange: (value: string) => {
+          if (this.cipher.card) {
+            this.cipher.card.code = value;
+          }
+        }
+      })
     }
     .width('100%')
     .padding(16)
@@ -309,93 +495,246 @@ export struct CipherDetailPage {
         .fontWeight(FontWeight.Medium)
         .margin({ bottom: 12 })
 
-      // 姓名
-      if (this.cipher.identity?.firstName || this.cipher.identity?.lastName) {
-        CipherDetailTextItem({
-          label: '姓名',
-          content: `${this.cipher.identity?.firstName || ''} ${this.cipher.identity?.middleName ||
-            ''} ${this.cipher.identity?.lastName || ''} ${this.cipher.identity?.title || ''}`.trim(),
-          isEditable: this.isEditable
-        })
-      }
+      // 称呼
+      CipherDetailDropdownItem({
+        label: '称呼',
+        content: this.cipher.identity?.title ?? '',
+        dropdownOptions: this.identityTitleOptions,
+        groupId: this.identityTitleGroup,
+        selectedValue: this.selectedIdentityTitle,
+        onValueChange: (value) => {
+          this.selectedIdentityTitle = value as IdentityTitleType;
+          switch (value) {
+            case IdentityTitleType.NONE:
+              this.cipher.identity!.title = '';
+              break;
+            case IdentityTitleType.MR:
+              this.cipher.identity!.title = '先生';
+              break;
+            case IdentityTitleType.MRS:
+              this.cipher.identity!.title = '夫人';
+              break;
+            case IdentityTitleType.MISS:
+              this.cipher.identity!.title = '女士';
+              break;
+            case IdentityTitleType.MX:
+              this.cipher.identity!.title = 'Mx';
+              break;
+            case IdentityTitleType.DR:
+              this.cipher.identity!.title = '博士';
+              break;
+          }
+        },
+        isEditable: this.isEditable
+      })
+
+      // 名
+      CipherDetailTextItem({
+        label: '名',
+        content: this.cipher.identity?.firstName ?? '',
+        isEditable: this.isEditable,
+        onValueChange: (value: string) => {
+          if (this.cipher.identity) {
+            this.cipher.identity.firstName = value;
+          }
+        }
+      })
+
+      // 中间名
+      CipherDetailTextItem({
+        label: '中间名',
+        content: this.cipher.identity?.middleName ?? '',
+        isEditable: this.isEditable,
+        onValueChange: (value: string) => {
+          if (this.cipher.identity) {
+            this.cipher.identity.middleName = value;
+          }
+        }
+      })
+
+      // 姓
+      CipherDetailTextItem({
+        label: '姓',
+        content: this.cipher.identity?.lastName ?? '',
+        isEditable: this.isEditable,
+        onValueChange: (value: string) => {
+          if (this.cipher.identity) {
+            this.cipher.identity.lastName = value;
+          }
+        }
+      })
 
       // 用户名
-      if (this.cipher.identity?.username) {
-        CipherDetailTextItem({
-          label: '用户名',
-          content: this.cipher.identity.username,
-          isEditable: this.isEditable
-        })
-      }
+      CipherDetailTextItem({
+        label: '用户名',
+        content: this.cipher.identity?.username ?? '',
+        isEditable: this.isEditable,
+        onValueChange: (value: string) => {
+          if (this.cipher.identity) {
+            this.cipher.identity.username = value;
+          }
+        }
+      })
 
       // 公司
-      if (this.cipher.identity?.company) {
-        CipherDetailTextItem({
-          label: '公司',
-          content: this.cipher.identity.company,
-          isEditable: this.isEditable
-        })
-      }
+      CipherDetailTextItem({
+        label: '公司',
+        content: this.cipher.identity?.company ?? '',
+        isEditable: this.isEditable,
+        onValueChange: (value: string) => {
+          if (this.cipher.identity) {
+            this.cipher.identity.company = value;
+          }
+        }
+      })
 
       // 社会保障号码
-      if (this.cipher.identity?.ssn) {
-        CipherDetailTextItem({
-          label: '社会保障号码',
-          content: this.cipher.identity.ssn,
-          showContent: this.showHideField,
-          showHideButton: true,
-          isEditable: this.isEditable
-        })
-      }
+      CipherDetailTextItem({
+        label: '社会保障号码',
+        content: this.cipher.identity?.ssn ?? '',
+        showContent: this.showHideField,
+        showHideButton: true,
+        isEditable: this.isEditable,
+        onValueChange: (value: string) => {
+          if (this.cipher.identity) {
+            this.cipher.identity.ssn = value;
+          }
+        }
+      })
 
       // 护照号码
-      if (this.cipher.identity?.passportNumber) {
-        CipherDetailTextItem({
-          label: '社会保障号码',
-          content: this.cipher.identity.passportNumber,
-          showContent: this.showHideField,
-          showHideButton: true,
-          isEditable: this.isEditable
-        })
-      }
+      CipherDetailTextItem({
+        label: '护照号码',
+        content: this.cipher.identity?.passportNumber ?? '',
+        showContent: this.showHideField,
+        showHideButton: true,
+        isEditable: this.isEditable,
+        onValueChange: (value: string) => {
+          if (this.cipher.identity) {
+            this.cipher.identity.passportNumber = value;
+          }
+        }
+      })
 
       // 许可证号码
-      if (this.cipher.identity?.licenseNumber) {
-        CipherDetailTextItem({
-          label: '许可证号码',
-          content: this.cipher.identity.licenseNumber,
-          isEditable: this.isEditable
-        })
-      }
+      CipherDetailTextItem({
+        label: '许可证号码',
+        content: this.cipher.identity?.licenseNumber ?? '',
+        isEditable: this.isEditable,
+        onValueChange: (value: string) => {
+          if (this.cipher.identity) {
+            this.cipher.identity.licenseNumber = value;
+          }
+        }
+      })
 
-      // 邮箱
-      if (this.cipher.identity?.email) {
-        CipherDetailTextItem({
-          label: '邮箱',
-          content: this.cipher.identity.email,
-          isEditable: this.isEditable
-        })
-      }
+      // 电子邮箱
+      CipherDetailTextItem({
+        label: '电子邮箱',
+        content: this.cipher.identity?.email ?? '',
+        isEditable: this.isEditable,
+        onValueChange: (value: string) => {
+          if (this.cipher.identity) {
+            this.cipher.identity.email = value;
+          }
+        }
+      })
 
       // 电话
-      if (this.cipher.identity?.phone) {
-        CipherDetailTextItem({
-          label: '电话',
-          content: this.cipher.identity.phone,
-          isEditable: this.isEditable
-        })
-      }
+      CipherDetailTextItem({
+        label: '电话',
+        content: this.cipher.identity?.phone ?? '',
+        isEditable: this.isEditable,
+        onValueChange: (value: string) => {
+          if (this.cipher.identity) {
+            this.cipher.identity.phone = value;
+          }
+        }
+      })
 
+      // 地址1
+      CipherDetailTextItem({
+        label: '地址 1',
+        content: this.cipher.identity?.address1 ?? '',
+        isEditable: this.isEditable,
+        onValueChange: (value: string) => {
+          if (this.cipher.identity) {
+            this.cipher.identity.address1 = value;
+          }
+        }
+      })
 
-      // 地址
-      if (this.cipher.identity?.address1 || this.cipher.identity?.city || this.cipher.identity?.state) {
-        CipherDetailTextItem({
-          label: '地址',
-          content: `${this.cipher.identity?.address1 || ''} ${this.cipher.identity?.city ||
-            ''} ${this.cipher.identity?.state || ''}`.trim(),
-          isEditable: this.isEditable
-        })
-      }
+      // 地址2
+      CipherDetailTextItem({
+        label: '地址 2',
+        content: this.cipher.identity?.address2 ?? '',
+        isEditable: this.isEditable,
+        onValueChange: (value: string) => {
+          if (this.cipher.identity) {
+            this.cipher.identity.address2 = value;
+          }
+        }
+      })
+
+      // 地址3
+      CipherDetailTextItem({
+        label: '地址 3',
+        content: this.cipher.identity?.address3 ?? '',
+        isEditable: this.isEditable,
+        onValueChange: (value: string) => {
+          if (this.cipher.identity) {
+            this.cipher.identity.address3 = value;
+          }
+        }
+      })
+
+      // 市/镇
+      CipherDetailTextItem({
+        label: '市/镇',
+        content: this.cipher.identity?.city ?? '',
+        isEditable: this.isEditable,
+        onValueChange: (value: string) => {
+          if (this.cipher.identity) {
+            this.cipher.identity.city = value;
+          }
+        }
+      })
+
+      // 州/省
+      CipherDetailTextItem({
+        label: '州/省',
+        content: this.cipher.identity?.state ?? '',
+        isEditable: this.isEditable,
+        onValueChange: (value: string) => {
+          if (this.cipher.identity) {
+            this.cipher.identity.state = value;
+          }
+        }
+      })
+
+      // 邮政编码
+      CipherDetailTextItem({
+        label: '邮政编码',
+        content: this.cipher.identity?.postalCode ?? '',
+        isEditable: this.isEditable,
+        onValueChange: (value: string) => {
+          if (this.cipher.identity) {
+            this.cipher.identity.postalCode = value;
+          }
+        }
+      })
+
+      // 国家
+      CipherDetailTextItem({
+        label: '国家',
+        content: this.cipher.identity?.country ?? '',
+        isEditable: this.isEditable,
+        onValueChange: (value: string) => {
+          if (this.cipher.identity) {
+            this.cipher.identity.country = value;
+          }
+        }
+      })
     }
     .width('100%')
     .padding(16)

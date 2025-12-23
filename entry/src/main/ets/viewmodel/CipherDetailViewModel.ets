@@ -11,6 +11,8 @@ import {
 import { CipherFieldType, CipherItemType, DBTableName } from '../utils/Constants';
 import { CryptoUtil } from '../utils/CryptoUtil';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
+import { updateCipher as updateCipherApi } from '../network/CipherApi';
+import { DeviceUtil } from '../utils/DeviceUtil';
 
 export class CipherDetailViewModel {
   symmetricKey: string = '';
@@ -211,5 +213,212 @@ export class CipherDetailViewModel {
       Logger.error(`Failed to get fields for cipher ${cipherId}: ${error}`);
       return [];
     }
+  }
+
+  /**
+   * 更新密码项
+   * @param cipher 要更新的密码项（包含明文数据）
+   * @returns 更新后的密码项
+   */
+  async updateCipher(cipher: Cipher): Promise<Cipher> {
+    try {
+      // 构建加密的密码项
+      const encryptedCipher = await this.buildEncryptedCipher(cipher);
+      // 调用 API 更新
+      const updatedCipher = await updateCipherApi(cipher.id, encryptedCipher);
+      Logger.info(`Cipher ${cipher.id} updated successfully`);
+      return updatedCipher;
+    } catch (error) {
+      Logger.error(`Failed to update cipher ${cipher.id}: ${error}`);
+      throw new Error(`Failed to update cipher: ${error}`);
+    }
+  }
+
+  /**
+   * 构建加密的密码项
+   * @param cipher 明文密码项
+   * @returns 加密后的密码项
+   */
+  private async buildEncryptedCipher(cipher: Cipher): Promise<Cipher> {
+    // 加密名称和备注
+    const encName = await CryptoUtil.encryptField(cipher.name, this.symmetricKey);
+    const encNotes = cipher.notes && cipher.notes.trim().length > 0
+      ? await CryptoUtil.encryptField(cipher.notes.trim(), this.symmetricKey)
+      : null;
+    const timestamp = DeviceUtil.getISOTimestamp();
+
+    // 构建加密后的密码项
+    const encryptedCipher: Cipher = {
+      id: cipher.id,
+      type: cipher.type,
+      name: encName,
+      favorite: cipher.favorite,
+      edit: cipher.edit,
+      folderId: cipher.folderId,
+      organizationId: cipher.organizationId,
+      creationDate: cipher.creationDate,
+      revisionDate: timestamp,
+      deletedDate: cipher.deletedDate,
+      notes: encNotes,
+      login: null,
+      card: null,
+      identity: null,
+      secureNote: null,
+      fields: cipher.fields || [],
+      collectionIds: cipher.collectionIds || [],
+      reprompt: cipher.reprompt
+    };
+
+    // 根据类型加密详细信息
+    switch (cipher.type) {
+      case CipherItemType.LOGIN:
+        encryptedCipher.login = await this.buildEncryptedLogin(cipher.login);
+        break;
+      case CipherItemType.CARD:
+        encryptedCipher.card = await this.buildEncryptedCard(cipher.card);
+        break;
+      case CipherItemType.IDENTITY:
+        encryptedCipher.identity = await this.buildEncryptedIdentity(cipher.identity);
+        break;
+      case CipherItemType.NOTE:
+        encryptedCipher.secureNote = cipher.secureNote;
+        break;
+    }
+
+    // 加密自定义字段
+    if (cipher.fields && cipher.fields.length > 0) {
+      encryptedCipher.fields = await this.buildEncryptedFields(cipher.fields);
+    }
+
+    return encryptedCipher;
+  }
+
+  /**
+   * 构建加密的登录信息
+   */
+  private async buildEncryptedLogin(login: CipherLogin | null): Promise<CipherLogin> {
+    if (!login) {
+      return {} as CipherLogin;
+    }
+
+    const encUsername = login.username ? await CryptoUtil.encryptField(login.username, this.symmetricKey) : '';
+    const encPassword = login.password ? await CryptoUtil.encryptField(login.password, this.symmetricKey) : '';
+    const encTotp = login.totp ? await CryptoUtil.encryptField(login.totp, this.symmetricKey) : null;
+
+    let encUris: CipherUri[] = [];
+    if (login.uris && login.uris.length > 0) {
+      encUris = await Promise.all(login.uris.map(async (uri) => {
+        const encUri = uri.uri ? await CryptoUtil.encryptField(uri.uri, this.symmetricKey) : '';
+        const encChecksum = uri.uriChecksum ? await CryptoUtil.encryptField(uri.uriChecksum, this.symmetricKey) : '';
+        const cipherUri: CipherUri = {
+          uri: encUri,
+          uriChecksum: encChecksum
+        };
+        return cipherUri;
+      }));
+    }
+
+    return {
+      username: encUsername,
+      password: encPassword,
+      passwordRevisionDate: login.passwordRevisionDate,
+      totp: encTotp,
+      uris: encUris
+    };
+  }
+
+  /**
+   * 构建加密的卡片信息
+   */
+  private async buildEncryptedCard(card: CipherCard | null): Promise<CipherCard> {
+    if (!card) {
+      return {} as CipherCard;
+    }
+
+    const encCardholderName =
+      card.cardholderName ? await CryptoUtil.encryptField(card.cardholderName, this.symmetricKey) : '';
+    const encBrand = card.brand ? await CryptoUtil.encryptField(card.brand, this.symmetricKey) : '';
+    const encNumber = card.number ? await CryptoUtil.encryptField(card.number, this.symmetricKey) : '';
+    const encExpMonth = card.expMonth ? await CryptoUtil.encryptField(card.expMonth, this.symmetricKey) : '';
+    const encExpYear = card.expYear ? await CryptoUtil.encryptField(card.expYear, this.symmetricKey) : '';
+    const encCode = card.code ? await CryptoUtil.encryptField(card.code, this.symmetricKey) : '';
+
+    return {
+      cardholderName: encCardholderName,
+      brand: encBrand,
+      number: encNumber,
+      expMonth: encExpMonth,
+      expYear: encExpYear,
+      code: encCode
+    };
+  }
+
+  /**
+   * 构建加密的身份信息
+   */
+  private async buildEncryptedIdentity(identity: CipherIdentity | null): Promise<CipherIdentity> {
+    if (!identity) {
+      return {} as CipherIdentity;
+    }
+
+    const encTitle = identity.title ? await CryptoUtil.encryptField(identity.title, this.symmetricKey) : '';
+    const encFirstName = identity.firstName ? await CryptoUtil.encryptField(identity.firstName, this.symmetricKey) : '';
+    const encMiddleName =
+      identity.middleName ? await CryptoUtil.encryptField(identity.middleName, this.symmetricKey) : '';
+    const encLastName = identity.lastName ? await CryptoUtil.encryptField(identity.lastName, this.symmetricKey) : '';
+    const encAddress1 = identity.address1 ? await CryptoUtil.encryptField(identity.address1, this.symmetricKey) : '';
+    const encAddress2 = identity.address2 ? await CryptoUtil.encryptField(identity.address2, this.symmetricKey) : '';
+    const encAddress3 = identity.address3 ? await CryptoUtil.encryptField(identity.address3, this.symmetricKey) : '';
+    const encCity = identity.city ? await CryptoUtil.encryptField(identity.city, this.symmetricKey) : '';
+    const encState = identity.state ? await CryptoUtil.encryptField(identity.state, this.symmetricKey) : '';
+    const encPostalCode =
+      identity.postalCode ? await CryptoUtil.encryptField(identity.postalCode, this.symmetricKey) : '';
+    const encCountry = identity.country ? await CryptoUtil.encryptField(identity.country, this.symmetricKey) : '';
+    const encCompany = identity.company ? await CryptoUtil.encryptField(identity.company, this.symmetricKey) : '';
+    const encEmail = identity.email ? await CryptoUtil.encryptField(identity.email, this.symmetricKey) : '';
+    const encPhone = identity.phone ? await CryptoUtil.encryptField(identity.phone, this.symmetricKey) : '';
+    const encSSN = identity.ssn ? await CryptoUtil.encryptField(identity.ssn, this.symmetricKey) : '';
+    const encLicenseNumber =
+      identity.licenseNumber ? await CryptoUtil.encryptField(identity.licenseNumber, this.symmetricKey) : '';
+    const encPassportNumber =
+      identity.passportNumber ? await CryptoUtil.encryptField(identity.passportNumber, this.symmetricKey) : '';
+    const encUsername = identity.username ? await CryptoUtil.encryptField(identity.username, this.symmetricKey) : '';
+
+    return {
+      title: encTitle,
+      firstName: encFirstName,
+      middleName: encMiddleName,
+      lastName: encLastName,
+      address1: encAddress1,
+      address2: encAddress2,
+      address3: encAddress3,
+      city: encCity,
+      state: encState,
+      postalCode: encPostalCode,
+      country: encCountry,
+      company: encCompany,
+      email: encEmail,
+      phone: encPhone,
+      ssn: encSSN,
+      licenseNumber: encLicenseNumber,
+      passportNumber: encPassportNumber,
+      username: encUsername
+    };
+  }
+
+  /**
+   * 构建加密的自定义字段
+   */
+  private async buildEncryptedFields(fields: CipherField[]): Promise<CipherField[]> {
+    return await Promise.all(fields.map(async (field) => {
+      const encName = field.name ? await CryptoUtil.encryptField(field.name, this.symmetricKey) : '';
+      const encValue = field.value ? await CryptoUtil.encryptField(field.value, this.symmetricKey) : '';
+      const cipherField: CipherField = {
+        name: encName,
+        value: encValue,
+        type: field.type
+      };
+      return cipherField;
+    }));
   }
 }
