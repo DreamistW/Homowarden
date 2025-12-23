@@ -3,7 +3,7 @@ import { CardBrandType, CipherFieldType, CipherItemType, IdentityTitleType } fro
 import { CipherDetailViewModel } from '../viewmodel/CipherDetailViewModel';
 import { CipherDetailTextItem } from '../component/CipherDetailTextItem';
 import { CipherDetailDropdownItem } from '../component/CipherDetailDropdownItem';
-import { IBestDropdownMenuOption } from '@ibestservices/ibest-ui';
+import { IBestCheckbox, IBestDropdownMenuOption, IBestStringNumber } from '@ibestservices/ibest-ui';
 import { Logger } from '@nzy/logger';
 
 @Builder
@@ -230,6 +230,21 @@ export struct CipherDetailPage {
               .width('100%')
               .padding(16)
               .margin({ bottom: 8 })
+
+              // 主密码重新提示
+              if (this.isEditable) {
+                IBestCheckbox({
+                  value: this.cipher.reprompt == 1 ? true : false,
+                  label: '主密码重新提示',
+                  onChange: (checked: boolean | IBestStringNumber) => {
+                    if (checked) {
+                      this.cipher.reprompt = 1;
+                    } else {
+                      this.cipher.reprompt = 0;
+                    }
+                  }
+                })
+              }
 
               // 元数据
               Column() {

@@ -1,4 +1,4 @@
-import { accessToken, prelogin } from '../network/AuthApi.ets';
+import { accessToken, prelogin } from '../network/AuthApi';
 import {
   ACCESS_TOKEN_KEY_1,
   ACCESS_TOKEN_KEY_2,
@@ -19,7 +19,7 @@ import {
   TOKEN_EXPIRE_TIME_KEY,
   TWO_FACTOR_TOKEN_KEY,
   USER_KEY
-} from '../utils/Constants.ets';
+} from '../utils/Constants';
 import { Logger } from '@nzy/logger';
 import { CryptoUtil } from '../utils/CryptoUtil';
 import { DeviceUtil } from '../utils/DeviceUtil';
@@ -115,17 +115,13 @@ export class LoginViewModel {
   // 预登录
   async performPrelogin(): Promise<boolean> {
     try {
-      if (this.needSaveEmail) {
-        // 先查询是否存在Asset
-        const queryResult = queryAssetSync(EMAIL_KEY);
-        if (queryResult) {
-          updateAsset(EMAIL_KEY, asset.Tag.SECRET, this.email);
-        } else {
-          const emailAsset: AssetModel = { alias: EMAIL_KEY, secret: this.email };
-          addAsset(emailAsset);
-        }
+      // 先查询是否存在Asset
+      const queryResult = queryAssetSync(EMAIL_KEY);
+      if (queryResult) {
+        updateAsset(EMAIL_KEY, asset.Tag.SECRET, this.email);
       } else {
-        deleteAsset(EMAIL_KEY);
+        const emailAsset: AssetModel = { alias: EMAIL_KEY, secret: this.email };
+        addAsset(emailAsset);
       }
       const request: PreloginRequest = {
         email: this.email.trim().toLowerCase()

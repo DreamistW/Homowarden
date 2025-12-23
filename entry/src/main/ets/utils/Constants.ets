@@ -67,6 +67,8 @@ export const LOGIN_STATUS_KEY = 'login_status';
 
 export const PRIVACY_AGREED_KEY = 'privacy_agreed';
 
+export const SAVE_EMAIL = 'save_email';
+
 export enum GrantType {
   PASSWORD = 'password',
   REFRESH = 'refresh_token'

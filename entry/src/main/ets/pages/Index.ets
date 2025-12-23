@@ -1,8 +1,10 @@
 import { DataPreferences } from '@abner/datastore';
-import { LOGIN_STATUS_KEY, PRIVACY_AGREED_KEY } from '../utils/Constants';
+import { LOGIN_STATUS_KEY, PRIVACY_AGREED_KEY, SAVE_EMAIL } from '../utils/Constants';
 import { common, Want } from '@kit.AbilityKit';
 import { EntryRouter } from '../../../../EntryRouter';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
+import { AssetModel } from '../model/AssetModel';
+import { addAsset } from '../utils/AssetUtil';
 
 @CustomDialog
 struct PrivacyDialogContent {
@@ -110,6 +112,8 @@ struct Index {
     .width('100%')
     .mode(NavigationMode.Stack)
     .onAppear(() => {
+      const saveEmailAsset: AssetModel = { alias: SAVE_EMAIL, secret: "0" };
+      addAsset(saveEmailAsset);
       this.getLoginStatus();
       this.getPrivacyStatus();
       if (this.showPrivacyDialog) {
