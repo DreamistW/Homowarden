@@ -11,7 +11,7 @@ import {
   IBestPullRefresh
 } from '@ibestservices/ibest-ui';
 import { DataPreferences } from '@abner/datastore';
-import { FilterType, LOGIN_STATUS_KEY, KDF_PARAM_KEY, MASTER_KEY, EMAIL_KEY } from '../utils/Constants';
+import { EMAIL_KEY, FilterType, KDF_PARAM_KEY, LOGIN_STATUS_KEY, MASTER_KEY } from '../utils/Constants';
 import { PromptAction } from '@kit.ArkUI';
 import { CipherItem } from '../component/CipherItem';
 import { CryptoUtil } from '../utils/CryptoUtil';
@@ -50,8 +50,8 @@ export struct VaultPage {
   }
   groupId: string = 'filter_menu';
 
-  aboutToAppear() {
-    this.loadCiphers();
+  async aboutToAppear() {
+    await this.loadCiphers();
   }
 
   private async loadCiphers() {
@@ -213,15 +213,16 @@ export struct VaultPage {
               return true;
             }
             const result = await this.verifyMasterPassword();
-            if(result){
+            if (result) {
               // 验证成功，导航到详情页
               if (this.pendingCipher) {
                 this.doNavigateToDetail(this.pendingCipher);
                 this.pendingCipher = null;
               }
               return true;
+            } else {
+              return false;
             }
-            else return false;
           }
         })
       }
@@ -233,8 +234,8 @@ export struct VaultPage {
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
     })
-    .onShown(() => {
-      this.loadCiphers();
+    .onShown(async () => {
+      await this.loadCiphers();
     })
     .onBackPressed(() => {
       const currentTime = new Date().getTime();

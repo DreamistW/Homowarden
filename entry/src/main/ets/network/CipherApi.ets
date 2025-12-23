@@ -173,8 +173,29 @@ export async function updateCipher(id: string, cipher: Cipher): Promise<Cipher> 
 }
 
 /**
- * 删除密码项
+ * 将密码项移至回收站
  * @param id 密码项ID
+ */
+export async function moveCipherToRecycler(id: string): Promise<void> {
+  const baseURL = await getApiBaseUrl();
+  const client = createHttpClient(baseURL);
+  const token = await getAccessToken();
+  return client.put(`/ciphers/${id}/delete`, id, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  }).then(() => {
+    return;
+  }).catch((error: BusinessError) => {
+    Logger.error('Failed to recycle cipher item: ' + error.message);
+    return Promise.reject(error);
+  });
+}
+
+/**
+ * 彻底删除密码项
+ * @param id 密码项ID
+ * @returns
  */
 export async function deleteCipher(id: string): Promise<void> {
   const baseURL = await getApiBaseUrl();
@@ -192,3 +213,24 @@ export async function deleteCipher(id: string): Promise<void> {
   });
 }
 
+/**
+ * 还原密码项
+ * @param id 密码项ID
+ * @param cipher 密码项对象
+ * @returns
+ */
+export async function restoreCipher(id: string, cipher: Cipher): Promise<Cipher> {
+  const baseURL = await getApiBaseUrl();
+  const client = createHttpClient(baseURL);
+  const token = await getAccessToken();
+  return client.put(`/ciphers/${id}/restore`, cipher, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  }).then((response: AxiosResponse<Cipher>) => {
+    return response.data;
+  }).catch((error: BusinessError) => {
+    Logger.error('Failed to update cipher item: ' + error.message);
+    return Promise.reject(error);
+  });
+}

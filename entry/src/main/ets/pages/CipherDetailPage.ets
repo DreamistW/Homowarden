@@ -3,7 +3,7 @@ import { CardBrandType, CipherFieldType, CipherItemType, IdentityTitleType } fro
 import { CipherDetailViewModel } from '../viewmodel/CipherDetailViewModel';
 import { CipherDetailTextItem } from '../component/CipherDetailTextItem';
 import { CipherDetailDropdownItem } from '../component/CipherDetailDropdownItem';
-import { IBestCheckbox, IBestDropdownMenuOption, IBestStringNumber } from '@ibestservices/ibest-ui';
+import { IBestCheckbox, IBestDialog, IBestDropdownMenuOption, IBestStringNumber } from '@ibestservices/ibest-ui';
 import { Logger } from '@nzy/logger';
 
 @Builder
@@ -18,6 +18,7 @@ export struct CipherDetailPage {
   @State isSaving: boolean = false;
   @State showHideField: boolean = false;
   @State isEditable: boolean = false;
+  @State showDeleteDialog: boolean = false;
   @State selectedCardBrand: CardBrandType | string = CardBrandType.NONE;
   @State selectedIdentityTitle: IdentityTitleType | string = IdentityTitleType.NONE;
   pathInfos: NavPathStack = new NavPathStack();
@@ -120,7 +121,30 @@ export struct CipherDetailPage {
       this.loadCipherDetail();
     }
   }
+  RestoreItemBtn: NavigationMenuItem = {
+    'value': '', 'icon': 'resources/base/media/icon_restore.svg', 'action': async () => {
+      await this.restoreCipher();
+    }
+  }
 
+  @Builder
+  deleteCipherConfirmDialogContent() {
+    Column() {
+      if (this.cipher.deletedDate) {
+        Text(`确定要彻底删除密码项"${this.cipher.name}"吗?`)
+          .fontSize(16)
+          .margin(12)
+      } else {
+        Text(`确定要将密码项"${this.cipher.name}"送至回收站吗?`)
+          .fontSize(16)
+          .margin(12)
+      }
+    }
+  }
+
+  /**
+   * 加载密码项详情
+   */
   private async loadCipherDetail() {
     this.isLoading = true;
     try {
@@ -156,6 +180,24 @@ export struct CipherDetailPage {
       Logger.error('Failed to save cipher:', error);
     } finally {
       this.isSaving = false;
+    }
+  }
+
+  /**
+   * 还原密码项
+   */
+  private async restoreCipher() {
+    try {
+      await this.viewModel.restoreCipher(this.cipher);
+      this.cipher.deletedDate = null;
+      // 显示成功提示
+      const promptAction = this.getUIContext().getPromptAction();
+      promptAction.showToast({
+        message: '还原成功',
+        duration: 2000
+      });
+    } catch (error) {
+      Logger.error('Failed to restore cipher:', error);
     }
   }
 
@@ -292,6 +334,22 @@ export struct CipherDetailPage {
           .edgeEffect(EdgeEffect.Spring)
           .scrollable(ScrollDirection.Vertical)
         }
+
+        // 删除确认对话框
+        IBestDialog({
+          visible: this.showDeleteDialog,
+          showCancelButton: true,
+          closeOnClickOverlay: false,
+          title: '删除密码项',
+          defaultBuilder: () => this.deleteCipherConfirmDialogContent(),
+          onConfirm: async () => {
+            return await this.doDeleteCipher();
+          },
+          onCancel: () => {
+            this.showDeleteDialog = false;
+            return true;
+          }
+        })
       }
       .width('100%')
       .height('100%')
@@ -306,7 +364,8 @@ export struct CipherDetailPage {
         this.loadCipherDetail();
       }
     })
-    .menus(this.isEditable ? [this.CancelEditBtn, this.ConfirmEditBtn] : [this.EditItemBtn, this.DeleteItemBtn])
+    .menus(this.isEditable ? [this.CancelEditBtn, this.ConfirmEditBtn] :
+      this.cipher.deletedDate ? [this.RestoreItemBtn, this.DeleteItemBtn] : [this.EditItemBtn, this.DeleteItemBtn])
   }
 
   @Builder
@@ -793,8 +852,40 @@ export struct CipherDetailPage {
   }
 
   private deleteCipher() {
-    // 删除密码项
-    console.log('Delete cipher');
+    this.showDeleteDialog = true;
+  }
+
+  /**
+   * 执行删除密码项
+   */
+  private async doDeleteCipher(): Promise<boolean> {
+    try {
+      await this.viewModel.deleteCipher(this.cipher.id, this.cipher.deletedDate ? true : false);
+      Logger.info(`Cipher ${this.cipher.id} deleted successfully`);
+
+      // 显示成功提示
+      const promptAction = this.getUIContext().getPromptAction();
+      promptAction.showToast({
+        message: '删除成功',
+        duration: 2000
+      });
+
+      // 返回上一页
+      this.pathInfos.pop();
+      return true;
+    } catch (error) {
+      Logger.error('Failed to delete cipher:', error);
+
+      // 显示失败提示
+      const promptAction = this.getUIContext().getPromptAction();
+      promptAction.showToast({
+        message: `删除失败, 错误信息: ${error}`,
+        duration: 2000
+      });
+
+      this.showDeleteDialog = false;
+      return false;
+    }
   }
 
   private getFieldValue(field: CipherField): string {

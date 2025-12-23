@@ -11,7 +11,12 @@ import {
 import { CipherFieldType, CipherItemType, DBTableName } from '../utils/Constants';
 import { CryptoUtil } from '../utils/CryptoUtil';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
-import { updateCipher as updateCipherApi } from '../network/CipherApi';
+import {
+  moveCipherToRecycler as deleteCipherApi,
+  moveCipherToRecycler,
+  restoreCipher,
+  updateCipher as updateCipherApi
+} from '../network/CipherApi';
 import { DeviceUtil } from '../utils/DeviceUtil';
 
 export class CipherDetailViewModel {
@@ -420,5 +425,103 @@ export class CipherDetailViewModel {
       };
       return cipherField;
     }));
+  }
+
+  /**
+   * 删除密码项
+   * @param cipherId 要删除的密码项ID
+   */
+  async deleteCipher(cipherId: string, isRealDelete: boolean): Promise<void> {
+    try {
+      // 确认是否彻底删除
+      if (isRealDelete) {
+        await deleteCipherApi(cipherId);
+        Logger.info(`Cipher ${cipherId} deleted successfully from server`);
+
+        // 从本地数据库删除
+        await this.deleteFromLocalDatabase(cipherId);
+        Logger.info(`Cipher ${cipherId} deleted from local database`);
+      } else {
+        await moveCipherToRecycler(cipherId);
+      }
+    } catch (error) {
+      Logger.error(`Failed to delete cipher ${cipherId}: ${error}`);
+      throw new Error(`Failed to delete cipher: ${error}`);
+    }
+  }
+
+  /**
+   * 从本地数据库删除密码项
+   * @param cipherId 密码项ID
+   */
+  private async deleteFromLocalDatabase(cipherId: string): Promise<void> {
+    try {
+      // 从主表删除
+      await DatabaseUtil.getInstance().deleteData(DBTableName.MAIN, cipherId);
+
+      // 根据类型从详细信息表删除
+      const loginId = `${cipherId}_login`;
+      const cardId = `${cipherId}_card`;
+      const identityId = `${cipherId}_identity`;
+      const noteId = `${cipherId}_note`;
+
+      // 尝试从各个表中删除（静默失败，因为可能不存在）
+      try {
+        await DatabaseUtil.getInstance().deleteData(DBTableName.LOGINS, loginId);
+      } catch (e) {
+        // 忽略错误
+      }
+      try {
+        await DatabaseUtil.getInstance().deleteData(DBTableName.CARDS, cardId);
+      } catch (e) {
+        // 忽略错误
+      }
+      try {
+        await DatabaseUtil.getInstance().deleteData(DBTableName.IDENTITIES, identityId);
+      } catch (e) {
+        // 忽略错误
+      }
+      try {
+        await DatabaseUtil.getInstance().deleteData(DBTableName.NOTES, noteId);
+      } catch (e) {
+        // 忽略错误
+      }
+
+      // 删除自定义字段
+      const fieldsData = await DatabaseUtil.getInstance().queryAllData(DBTableName.FIELDS);
+      for (const fieldData of fieldsData) {
+        if (fieldData.cipher_id === cipherId) {
+          try {
+            await DatabaseUtil.getInstance().deleteData(DBTableName.FIELDS, fieldData.id as string);
+          } catch (e) {
+            // 忽略错误
+          }
+        }
+      }
+
+      Logger.info(`Local database cleanup completed for cipher ${cipherId}`);
+    } catch (error) {
+      Logger.error(`Failed to delete from local database: ${error}`);
+      throw new Error(`Failed to delete cipher from local database: ${error}`);
+    }
+  }
+
+  /**
+   * 还原密码项
+   * @param cipher 要还原的密码项（包含明文数据）
+   * @returns 更新后的密码项
+   */
+  async restoreCipher(cipher: Cipher): Promise<Cipher> {
+    try {
+      // 构建加密的密码项
+      const encryptedCipher = await this.buildEncryptedCipher(cipher);
+      // 调用 API 还原
+      const restoredCipher = await restoreCipher(cipher.id, encryptedCipher);
+      Logger.info(`Cipher ${cipher.id} restored successfully`);
+      return restoredCipher;
+    } catch (error) {
+      Logger.error(`Failed to restore cipher ${cipher.id}: ${error}`);
+      throw new Error(`Failed to restore cipher: ${error}`);
+    }
   }
 }
