@@ -1,6 +1,6 @@
 import { DataPreferences } from '@abner/datastore/src/main/ets/preferences/DataPreferences';
 import { EntryRouter } from '../../../../EntryRouter';
-import { BIOMETRIC_AUTH, LOGIN_STATUS_KEY } from '../utils/Constants';
+import { AUTO_LOCK, BACKGROUND_TIMESTAMP, BIOMETRIC_AUTH, LOGIN_STATUS_KEY } from '../utils/Constants';
 import { bundleManager, common, Want } from '@kit.AbilityKit';
 import { userAuth } from '@kit.UserAuthenticationKit';
 import { cryptoFramework } from '@kit.CryptoArchitectureKit';
@@ -22,6 +22,17 @@ export struct SettingsPage {
   aboutToAppear() {
     this.getVersionName();
     this.loadBiometricAuthStatus();
+    this.loadAutoLockStatus();
+  }
+
+  loadAutoLockStatus() {
+    try {
+      const status = DataPreferences.getInstance().getSync<number>(AUTO_LOCK);
+      this.autoLockEnabled = status == 1;
+    } catch (err) {
+      console.error(`Failed to load auto lock status. Error: ${JSON.stringify(err)}`);
+      this.autoLockEnabled = false;
+    }
   }
 
   // 获取应用版本号
@@ -49,19 +60,24 @@ export struct SettingsPage {
                 .fontWeight(FontWeight.Medium)
                 .margin({ bottom: 12 })
 
-              // Row() {
-              //   Text('自动锁定')
-              //     .fontSize(16)
-              //
-              //   Blank()
-              //
-              //   Toggle({ type: ToggleType.Switch, isOn: this.autoLockEnabled })
-              //     .onChange((isOn: boolean) => {
-              //       this.autoLockEnabled = isOn;
-              //     })
-              // }
-              // .width('100%')
-              // .padding({ top: 12, bottom: 12 })
+              Row() {
+                Text('自动锁定')
+                  .fontSize(16)
+
+                Blank()
+
+                Toggle({ type: ToggleType.Switch, isOn: this.autoLockEnabled })
+                  .onChange((isOn: boolean) => {
+                    this.autoLockEnabled = isOn;
+                    DataPreferences.getInstance().putSync(AUTO_LOCK, isOn ? 1 : 0);
+                  })
+              }
+              .width('100%')
+              .padding({ top: 12, bottom: 12 })
+
+              Text('开启后, 应用置于后台两分钟后会自动锁定')
+                .fontSize(12)
+                .fontColor('#666666')
 
               Row() {
                 Text('生物识别')
@@ -84,6 +100,10 @@ export struct SettingsPage {
               }
               .width('100%')
               .padding({ top: 12, bottom: 12 })
+
+              Text('开启后, 可以使用锁屏密码/指纹/人脸解锁密码库')
+                .fontSize(12)
+                .fontColor('#666666')
             }
             .width('100%')
             .padding(16)
@@ -214,6 +234,19 @@ export struct SettingsPage {
     .title('设置')
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
+    })
+    .onActive(() => {
+      const autoLockStatus = DataPreferences.getInstance().getSync<number>(AUTO_LOCK);
+      if (autoLockStatus == 1) {
+        const currentTime = Math.floor(Date.now() / 1000);
+        const backgroundTime = DataPreferences.getInstance().getSync<number>(BACKGROUND_TIMESTAMP);
+        if (currentTime - backgroundTime > 120) {
+          this.pathInfos.pushPath({ name: EntryRouter.BiometricAuthPage });
+        }
+      }
+    })
+    .onHidden(() => {
+      DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
     })
   }
 

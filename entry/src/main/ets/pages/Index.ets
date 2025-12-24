@@ -1,5 +1,12 @@
 import { DataPreferences } from '@abner/datastore';
-import { BIOMETRIC_AUTH, LOGIN_STATUS_KEY, PRIVACY_AGREED_KEY, SAVE_EMAIL } from '../utils/Constants';
+import {
+  AUTO_LOCK,
+  BACKGROUND_TIMESTAMP,
+  BIOMETRIC_AUTH,
+  LOGIN_STATUS_KEY,
+  PRIVACY_AGREED_KEY,
+  SAVE_EMAIL
+} from '../utils/Constants';
 import { common, Want } from '@kit.AbilityKit';
 import { EntryRouter } from '../../../../EntryRouter';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
@@ -116,6 +123,10 @@ struct Index {
       if (!DataPreferences.getInstance().hasSync(BIOMETRIC_AUTH)) {
         DataPreferences.getInstance().putSync(BIOMETRIC_AUTH, 0);
       }
+      if (!DataPreferences.getInstance().hasSync(AUTO_LOCK)) {
+        DataPreferences.getInstance().putSync(AUTO_LOCK, 0);
+      }
+      DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
       this.getLoginStatus();
       this.getPrivacyStatus();
       if (this.showPrivacyDialog) {

@@ -1,12 +1,20 @@
 import { Cipher, CipherDetailParams, CipherField, CipherUri } from '../model/CipherModels';
-import { CardBrandType, CipherFieldType, CipherItemType, IdentityTitleType,
-  NEED_RELOAD_CIPHERS } from '../utils/Constants';
+import {
+  AUTO_LOCK,
+  BACKGROUND_TIMESTAMP,
+  CardBrandType,
+  CipherFieldType,
+  CipherItemType,
+  IdentityTitleType,
+  NEED_RELOAD_CIPHERS
+} from '../utils/Constants';
 import { CipherDetailViewModel } from '../viewmodel/CipherDetailViewModel';
 import { CipherDetailTextItem } from '../component/CipherDetailTextItem';
 import { CipherDetailDropdownItem } from '../component/CipherDetailDropdownItem';
 import { IBestCheckbox, IBestDialog, IBestDropdownMenuOption, IBestStringNumber } from '@ibestservices/ibest-ui';
 import { Logger } from '@nzy/logger';
 import { DataPreferences } from '@abner/datastore';
+import { EntryRouter } from '../../../../EntryRouter';
 
 @Builder
 export function CipherDetailPageBuilder() {
@@ -369,6 +377,19 @@ export struct CipherDetailPage {
     })
     .menus(this.isEditable ? [this.CancelEditBtn, this.ConfirmEditBtn] :
       this.cipher.deletedDate ? [this.RestoreItemBtn, this.DeleteItemBtn] : [this.EditItemBtn, this.DeleteItemBtn])
+    .onActive(() => {
+      const autoLockStatus = DataPreferences.getInstance().getSync<number>(AUTO_LOCK);
+      if (autoLockStatus == 1) {
+        const currentTime = Math.floor(Date.now() / 1000);
+        const backgroundTime = DataPreferences.getInstance().getSync<number>(BACKGROUND_TIMESTAMP);
+        if (currentTime - backgroundTime > 120) {
+          this.pathInfos.pushPath({ name: EntryRouter.BiometricAuthPage });
+        }
+      }
+    })
+    .onHidden(() => {
+      DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
+    })
   }
 
   @Builder

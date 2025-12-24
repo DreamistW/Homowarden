@@ -73,6 +73,10 @@ export const BIOMETRIC_AUTH = 'biometric_auth';
 
 export const NEED_RELOAD_CIPHERS = 'need_reload_ciphers';
 
+export const BACKGROUND_TIMESTAMP = 'background_timestamp';
+
+export const AUTO_LOCK = 'auto_lock';
+
 export enum GrantType {
   PASSWORD = 'password',
   REFRESH = 'refresh_token'

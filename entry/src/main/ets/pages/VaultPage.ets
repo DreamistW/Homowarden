@@ -12,6 +12,8 @@ import {
 } from '@ibestservices/ibest-ui';
 import { DataPreferences } from '@abner/datastore';
 import {
+  AUTO_LOCK,
+  BACKGROUND_TIMESTAMP,
   EMAIL_KEY,
   FilterType,
   KDF_PARAM_KEY,
@@ -268,6 +270,19 @@ export struct VaultPage {
       return true;
     })
     .menus([this.Sure2ShareBtn, this.AddItemBtn, this.SettingsBtn])
+    .onActive(() => {
+      const autoLockStatus = DataPreferences.getInstance().getSync<number>(AUTO_LOCK);
+      if (autoLockStatus == 1) {
+        const currentTime = Math.floor(Date.now() / 1000);
+        const backgroundTime = DataPreferences.getInstance().getSync<number>(BACKGROUND_TIMESTAMP);
+        if (currentTime - backgroundTime > 120) {
+          this.pathInfos.pushPath({ name: EntryRouter.BiometricAuthPage });
+        }
+      }
+    })
+    .onHidden(() => {
+      DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
+    })
   }
 
   private navigateToDetail(cipher: Cipher) {

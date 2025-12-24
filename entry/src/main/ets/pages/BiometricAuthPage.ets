@@ -4,6 +4,8 @@ import { cryptoFramework } from '@kit.CryptoArchitectureKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { common } from '@kit.AbilityKit';
 import { PromptAction } from '@kit.ArkUI';
+import { DataPreferences } from '@abner/datastore';
+import { BACKGROUND_TIMESTAMP } from '../utils/Constants';
 
 @Builder
 export function BiometricAuthPageBuilder() {
@@ -121,8 +123,15 @@ export struct BiometricAuthPage {
           userAuthInstance.off('result');
 
           if (result.result === userAuth.UserAuthResultCode.SUCCESS) {
-            // 认证成功，跳转到 VaultPage
-            this.pathInfos.replacePath({ name: EntryRouter.VaultPage });
+            DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
+            const info: NavPathInfo[] = this.pathInfos.getPathStack();
+            const pathName = info[0].name;
+            if (pathName == EntryRouter.BiometricAuthPage) {
+              // 认证成功，跳转到 VaultPage
+              this.pathInfos.replacePath({ name: EntryRouter.VaultPage });
+            } else {
+              this.pathInfos.pop();
+            }
           } else {
             // 认证失败，显示提示
             this.getUIContext().getPromptAction().showToast({

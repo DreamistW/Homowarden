@@ -4,6 +4,9 @@ import { uniformTypeDescriptor } from '@kit.ArkData';
 import { common } from '@kit.AbilityKit';
 import { inputMethod } from '@kit.IMEKit';
 import { getFullLink, getShareLink, replaceOutputText } from '../utils/ParseLinkUtil';
+import { DataPreferences } from '@abner/datastore';
+import { AUTO_LOCK, BACKGROUND_TIMESTAMP } from '../utils/Constants';
+import { EntryRouter } from '../../../../EntryRouter';
 
 @Builder
 export function Sure2SharePageBuilder() {
@@ -218,6 +221,19 @@ export struct Sure2SharePage {
     .title('安心分享')
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
+    })
+    .onActive(() => {
+      const autoLockStatus = DataPreferences.getInstance().getSync<number>(AUTO_LOCK);
+      if (autoLockStatus == 1) {
+        const currentTime = Math.floor(Date.now() / 1000);
+        const backgroundTime = DataPreferences.getInstance().getSync<number>(BACKGROUND_TIMESTAMP);
+        if (currentTime - backgroundTime > 120) {
+          this.pathInfos.pushPath({ name: EntryRouter.BiometricAuthPage });
+        }
+      }
+    })
+    .onHidden(() => {
+      DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
     })
   }
 }

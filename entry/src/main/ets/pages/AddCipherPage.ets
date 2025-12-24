@@ -1,6 +1,14 @@
 import { DataPreferences } from '@abner/datastore';
 import { IBestDropdownItem, IBestDropdownMenu, IBestRadio, IBestRadioGroup, IBestToast } from '@ibestservices/ibest-ui';
-import { CardBrandType, CipherItemType, IdentityTitleType, NEED_RELOAD_CIPHERS } from '../utils/Constants';
+import { EntryRouter } from '../../../../EntryRouter';
+import {
+  AUTO_LOCK,
+  BACKGROUND_TIMESTAMP,
+  CardBrandType,
+  CipherItemType,
+  IdentityTitleType,
+  NEED_RELOAD_CIPHERS
+} from '../utils/Constants';
 import { AddCipherViewModel } from '../viewmodel/AddCipherViewModel';
 
 @Builder
@@ -634,6 +642,19 @@ export struct AddCipherPage {
       }
     })
     .menus([this.ConfirmBtn])
+    .onActive(() => {
+      const autoLockStatus = DataPreferences.getInstance().getSync<number>(AUTO_LOCK);
+      if (autoLockStatus == 1) {
+        const currentTime = Math.floor(Date.now() / 1000);
+        const backgroundTime = DataPreferences.getInstance().getSync<number>(BACKGROUND_TIMESTAMP);
+        if (currentTime - backgroundTime > 120) {
+          this.pathInfos.pushPath({ name: EntryRouter.BiometricAuthPage });
+        }
+      }
+    })
+    .onHidden(() => {
+      DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
+    })
   }
 
   private canSave() {
