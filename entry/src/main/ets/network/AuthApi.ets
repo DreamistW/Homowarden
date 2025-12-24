@@ -1,6 +1,6 @@
-import { createHttpClient, encodeStringToBase64, getServerConfig, toFormUrlEncoded } from './HttpClient.ets';
+import { createHttpClient, encodeStringToBase64, getServerConfig, toFormUrlEncoded } from './HttpClient';
 import { AxiosResponse } from '@ohos/axios';
-import { ServerType, SERVER_BASE_URL_US, SERVER_BASE_URL_EU } from '../utils/Constants.ets';
+import { SERVER_BASE_URL_EU, SERVER_BASE_URL_US, ServerType } from '../utils/Constants';
 import { Logger } from '@nzy/logger';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { PreloginRequest, PreloginResponse } from '../model/Prelogin';
@@ -64,7 +64,7 @@ export async function accessToken(request: AccessTokenRequest): Promise<AccessTo
     'password',
   ] as (keyof AccessTokenRequest)[];
 
-  if (request.twoFactorToken != '') {
+  if (request.twoFactorToken) {
     fields.push('twoFactorToken' as keyof AccessTokenRequest);
     fields.push('twoFactorProvider' as keyof AccessTokenRequest);
     fields.push('twoFactorRemember' as keyof AccessTokenRequest);
@@ -75,8 +75,9 @@ export async function accessToken(request: AccessTokenRequest): Promise<AccessTo
   return client.post('/identity/connect/token', formBody,
     {
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
         'auth-email': encodeStringToBase64(request.username),
+        'origin': baseURL
       }
     })
     .then((response: AxiosResponse<AccessTokenResponse>) => {

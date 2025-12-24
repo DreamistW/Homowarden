@@ -29,8 +29,8 @@ export interface Cipher {
  * 登录信息结构
  */
 export interface CipherLogin {
-  username: string; // 用户名
-  password: string; // 密码
+  username: string | null; // 用户名
+  password: string | null; // 密码
   passwordRevisionDate: string | null; // 密码更新时间
   totp: string | null; // TOTP密钥
   uris: CipherUri[]; // 关联网址

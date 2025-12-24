@@ -403,7 +403,7 @@ export struct CipherDetailPage {
       // 用户名
       CipherDetailTextItem({
         label: '用户名',
-        content: this.cipher.login?.username,
+        content: this.cipher.login?.username ?? '',
         isEditable: this.isEditable,
         onValueChange: (value: string) => {
           if (this.cipher.login) {
@@ -415,7 +415,7 @@ export struct CipherDetailPage {
       // 密码
       CipherDetailTextItem({
         label: '密码',
-        content: this.cipher.login?.password,
+        content: this.cipher.login?.password ?? '',
         showContent: this.showHideField,
         showHideButton: true,
         isEditable: this.isEditable,

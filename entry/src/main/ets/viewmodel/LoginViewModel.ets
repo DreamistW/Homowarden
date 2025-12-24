@@ -205,8 +205,6 @@ export class LoginViewModel {
       // 确保设备信息已初始化
       await this.initializeAsyncDeviceInfo();
 
-      const twoFactorToken = queryAssetSync(TWO_FACTOR_TOKEN_KEY);
-
       const request: AccessTokenRequest = {
         grant_type: GrantType.PASSWORD,
         username: this.email.trim().toLowerCase(),
@@ -215,10 +213,7 @@ export class LoginViewModel {
         client_id: Header_Client_Name,
         deviceType: this.deviceType,
         deviceIdentifier: this.deviceIdentifier,
-        deviceName: this.deviceName,
-        twoFactorProvider: 5,
-        twoFactorRemember: 0,
-        twoFactorToken: twoFactorToken
+        deviceName: this.deviceName
       };
 
       this.accessTokenResponse = await accessToken(request);

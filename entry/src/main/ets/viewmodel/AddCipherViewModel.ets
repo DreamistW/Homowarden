@@ -51,12 +51,12 @@ export class AddCipherViewModel {
   // 构建加密登录项
   private async buildEncryptedLogin(): Promise<CipherLogin> {
     const encUsername =
-      this.loginItem.username ? await CryptoUtil.encryptField(this.loginItem.username, this.symmetricKey) : '';
+      this.loginItem.username ? await CryptoUtil.encryptField(this.loginItem.username, this.symmetricKey) : null;
     const encPassword =
-      this.loginItem.password ? await CryptoUtil.encryptField(this.loginItem.password, this.symmetricKey) : '';
+      this.loginItem.password ? await CryptoUtil.encryptField(this.loginItem.password, this.symmetricKey) : null;
 
     let encUris: CipherUri[] = [];
-    if (this.loginUri) {
+    if (this.loginUri.uri) {
       const encUrl = await CryptoUtil.encryptField(this.loginUri.uri.trim(), this.symmetricKey);
       const sha256CheckSum = await CryptoUtil.doSha256(this.loginUri.uri.trim());
       const encChecksum = await CryptoUtil.encryptField(sha256CheckSum, this.symmetricKey);

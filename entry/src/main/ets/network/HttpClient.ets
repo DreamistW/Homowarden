@@ -1,13 +1,13 @@
 // HTTP客户端，使用Axios实现
 
-import axios, { AxiosRequestConfig, InternalAxiosRequestConfig, AxiosResponse, AxiosError } from '@ohos/axios';
+import axios, { AxiosError, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from '@ohos/axios';
 import { Logger } from '@nzy/logger';
 import {
   Header_Client_Name,
   Header_Client_Version,
-  ServerType,
   SERVER_ADDRESS_KEY,
-  SERVER_TYPE_KEY
+  SERVER_TYPE_KEY,
+  ServerType
 } from '../utils/Constants';
 import { DeviceUtil } from '../utils/DeviceUtil';
 import { DataPreferences } from '@abner/datastore';
@@ -88,10 +88,14 @@ export function toFormUrlEncoded<T extends object>(data: T, keys: (keyof T)[]): 
 function encodeFormValue(value: string): string {
   return value.replace(/[^A-Za-z0-9\-._~=]/g, (char) => {
     switch (char) {
-      case ' ': return '+';  // 空格编码为+
-      case '&': return '%26'; // &编码为%26
-      case '+': return '%2B'; // +编码为%2B
-      default: return encodeURIComponent(char);
+      case ' ':
+        return '+'; // 空格编码为+
+      case '&':
+        return '%26'; // &编码为%26
+      case '+':
+        return '%2B'; // +编码为%2B
+      default:
+        return encodeURIComponent(char);
     }
   });
 }

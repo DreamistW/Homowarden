@@ -59,7 +59,7 @@ export const KDF_PARAM_KEY = 'kdf_param';
 
 export const Header_Client_Name = 'web';
 
-export const Header_Client_Version = '2025.7.0';
+export const Header_Client_Version = '2025.12.1';
 
 export const SCOPE_KEY = 'api offline_access';
 
