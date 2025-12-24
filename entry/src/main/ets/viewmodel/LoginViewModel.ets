@@ -356,7 +356,7 @@ export class LoginViewModel {
 
     DataPreferences.getInstance().putSync(LOGIN_STATUS_KEY, 1);
 
-    Logger.debug(`登录信息: \naccessToken: ${this.accessTokenResponse.access_token},\nrefreshToken: ${this.accessTokenResponse.refresh_token},\nexpiresIn: ${this.accessTokenResponse.expires_in},\n`)
+    // Logger.debug(`登录信息: \naccessToken: ${this.accessTokenResponse.access_token},\nrefreshToken: ${this.accessTokenResponse.refresh_token},\nexpiresIn: ${this.accessTokenResponse.expires_in},\n`)
   }
 
   private createAssetModel(alias: string, secret: string, label?: string[]): AssetModel {
