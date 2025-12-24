@@ -1,10 +1,8 @@
 import { DataPreferences } from '@abner/datastore';
-import { LOGIN_STATUS_KEY, PRIVACY_AGREED_KEY, SAVE_EMAIL } from '../utils/Constants';
+import { BIOMETRIC_AUTH, LOGIN_STATUS_KEY, PRIVACY_AGREED_KEY, SAVE_EMAIL } from '../utils/Constants';
 import { common, Want } from '@kit.AbilityKit';
 import { EntryRouter } from '../../../../EntryRouter';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
-import { AssetModel } from '../model/AssetModel';
-import { addAsset } from '../utils/AssetUtil';
 
 @CustomDialog
 struct PrivacyDialogContent {
@@ -112,8 +110,12 @@ struct Index {
     .width('100%')
     .mode(NavigationMode.Stack)
     .onAppear(() => {
-      const saveEmailAsset: AssetModel = { alias: SAVE_EMAIL, secret: "0" };
-      addAsset(saveEmailAsset);
+      if (!DataPreferences.getInstance().hasSync(SAVE_EMAIL)) {
+        DataPreferences.getInstance().putSync(SAVE_EMAIL, 0);
+      }
+      if (!DataPreferences.getInstance().hasSync(BIOMETRIC_AUTH)) {
+        DataPreferences.getInstance().putSync(BIOMETRIC_AUTH, 0);
+      }
       this.getLoginStatus();
       this.getPrivacyStatus();
       if (this.showPrivacyDialog) {
@@ -123,7 +125,13 @@ struct Index {
         if (!this.isLogin) {
           this.pathInfos.pushPath({ name: EntryRouter.LoginPage });
         } else {
-          this.pathInfos.pushPath({ name: EntryRouter.VaultPage });
+          // 判断是否开启生物识别
+          const result = DataPreferences.getInstance().getSync<number>(BIOMETRIC_AUTH);
+          if (result == 1) {
+            this.pathInfos.pushPath({ name: EntryRouter.BiometricAuthPage });
+          } else {
+            this.pathInfos.pushPath({ name: EntryRouter.VaultPage });
+          }
         }
       }
     })

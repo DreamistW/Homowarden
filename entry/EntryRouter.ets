@@ -4,4 +4,5 @@ export class EntryRouter{
   static SettingsPage = 'SettingsPage';
   static AddCipherPage = 'AddCipherPage';
   static CipherDetailPage = 'CipherDetailPage';
+  static BiometricAuthPage = 'BiometricAuthPage';
 }

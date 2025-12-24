@@ -69,6 +69,8 @@ export const PRIVACY_AGREED_KEY = 'privacy_agreed';
 
 export const SAVE_EMAIL = 'save_email';
 
+export const BIOMETRIC_AUTH = 'biometric_auth';
+
 export enum GrantType {
   PASSWORD = 'password',
   REFRESH = 'refresh_token'

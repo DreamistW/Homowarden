@@ -1,11 +1,11 @@
 import { IBestActionSheet, IBestDialog, IBestSwitch } from '@ibestservices/ibest-ui';
-import { queryAssetSync, updateAsset } from '../utils/AssetUtil';
+import { queryAssetSync } from '../utils/AssetUtil';
 import { EMAIL_KEY, SAVE_EMAIL, ServerType } from '../utils/Constants';
 import { LoginViewModel } from '../viewmodel/LoginViewModel';
 import { EntryRouter } from '../../../../EntryRouter';
 import { common } from '@kit.AbilityKit';
 import { PromptAction } from '@kit.ArkUI';
-import { asset } from '@kit.AssetStoreKit';
+import { DataPreferences } from '@abner/datastore';
 
 @Builder
 export function LoginPageBuilder() {
@@ -27,8 +27,8 @@ export struct LoginPage {
 
   aboutToAppear() {
     this.viewModel.loadServerConfig();
-    const queryResult = queryAssetSync(SAVE_EMAIL);
-    if (queryResult && queryResult == "1") {
+    const queryResult = DataPreferences.getInstance().getSync<number>(SAVE_EMAIL);
+    if (queryResult && queryResult == 1) {
       this.needToSaveEmail = true;
       this.loadSaveEmail();
     }
@@ -96,7 +96,7 @@ export struct LoginPage {
             value: $needToSaveEmail,
             onChange: () => {
               this.viewModel.needSaveEmail = this.needToSaveEmail;
-              updateAsset(SAVE_EMAIL, asset.Tag.SECRET, this.needToSaveEmail ? "1" : "0");
+              DataPreferences.getInstance().putSync(SAVE_EMAIL, this.needToSaveEmail ? 1 : 0);
             }
           })
         }
