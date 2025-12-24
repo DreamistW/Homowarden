@@ -1,0 +1,11 @@
+{
+  "app": {
+    "bundleName": "com.dreamist.homowarden",
+    "patchVersionCode": 2000026,
+    "versionCode": 1000000
+  },
+  "module": {
+    "name": "entry",
+    "type": "hotreload"
+  }
+}

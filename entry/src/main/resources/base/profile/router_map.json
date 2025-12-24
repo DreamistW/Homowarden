@@ -1,0 +1,39 @@
+{
+  "routerMap": [
+    {
+      "name": "VaultPage",
+      "pageSourceFile": "src/main/ets/pages/VaultPage.ets",
+      "buildFunction": "VaultPageBuilder"
+    },
+    {
+      "name": "LoginPage",
+      "pageSourceFile": "src/main/ets/pages/LoginPage.ets",
+      "buildFunction": "LoginPageBuilder"
+    },
+    {
+      "name": "AddCipherPage",
+      "pageSourceFile": "src/main/ets/pages/AddCipherPage.ets",
+      "buildFunction": "AddCipherPageBuilder"
+    },
+    {
+      "name": "CipherDetailPage",
+      "pageSourceFile": "src/main/ets/pages/CipherDetailPage.ets",
+      "buildFunction": "CipherDetailPageBuilder"
+    },
+    {
+      "name": "SettingsPage",
+      "pageSourceFile": "src/main/ets/pages/SettingsPage.ets",
+      "buildFunction": "SettingsPageBuilder"
+    },
+    {
+      "name": "BiometricAuthPage",
+      "pageSourceFile": "src/main/ets/pages/BiometricAuthPage.ets",
+      "buildFunction": "BiometricAuthPageBuilder"
+    },
+    {
+      "name": "Sure2SharePage",
+      "pageSourceFile": "src/main/ets/pages/Sure2Share.ets",
+      "buildFunction": "Sure2SharePageBuilder"
+    }
+  ]
+}
