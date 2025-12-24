@@ -29,6 +29,11 @@
       "name": "BiometricAuthPage",
       "pageSourceFile": "src/main/ets/pages/BiometricAuthPage.ets",
       "buildFunction": "BiometricAuthPageBuilder"
+    },
+    {
+      "name": "Sure2SharePage",
+      "pageSourceFile": "src/main/ets/pages/Sure2Share.ets",
+      "buildFunction": "Sure2SharePageBuilder"
     }
   ]
 }

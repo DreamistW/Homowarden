@@ -55,6 +55,11 @@ export struct VaultPage {
       this.pathInfos.pushPath({ name: EntryRouter.SettingsPage });
     }
   }
+  Sure2ShareBtn: NavigationMenuItem = {
+    'value': '', 'icon': 'resources/base/media/icon_share.svg', 'action': () => {
+      this.pathInfos.pushPath({ name: EntryRouter.Sure2SharePage });
+    }
+  }
   groupId: string = 'filter_menu';
 
   async aboutToAppear() {
@@ -262,7 +267,7 @@ export struct VaultPage {
       }
       return true;
     })
-    .menus([this.AddItemBtn, this.SettingsBtn])
+    .menus([this.Sure2ShareBtn, this.AddItemBtn, this.SettingsBtn])
   }
 
   private navigateToDetail(cipher: Cipher) {
