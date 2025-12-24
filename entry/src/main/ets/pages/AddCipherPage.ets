@@ -1,5 +1,6 @@
+import { DataPreferences } from '@abner/datastore';
 import { IBestDropdownItem, IBestDropdownMenu, IBestRadio, IBestRadioGroup, IBestToast } from '@ibestservices/ibest-ui';
-import { CardBrandType, CipherItemType, IdentityTitleType } from '../utils/Constants';
+import { CardBrandType, CipherItemType, IdentityTitleType, NEED_RELOAD_CIPHERS } from '../utils/Constants';
 import { AddCipherViewModel } from '../viewmodel/AddCipherViewModel';
 
 @Builder
@@ -649,6 +650,7 @@ export struct AddCipherPage {
     this.isSubmitting = false;
     if (ok) {
       IBestToast.show("创建成功");
+      DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
       this.pathInfos.pop();
     }
   }

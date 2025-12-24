@@ -71,6 +71,8 @@ export const SAVE_EMAIL = 'save_email';
 
 export const BIOMETRIC_AUTH = 'biometric_auth';
 
+export const NEED_RELOAD_CIPHERS = 'need_reload_ciphers';
+
 export enum GrantType {
   PASSWORD = 'password',
   REFRESH = 'refresh_token'

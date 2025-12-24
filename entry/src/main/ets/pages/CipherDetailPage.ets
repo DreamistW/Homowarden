@@ -1,10 +1,12 @@
 import { Cipher, CipherDetailParams, CipherField, CipherUri } from '../model/CipherModels';
-import { CardBrandType, CipherFieldType, CipherItemType, IdentityTitleType } from '../utils/Constants';
+import { CardBrandType, CipherFieldType, CipherItemType, IdentityTitleType,
+  NEED_RELOAD_CIPHERS } from '../utils/Constants';
 import { CipherDetailViewModel } from '../viewmodel/CipherDetailViewModel';
 import { CipherDetailTextItem } from '../component/CipherDetailTextItem';
 import { CipherDetailDropdownItem } from '../component/CipherDetailDropdownItem';
 import { IBestCheckbox, IBestDialog, IBestDropdownMenuOption, IBestStringNumber } from '@ibestservices/ibest-ui';
 import { Logger } from '@nzy/logger';
+import { DataPreferences } from '@abner/datastore';
 
 @Builder
 export function CipherDetailPageBuilder() {
@@ -176,6 +178,7 @@ export struct CipherDetailPage {
       await this.viewModel.updateCipher(this.cipher);
       // 保存成功，退出编辑模式
       this.isEditable = false;
+      DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
     } catch (error) {
       Logger.error('Failed to save cipher:', error);
     } finally {
@@ -869,6 +872,8 @@ export struct CipherDetailPage {
         message: '删除成功',
         duration: 2000
       });
+
+      DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
 
       // 返回上一页
       this.pathInfos.pop();

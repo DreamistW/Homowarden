@@ -11,7 +11,14 @@ import {
   IBestPullRefresh
 } from '@ibestservices/ibest-ui';
 import { DataPreferences } from '@abner/datastore';
-import { EMAIL_KEY, FilterType, KDF_PARAM_KEY, LOGIN_STATUS_KEY, MASTER_KEY } from '../utils/Constants';
+import {
+  EMAIL_KEY,
+  FilterType,
+  KDF_PARAM_KEY,
+  LOGIN_STATUS_KEY,
+  MASTER_KEY,
+  NEED_RELOAD_CIPHERS
+} from '../utils/Constants';
 import { PromptAction } from '@kit.ArkUI';
 import { CipherItem } from '../component/CipherItem';
 import { CryptoUtil } from '../utils/CryptoUtil';
@@ -235,7 +242,11 @@ export struct VaultPage {
       this.pathInfos = ctx.pathStack;
     })
     .onShown(async () => {
-      await this.loadCiphers();
+      const result = DataPreferences.getInstance().getSync<number>(NEED_RELOAD_CIPHERS);
+      if (result == 1) {
+        await this.loadCiphers();
+        DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 0);
+      }
     })
     .onBackPressed(() => {
       const currentTime = new Date().getTime();
