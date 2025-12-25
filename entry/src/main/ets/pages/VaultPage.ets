@@ -8,8 +8,7 @@ import {
   IBestDropdownMenu,
   IBestField,
   IBestFieldValueType,
-  IBestPullRefresh,
-  IBestToast
+  IBestPullRefresh
 } from '@ibestservices/ibest-ui';
 import { DataPreferences } from '@abner/datastore';
 import {
@@ -261,7 +260,9 @@ export struct VaultPage {
         (this.getUIContext().getHostContext() as common.UIAbilityContext)?.terminateSelf();
       } else {
         this.exitTime = currentTime;
-        IBestToast.show('再按一次退出');
+        this.getUIContext().getPromptAction().showToast({
+          message: "再按一次退出"
+        });
       }
       return true;
     })

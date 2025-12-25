@@ -69,7 +69,9 @@ export struct BiometricAuthPage {
         (this.getUIContext().getHostContext() as common.UIAbilityContext)?.terminateSelf();
       } else {
         this.exitTime = currentTime;
-        IBestToast.show('再按一次退出');
+        this.getUIContext().getPromptAction().showToast({
+          message: "再按一次退出"
+        });
       }
       return true;
     })
