@@ -1,4 +1,5 @@
 import { http } from '@kit.NetworkKit';
+import { Logger } from '@nzy/logger';
 
 export async function getShareLink(content: string): Promise<string> {
   const urlRegex = /https?:\/\/[^\s\u4e00-\u9fa5]+/;
@@ -42,7 +43,7 @@ export async function getFullLink(link: string): Promise<string> {
       }
     }
   } catch (err) {
-    console.error(`Failed to parse full url, error message: ${err.message}`);
+    Logger.error(`Failed to parse full url, error message: ${err.message}`);
   }
   return "";
 }
@@ -58,7 +59,7 @@ export async function replaceOutputText(originalText: string, fullLink: string):
     });
     return result;
   } catch (err) {
-    console.error(`Failed to replace url, error message: ${err.message}`);
+    Logger.error(`Failed to replace url, error message: ${err.message}`);
     return "";
   }
 }

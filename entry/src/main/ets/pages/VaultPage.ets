@@ -8,7 +8,8 @@ import {
   IBestDropdownMenu,
   IBestField,
   IBestFieldValueType,
-  IBestPullRefresh
+  IBestPullRefresh,
+  IBestToast
 } from '@ibestservices/ibest-ui';
 import { DataPreferences } from '@abner/datastore';
 import {
@@ -21,7 +22,6 @@ import {
   MASTER_KEY,
   NEED_RELOAD_CIPHERS
 } from '../utils/Constants';
-import { PromptAction } from '@kit.ArkUI';
 import { CipherItem } from '../component/CipherItem';
 import { CryptoUtil } from '../utils/CryptoUtil';
 import { queryAssetSync } from '../utils/AssetUtil';
@@ -248,7 +248,7 @@ export struct VaultPage {
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
     })
-    .onShown(async () => {
+    .onActive(async () => {
       const result = DataPreferences.getInstance().getSync<number>(NEED_RELOAD_CIPHERS);
       if (result == 1) {
         await this.loadCiphers();
@@ -260,17 +260,16 @@ export struct VaultPage {
       if (currentTime - this.exitTime < 2000) {
         (this.getUIContext().getHostContext() as common.UIAbilityContext)?.terminateSelf();
       } else {
-        let promptAction: PromptAction = this.getUIContext().getPromptAction();
         this.exitTime = currentTime;
-        promptAction.showToast({
-          message: '再按一次退出',
-          duration: 2000
-        })
+        IBestToast.show('再按一次退出');
       }
       return true;
     })
     .menus([this.Sure2ShareBtn, this.AddItemBtn, this.SettingsBtn])
-    .onActive(() => {
+    .onHidden(() => {
+      DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
+    })
+    .onShown(() => {
       const autoLockStatus = DataPreferences.getInstance().getSync<number>(AUTO_LOCK);
       if (autoLockStatus == 1) {
         const currentTime = Math.floor(Date.now() / 1000);
@@ -279,9 +278,6 @@ export struct VaultPage {
           this.pathInfos.pushPath({ name: EntryRouter.BiometricAuthPage });
         }
       }
-    })
-    .onHidden(() => {
-      DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
     })
   }
 

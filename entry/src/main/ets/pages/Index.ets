@@ -10,6 +10,8 @@ import {
 import { common, Want } from '@kit.AbilityKit';
 import { EntryRouter } from '../../../../EntryRouter';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
+import { Logger } from '@nzy/logger';
+import { IBestToast } from '@ibestservices/ibest-ui';
 
 @CustomDialog
 struct PrivacyDialogContent {
@@ -36,10 +38,8 @@ struct PrivacyDialogContent {
               uri: 'https://agreement-drcn.hispace.dbankcloud.cn/index.html?lang=zh&agreementId=1846508510607638400'
             };
             context.startAbility(want).catch((err: Error) => {
-              console.error(`Failed to open url. Error: ${err.message}`);
-              this.getUIContext().getPromptAction().showToast({
-                message: '无法打开页面'
-              });
+              Logger.error(`Failed to open url. Error: ${err.message}`);
+              IBestToast.show(`无法打开页面, 错误信息: ${err.message}`);
             });
           })
       }

@@ -7,6 +7,8 @@ import { getFullLink, getShareLink, replaceOutputText } from '../utils/ParseLink
 import { DataPreferences } from '@abner/datastore';
 import { AUTO_LOCK, BACKGROUND_TIMESTAMP } from '../utils/Constants';
 import { EntryRouter } from '../../../../EntryRouter';
+import { Logger } from '@nzy/logger';
+import { IBestToast } from '@ibestservices/ibest-ui';
 
 @Builder
 export function Sure2SharePageBuilder() {
@@ -24,56 +26,40 @@ export struct Sure2SharePage {
   async convertLink() {
     const shareLink = await getShareLink(this.inputText);
     if (shareLink == "") {
-      this.getUIContext().getPromptAction().showToast({
-        message: `没有发现分享链接`
-      });
+      IBestToast.show(`没有发现分享链接`);
       return;
     }
     const fullLink = await getFullLink(shareLink);
     if (fullLink == "") {
-      this.getUIContext().getPromptAction().showToast({
-        message: `获取完整链接失败`
-      });
+      IBestToast.show(`获取完整链接失败`);
       return;
     }
     this.outputText = await replaceOutputText(this.inputText, fullLink);
     if (this.outputText == "") {
-      this.getUIContext().getPromptAction().showToast({
-        message: `替换链接失败`
-      });
+      IBestToast.show(`替换链接失败`);
       return;
     }
-    this.getUIContext().getPromptAction().showToast({
-      message: `转换成功`
-    });
+    IBestToast.show(`转换成功`);
   }
 
   copyLink(text: string) {
     if (text == "") {
-      this.getUIContext().getPromptAction().showToast({
-        message: `请先转换分享链接`
-      });
+      IBestToast.show(`请先转换分享链接`);
       return;
     }
     let pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, text);
     const systemPasteboard: pasteboard.SystemPasteboard = pasteboard.getSystemPasteboard();
     systemPasteboard.setData(pasteData).catch((err: BusinessError) => {
-      console.error(`Failed to set paste data. Code is ${err.code}, message is ${err.message}.`);
-      this.getUIContext().getPromptAction().showToast({
-        message: `复制失败, 错误信息: ${err.message}}`
-      });
+      Logger.error(`Failed to set paste data. Code is ${err.code}, message is ${err.message}.`);
+      IBestToast.show(`复制失败, 错误信息: ${err.message}}`);
       return;
     });
-    this.getUIContext().getPromptAction().showToast({
-      message: `复制成功`
-    });
+    IBestToast.show(`复制成功`);
   }
 
   shareLink(text: string, shareLink: boolean) {
     if (text == "") {
-      this.getUIContext().getPromptAction().showToast({
-        message: `请先转换分享链接`
-      });
+      IBestToast.show(`请先转换分享链接`);
       return;
     }
     let shareData: systemShare.SharedData = new systemShare.SharedData({
@@ -87,10 +73,8 @@ export struct Sure2SharePage {
       selectionMode: systemShare.SelectionMode.SINGLE,
       previewMode: systemShare.SharePreviewMode.DETAIL
     }).catch((err: BusinessError) => {
-      console.error(`Failed to show share panel. Code is ${err.code}, message is ${err.message}.`);
-      this.getUIContext().getPromptAction().showToast({
-        message: `分享失败, 错误信息: ${err.message}}`
-      });
+      Logger.error(`Failed to show share panel. Code is ${err.code}, message is ${err.message}.`);
+      IBestToast.show(`分享失败, 错误信息: ${err.message}`);
     })
   }
 
@@ -133,7 +117,7 @@ export struct Sure2SharePage {
                 pasteboard.getSystemPasteboard()
                   .getData(async (err: BusinessError, pasteData: pasteboard.PasteData) => {
                     if (err) {
-                      console.error(`Failed to get paste data. Code is ${err.code}, message is ${err.message}.`);
+                      Logger.error(`Failed to get paste data. Code is ${err.code}, message is ${err.message}.`);
                       return;
                     }
                     this.inputText = pasteData.getPrimaryText();
@@ -149,7 +133,7 @@ export struct Sure2SharePage {
               try {
                 inputMethod.getController().stopInputSession();
               } catch (err) {
-                console.error(`Failed to get paste data. Code is ${err.code}, message is ${err.message}.`);
+                Logger.error(`Failed to stop input session. Code is ${err.code}, message is ${err.message}.`);
                 return;
               }
               this.convertLink();
@@ -222,7 +206,10 @@ export struct Sure2SharePage {
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
     })
-    .onActive(() => {
+    .onHidden(() => {
+      DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
+    })
+    .onShown(() => {
       const autoLockStatus = DataPreferences.getInstance().getSync<number>(AUTO_LOCK);
       if (autoLockStatus == 1) {
         const currentTime = Math.floor(Date.now() / 1000);
@@ -231,9 +218,6 @@ export struct Sure2SharePage {
           this.pathInfos.pushPath({ name: EntryRouter.BiometricAuthPage });
         }
       }
-    })
-    .onHidden(() => {
-      DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
     })
   }
 }
