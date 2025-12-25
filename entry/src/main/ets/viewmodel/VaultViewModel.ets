@@ -42,7 +42,7 @@ export class VaultViewModel {
       await this.syncCiphersFromServer();
     } catch (error) {
       Logger.error(`Failed to load ciphers: ${error}`);
-      this.errorMessage = '加载密码项失败';
+      this.errorMessage = `加载密码项失败, 错误信息: ${JSON.stringify(error)}`;
     } finally {
       this.isLoading = false;
     }
@@ -75,6 +75,7 @@ export class VaultViewModel {
     } catch (error) {
       const businessError = error as BusinessError;
       Logger.error(`Failed to sync ciphers from server: ${businessError.message}`);
+      this.errorMessage = `获取密码项失败, 错误信息: ${businessError.message}`;
 
       // 检查是否是认证错误（需要重新登录）
       if (businessError.message.includes('401') || businessError.message.includes('403')) {
@@ -291,6 +292,7 @@ export class VaultViewModel {
       Logger.debug(`Cipher stats: ${JSON.stringify(stats)}`);
     } catch (error) {
       Logger.error(`Failed to get cipher stats: ${error}`);
+      this.errorMessage = `获取密码项统计失败, 错误信息: ${JSON.stringify(error)}`;
       Promise.reject(error);
     }
     return stats;

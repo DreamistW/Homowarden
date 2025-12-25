@@ -3,9 +3,10 @@ import { userAuth } from '@kit.UserAuthenticationKit';
 import { cryptoFramework } from '@kit.CryptoArchitectureKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { common } from '@kit.AbilityKit';
-import { PromptAction } from '@kit.ArkUI';
+import { IBestToast } from '@ibestservices/ibest-ui';
 import { DataPreferences } from '@abner/datastore';
 import { BACKGROUND_TIMESTAMP } from '../utils/Constants';
+import { Logger } from '@nzy/logger';
 
 @Builder
 export function BiometricAuthPageBuilder() {
@@ -67,12 +68,10 @@ export struct BiometricAuthPage {
       if (currentTime - this.exitTime < 2000) {
         (this.getUIContext().getHostContext() as common.UIAbilityContext)?.terminateSelf();
       } else {
-        let promptAction: PromptAction = this.getUIContext().getPromptAction();
         this.exitTime = currentTime;
-        promptAction.showToast({
-          message: '再按一次退出',
-          duration: 2000
-        })
+        this.getUIContext().getPromptAction().showToast({
+          message: "再按一次退出"
+        });
       }
       return true;
     })
@@ -93,9 +92,7 @@ export struct BiometricAuthPage {
         retryCount++;
       }
       if (!randData) {
-        this.getUIContext().getPromptAction().showToast({
-          message: '生物识别初始化失败'
-        });
+        IBestToast.show('生物识别初始化失败');
         return;
       }
 
@@ -113,12 +110,12 @@ export struct BiometricAuthPage {
 
       // 获取认证对象
       const userAuthInstance = userAuth.getUserAuthInstance(authParam, widgetParam);
-      console.info('get userAuth instance success');
+      Logger.debug('get userAuth instance success');
 
       // 订阅认证结果
       userAuthInstance.on('result', {
         onResult: (result) => {
-          console.info(`userAuthInstance callback result: ${JSON.stringify(result)}`);
+          Logger.debug(`userAuthInstance callback result: ${JSON.stringify(result)}`);
           // 取消订阅认证结果
           userAuthInstance.off('result');
 
@@ -134,21 +131,17 @@ export struct BiometricAuthPage {
             }
           } else {
             // 认证失败，显示提示
-            this.getUIContext().getPromptAction().showToast({
-              message: '认证失败'
-            });
+            IBestToast.show('认证失败');
           }
         }
       });
-      console.info('auth on success');
+      Logger.debug('auth on success');
       userAuthInstance.start();
-      console.info('auth start success');
+      Logger.debug('auth start success');
     } catch (error) {
       const err = error as BusinessError;
-      console.error(`Failed to start biometric auth. Error: ${JSON.stringify(err)}`);
-      this.getUIContext().getPromptAction().showToast({
-        message: '生物识别启动失败'
-      });
+      Logger.error(`Failed to start biometric auth. Error: ${JSON.stringify(err)}`);
+      IBestToast.show('生物识别启动失败');
     }
   }
 }

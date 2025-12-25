@@ -3,20 +3,26 @@ import { EntryRouter } from '../../../../EntryRouter';
 import {
   ACCESS_TOKEN_KEY_1,
   ACCESS_TOKEN_KEY_2,
-  AUTO_LOCK, BACKGROUND_TIMESTAMP, BIOMETRIC_AUTH,
+  AUTO_LOCK,
+  BACKGROUND_TIMESTAMP,
+  BIOMETRIC_AUTH,
   KDF_PARAM_KEY,
-  LOGIN_STATUS_KEY, MASTER_KEY,
+  LOGIN_STATUS_KEY,
+  MASTER_KEY,
   PRIVATE_KEY_1,
   PRIVATE_KEY_2,
   REFRESH_TOKEN_KEY,
   TOKEN_EXPIRE_TIME_KEY,
   TWO_FACTOR_TOKEN_KEY,
-  USER_KEY} from '../utils/Constants';
+  USER_KEY
+} from '../utils/Constants';
 import { bundleManager, common, Want } from '@kit.AbilityKit';
 import { userAuth } from '@kit.UserAuthenticationKit';
 import { cryptoFramework } from '@kit.CryptoArchitectureKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { deleteAsset } from '../utils/AssetUtil';
+import { Logger } from '@nzy/logger';
+import { IBestToast } from '@ibestservices/ibest-ui';
 
 @Builder
 export function SettingsPageBuilder() {
@@ -42,7 +48,7 @@ export struct SettingsPage {
       const status = DataPreferences.getInstance().getSync<number>(AUTO_LOCK);
       this.autoLockEnabled = status == 1;
     } catch (err) {
-      console.error(`Failed to load auto lock status. Error: ${JSON.stringify(err)}`);
+      Logger.error(`Failed to load auto lock status. Error: ${JSON.stringify(err)}`);
       this.autoLockEnabled = false;
     }
   }
@@ -56,7 +62,8 @@ export struct SettingsPage {
         this.versionName = bundleInfo.versionName;
       }
     } catch (err) {
-      console.error(`Failed to get version name. Error: ${JSON.stringify(err)}`);
+      Logger.error(`Failed to get version name. Error: ${JSON.stringify(err)}`);
+      IBestToast.show(`获取应用版本号失败, 错误信息: ${JSON.stringify(err)}`);
     }
   }
 
@@ -247,7 +254,10 @@ export struct SettingsPage {
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
     })
-    .onActive(() => {
+    .onHidden(() => {
+      DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
+    })
+    .onShown(() => {
       const autoLockStatus = DataPreferences.getInstance().getSync<number>(AUTO_LOCK);
       if (autoLockStatus == 1) {
         const currentTime = Math.floor(Date.now() / 1000);
@@ -257,34 +267,25 @@ export struct SettingsPage {
         }
       }
     })
-    .onHidden(() => {
-      DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
-    })
   }
 
   openEmail() {
     try {
       const context = getContext(this) as common.UIAbilityContext;
       if (!context) {
-        this.getUIContext().getPromptAction().showToast({
-          message: '无法打开邮箱'
-        });
+        IBestToast.show('无法打开邮箱');
         return;
       }
       const want: Want = {
         uri: 'mailto:yume.w@outlook.com'
       };
       context.startAbility(want).catch((err: Error) => {
-        console.error(`Failed to open email. Error: ${err.message}`);
-        this.getUIContext().getPromptAction().showToast({
-          message: '无法打开邮箱'
-        });
+        Logger.error(`Failed to open email. Error: ${err.message}`);
+        IBestToast.show(`无法打开邮箱, 错误信息: ${err.message}`);
       });
     } catch (err) {
-      console.error(`Failed to open email. Error: ${JSON.stringify(err)}`);
-      this.getUIContext().getPromptAction().showToast({
-        message: '无法打开邮箱'
-      });
+      Logger.error(`Failed to open email. Error: ${JSON.stringify(err)}`);
+      IBestToast.show(`无法打开邮箱, 错误信息: ${JSON.stringify(err)}`);
     }
   }
 
@@ -294,7 +295,7 @@ export struct SettingsPage {
       const status = DataPreferences.getInstance().getSync<number>(BIOMETRIC_AUTH);
       this.biometricEnabled = status == 1;
     } catch (err) {
-      console.error(`Failed to load biometric auth status. Error: ${JSON.stringify(err)}`);
+      Logger.error(`Failed to load biometric auth status. Error: ${JSON.stringify(err)}`);
       this.biometricEnabled = false;
     }
   }
@@ -319,9 +320,7 @@ export struct SettingsPage {
         retryCount++;
       }
       if (!randData) {
-        this.getUIContext().getPromptAction().showToast({
-          message: '生物识别初始化失败'
-        });
+        IBestToast.show('生物识别初始化失败');
         this.biometricEnabled = false;
         return;
       }
@@ -340,12 +339,12 @@ export struct SettingsPage {
 
       // 获取认证对象
       const userAuthInstance = userAuth.getUserAuthInstance(authParam, widgetParam);
-      console.info('get userAuth instance success');
+      Logger.debug('get userAuth instance success');
 
       // 订阅认证结果
       userAuthInstance.on('result', {
         onResult: (result) => {
-          console.info(`userAuthInstance callback result: ${JSON.stringify(result)}`);
+          Logger.debug(`userAuthInstance callback result: ${JSON.stringify(result)}`);
           // 取消订阅认证结果
           userAuthInstance.off('result');
 
@@ -353,28 +352,22 @@ export struct SettingsPage {
             // 认证成功，更新状态
             this.biometricEnabled = true;
             this.updateBiometricAuthStatus(true);
-            this.getUIContext().getPromptAction().showToast({
-              message: '生物识别已启用'
-            });
+            IBestToast.show('生物识别已启用');
           } else {
             // 认证失败，关闭开关
             this.biometricEnabled = false;
-            this.getUIContext().getPromptAction().showToast({
-              message: '认证失败，生物识别未启用'
-            });
+            IBestToast.show('认证失败, 生物识别未启用');
           }
         }
       });
-      console.info('auth on success');
+      Logger.debug('auth on success');
       userAuthInstance.start();
-      console.info('auth start success');
+      Logger.debug('auth start success');
     } catch (error) {
       const err = error as BusinessError;
-      console.error(`Failed to start biometric auth. Error: ${JSON.stringify(err)}`);
+      Logger.error(`Failed to start biometric auth. Error: ${JSON.stringify(err)}`);
       this.biometricEnabled = false;
-      this.getUIContext().getPromptAction().showToast({
-        message: '生物识别启动失败'
-      });
+      IBestToast.show(`生物识别启动失败, 错误信息: ${err.message}`);
     }
   }
 

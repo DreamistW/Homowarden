@@ -218,7 +218,7 @@ export class AddCipherViewModel {
       await createCipher(payload);
       return true;
     } catch (err) {
-      this.errorMessage = '创建失败，请重试';
+      this.errorMessage = `创建失败, 错误信息: ${JSON.stringify(err)}`;
       return false;
     } finally {
       this.submitting = false;

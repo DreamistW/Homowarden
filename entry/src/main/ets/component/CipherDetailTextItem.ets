@@ -1,5 +1,5 @@
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
-import { PromptAction } from '@kit.ArkUI';
+import { IBestToast } from '@ibestservices/ibest-ui';
 import { Logger } from '@nzy/logger';
 
 @Component
@@ -79,11 +79,7 @@ export struct CipherDetailTextItem {
       const pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, text);
       const systemPasteboard = pasteboard.getSystemPasteboard();
       await systemPasteboard.setData(pasteData);
-      let promptAction: PromptAction = this.getUIContext().getPromptAction();
-      promptAction.showToast({
-        message: '已复制',
-        duration: 2000
-      })
+      IBestToast.show('已复制');
     } catch (error) {
       const err = error as BusinessError;
       Logger.error(`Failed to paste, error message: ${err.message}}`);

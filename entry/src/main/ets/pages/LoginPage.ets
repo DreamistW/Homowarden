@@ -1,10 +1,9 @@
-import { IBestActionSheet, IBestDialog, IBestSwitch } from '@ibestservices/ibest-ui';
+import { IBestActionSheet, IBestDialog, IBestSwitch, IBestToast } from '@ibestservices/ibest-ui';
 import { queryAssetSync } from '../utils/AssetUtil';
 import { EMAIL_KEY, SAVE_EMAIL, ServerType } from '../utils/Constants';
 import { LoginViewModel } from '../viewmodel/LoginViewModel';
 import { EntryRouter } from '../../../../EntryRouter';
 import { common } from '@kit.AbilityKit';
-import { PromptAction } from '@kit.ArkUI';
 import { DataPreferences } from '@abner/datastore';
 
 @Builder
@@ -231,12 +230,10 @@ export struct LoginPage {
       if (currentTime - this.exitTime < 2000) {
         (this.getUIContext().getHostContext() as common.UIAbilityContext)?.terminateSelf();
       } else {
-        let promptAction: PromptAction = this.getUIContext().getPromptAction();
         this.exitTime = currentTime;
-        promptAction.showToast({
-          message: '再按一次退出',
-          duration: 2000
-        })
+        this.getUIContext().getPromptAction().showToast({
+          message: "再按一次退出"
+        });
       }
       return true;
     })
@@ -245,19 +242,11 @@ export struct LoginPage {
   // 处理登录逻辑
   private async handleLogin(): Promise<void> {
     if (this.viewModel.email.length == 0 || this.viewModel.password.length == 0) {
-      let promptAction: PromptAction = this.getUIContext().getPromptAction();
-      promptAction.showToast({
-        message: '邮箱和密码不能为空',
-        duration: 2000
-      })
+      IBestToast.show('邮箱和密码不能为空');
       return;
     }
     if (this.viewModel.serverType == ServerType.SELF_HOSTED && this.viewModel.serverAddress == undefined) {
-      let promptAction: PromptAction = this.getUIContext().getPromptAction();
-      promptAction.showToast({
-        message: '服务器地址不能为空',
-        duration: 2000
-      })
+      IBestToast.show('服务器地址不能为空');
       return;
     }
     this.twoFactorInputError = false;
