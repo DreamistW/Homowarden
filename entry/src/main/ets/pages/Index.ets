@@ -10,6 +10,8 @@ import {
 import { common, Want } from '@kit.AbilityKit';
 import { EntryRouter } from '../../../../EntryRouter';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
+import { Logger } from '@nzy/logger';
+import { IBestToast } from '@ibestservices/ibest-ui';
 
 @CustomDialog
 struct PrivacyDialogContent {

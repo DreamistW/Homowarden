@@ -11,7 +11,13 @@ import {
 import { CipherDetailViewModel } from '../viewmodel/CipherDetailViewModel';
 import { CipherDetailTextItem } from '../component/CipherDetailTextItem';
 import { CipherDetailDropdownItem } from '../component/CipherDetailDropdownItem';
-import { IBestCheckbox, IBestDialog, IBestDropdownMenuOption, IBestStringNumber } from '@ibestservices/ibest-ui';
+import {
+  IBestCheckbox,
+  IBestDialog,
+  IBestDropdownMenuOption,
+  IBestStringNumber,
+  IBestToast
+} from '@ibestservices/ibest-ui';
 import { Logger } from '@nzy/logger';
 import { DataPreferences } from '@abner/datastore';
 import { EntryRouter } from '../../../../EntryRouter';
@@ -187,8 +193,10 @@ export struct CipherDetailPage {
       // 保存成功，退出编辑模式
       this.isEditable = false;
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
+      IBestToast.show(`保存成功`);
     } catch (error) {
       Logger.error('Failed to save cipher:', error);
+      IBestToast.show(`编辑失败, 错误信息: ${JSON.stringify(error)}`);
     } finally {
       this.isSaving = false;
     }
@@ -202,13 +210,10 @@ export struct CipherDetailPage {
       await this.viewModel.restoreCipher(this.cipher);
       this.cipher.deletedDate = null;
       // 显示成功提示
-      const promptAction = this.getUIContext().getPromptAction();
-      promptAction.showToast({
-        message: '还原成功',
-        duration: 2000
-      });
+      IBestToast.show('还原成功');
     } catch (error) {
       Logger.error('Failed to restore cipher:', error);
+      IBestToast.show(`还原失败, 错误信息: ${JSON.stringify(error)}`);
     }
   }
 
@@ -377,7 +382,10 @@ export struct CipherDetailPage {
     })
     .menus(this.isEditable ? [this.CancelEditBtn, this.ConfirmEditBtn] :
       this.cipher.deletedDate ? [this.RestoreItemBtn, this.DeleteItemBtn] : [this.EditItemBtn, this.DeleteItemBtn])
-    .onActive(() => {
+    .onHidden(() => {
+      DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
+    })
+    .onShown(() => {
       const autoLockStatus = DataPreferences.getInstance().getSync<number>(AUTO_LOCK);
       if (autoLockStatus == 1) {
         const currentTime = Math.floor(Date.now() / 1000);
@@ -386,9 +394,6 @@ export struct CipherDetailPage {
           this.pathInfos.pushPath({ name: EntryRouter.BiometricAuthPage });
         }
       }
-    })
-    .onHidden(() => {
-      DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
     })
   }
 
@@ -888,11 +893,7 @@ export struct CipherDetailPage {
       Logger.info(`Cipher ${this.cipher.id} deleted successfully`);
 
       // 显示成功提示
-      const promptAction = this.getUIContext().getPromptAction();
-      promptAction.showToast({
-        message: '删除成功',
-        duration: 2000
-      });
+      IBestToast.show('删除成功');
 
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
 
@@ -903,11 +904,7 @@ export struct CipherDetailPage {
       Logger.error('Failed to delete cipher:', error);
 
       // 显示失败提示
-      const promptAction = this.getUIContext().getPromptAction();
-      promptAction.showToast({
-        message: `删除失败, 错误信息: ${error}`,
-        duration: 2000
-      });
+      IBestToast.show(`删除失败, 错误信息: ${JSON.stringify(error)}`);
 
       this.showDeleteDialog = false;
       return false;
