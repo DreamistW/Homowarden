@@ -80,25 +80,6 @@ export struct SettingsPage {
                 .margin({ bottom: 12 })
 
               Row() {
-                Text('自动锁定')
-                  .fontSize(16)
-
-                Blank()
-
-                Toggle({ type: ToggleType.Switch, isOn: this.autoLockEnabled })
-                  .onChange((isOn: boolean) => {
-                    this.autoLockEnabled = isOn;
-                    DataPreferences.getInstance().putSync(AUTO_LOCK, isOn ? 1 : 0);
-                  })
-              }
-              .width('100%')
-              .padding({ top: 12, bottom: 12 })
-
-              Text('开启后, 应用置于后台两分钟后会自动锁定')
-                .fontSize(12)
-                .fontColor('#666666')
-
-              Row() {
                 Text('生物识别')
                   .fontSize(16)
 
@@ -121,6 +102,26 @@ export struct SettingsPage {
               .padding({ top: 12, bottom: 12 })
 
               Text('开启后, 可以使用锁屏密码/指纹/人脸解锁密码库')
+                .fontSize(12)
+                .fontColor('#666666')
+
+              Row() {
+                Text('自动锁定')
+                  .fontSize(16)
+
+                Blank()
+
+                Toggle({ type: ToggleType.Switch, isOn: this.autoLockEnabled })
+                  .onChange((isOn: boolean) => {
+                    this.autoLockEnabled = isOn;
+                    DataPreferences.getInstance().putSync(AUTO_LOCK, isOn ? 1 : 0);
+                  })
+                  .enabled(this.biometricEnabled)
+              }
+              .width('100%')
+              .padding({ top: 12, bottom: 12 })
+
+              Text('需要先开启生物识别, 开启后, 应用置于后台两分钟会自动锁定密码库')
                 .fontSize(12)
                 .fontColor('#666666')
             }
@@ -263,7 +264,7 @@ export struct SettingsPage {
         const currentTime = Math.floor(Date.now() / 1000);
         const backgroundTime = DataPreferences.getInstance().getSync<number>(BACKGROUND_TIMESTAMP);
         if (currentTime - backgroundTime > 120) {
-          this.pathInfos.pushPath({ name: EntryRouter.BiometricAuthPage });
+          this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
         }
       }
     })
@@ -294,6 +295,10 @@ export struct SettingsPage {
     try {
       const status = DataPreferences.getInstance().getSync<number>(BIOMETRIC_AUTH);
       this.biometricEnabled = status == 1;
+      // 如果生物识别没有开启，禁用自动锁定
+      if(!this.biometricEnabled){
+        this.autoLockEnabled = false;
+      }
     } catch (err) {
       Logger.error(`Failed to load biometric auth status. Error: ${JSON.stringify(err)}`);
       this.biometricEnabled = false;
@@ -303,6 +308,10 @@ export struct SettingsPage {
   // 更新生物识别状态
   updateBiometricAuthStatus(status: boolean) {
     DataPreferences.getInstance().putSync(BIOMETRIC_AUTH, status ? 1 : 0);
+    if(!status){
+      this.autoLockEnabled = false;
+      DataPreferences.getInstance().putSync(AUTO_LOCK, 0);
+    }
   }
 
   // 发起生物识别认证

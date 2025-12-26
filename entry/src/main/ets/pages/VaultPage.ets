@@ -8,25 +8,17 @@ import {
   IBestDropdownMenu,
   IBestField,
   IBestFieldValueType,
-  IBestPullRefresh,
-  IBestToast
+  IBestPullRefresh
 } from '@ibestservices/ibest-ui';
 import { DataPreferences } from '@abner/datastore';
 import {
   AUTO_LOCK,
   BACKGROUND_TIMESTAMP,
-  EMAIL_KEY,
   FilterType,
-  KDF_PARAM_KEY,
   LOGIN_STATUS_KEY,
-  MASTER_KEY,
   NEED_RELOAD_CIPHERS
 } from '../utils/Constants';
 import { CipherItem } from '../component/CipherItem';
-import { CryptoUtil } from '../utils/CryptoUtil';
-import { queryAssetSync } from '../utils/AssetUtil';
-import { Logger } from '@nzy/logger';
-import { PreloginResponse } from '../model/Prelogin';
 
 @Builder
 export function VaultPageBuilder() {
@@ -277,7 +269,7 @@ export struct VaultPage {
         const currentTime = Math.floor(Date.now() / 1000);
         const backgroundTime = DataPreferences.getInstance().getSync<number>(BACKGROUND_TIMESTAMP);
         if (currentTime - backgroundTime > 120) {
-          this.pathInfos.pushPath({ name: EntryRouter.BiometricAuthPage });
+          this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
         }
       }
     })
@@ -306,68 +298,14 @@ export struct VaultPage {
    * 验证主密码
    */
   private async verifyMasterPassword(): Promise<boolean> {
-    if (!this.passwordInput || this.passwordInput.length === 0) {
-      this.passwordError = '请输入主密码';
-      return false;
-    }
-
-    try {
-      // 获取存储的 KDF 参数
-      const kdfParamStr: string = queryAssetSync(KDF_PARAM_KEY);
-      if (!kdfParamStr) {
-        this.passwordError = '无法获取 KDF 参数，请重新登录';
-        return false;
-      }
-
-      const kdfParams: PreloginResponse = JSON.parse(kdfParamStr);
-      const storedMasterKey = queryAssetSync(MASTER_KEY);
-      const email = queryAssetSync(EMAIL_KEY);
-
-      if (!storedMasterKey) {
-        this.passwordError = '无法获取主密钥，请重新登录';
-        return false;
-      }
-
-      // 使用输入的密码重新派生主密钥
-      let derivedMasterKey: string = '';
-      const salt = email.trim().toLowerCase() || '';
-
-      if (kdfParams.kdf === 0) {
-        // PBKDF2
-        derivedMasterKey = await CryptoUtil.deriveKeyPBKDF2(
-          this.passwordInput,
-          salt,
-          kdfParams.kdfIterations || 100000,
-          32
-        );
-      } else if (kdfParams.kdf === 1) {
-        // Argon2id
-        derivedMasterKey = await CryptoUtil.deriveKeyArgon2id(
-          this.passwordInput,
-          salt,
-          kdfParams.kdfIterations || 2,
-          kdfParams.kdfMemory || 16,
-          kdfParams.kdfParallelism || 1,
-          32
-        );
-      } else {
-        this.passwordError = '不支持的 KDF 类型';
-        return false;
-      }
-
-      // 验证派生的主密钥是否与存储的匹配
-      if (derivedMasterKey === storedMasterKey) {
-        this.passwordInput = '';
-        this.passwordError = '';
-        this.showPasswordDialog = false;
-        return true;
-      } else {
-        this.passwordError = '主密码错误';
-        return false;
-      }
-    } catch (error) {
-      Logger.error(`Master password verification failed: ${error}`);
-      this.passwordError = '验证失败，请重试';
+    const result = await this.viewModel.verifyMasterPassword(this.passwordInput);
+    if (result) {
+      this.passwordInput = '';
+      this.passwordError = '';
+      this.showPasswordDialog = false;
+      return true;
+    } else {
+      this.passwordError = this.viewModel.errorMessage;
       return false;
     }
   }

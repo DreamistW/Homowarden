@@ -128,13 +128,7 @@ struct Index {
         if (!this.isLogin) {
           this.pathInfos.pushPath({ name: EntryRouter.LoginPage });
         } else {
-          // 判断是否开启生物识别
-          const result = DataPreferences.getInstance().getSync<number>(BIOMETRIC_AUTH);
-          if (result == 1) {
-            this.pathInfos.pushPath({ name: EntryRouter.BiometricAuthPage });
-          } else {
-            this.pathInfos.pushPath({ name: EntryRouter.VaultPage });
-          }
+          this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
         }
       }
     })
