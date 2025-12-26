@@ -26,9 +26,9 @@
       "buildFunction": "SettingsPageBuilder"
     },
     {
-      "name": "BiometricAuthPage",
-      "pageSourceFile": "src/main/ets/pages/BiometricAuthPage.ets",
-      "buildFunction": "BiometricAuthPageBuilder"
+      "name": "UnlockPage",
+      "pageSourceFile": "src/main/ets/pages/UnlockPage.ets",
+      "buildFunction": "UnlockPageBuilder"
     },
     {
       "name": "Sure2SharePage",

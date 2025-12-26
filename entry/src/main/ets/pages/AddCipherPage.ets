@@ -651,7 +651,7 @@ export struct AddCipherPage {
         const currentTime = Math.floor(Date.now() / 1000);
         const backgroundTime = DataPreferences.getInstance().getSync<number>(BACKGROUND_TIMESTAMP);
         if (currentTime - backgroundTime > 120) {
-          this.pathInfos.pushPath({ name: EntryRouter.BiometricAuthPage });
+          this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
         }
       }
     })
