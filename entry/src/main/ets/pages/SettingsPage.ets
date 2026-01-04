@@ -236,6 +236,23 @@ export struct SettingsPage {
               }
               .width('100%')
               .padding({ top: 12, bottom: 12 })
+
+              Row() {
+                Text('ICP备案号')
+                  .fontSize(16)
+
+                Blank()
+
+                Text('粤ICP备2021153836号-4A')
+                  .fontSize(16)
+                  .fontColor('#007DFF')
+                  .decoration({ type: TextDecorationType.Underline })
+                  .onClick(() => {
+                    this.clickBeian();
+                  })
+              }
+              .width('100%')
+              .padding({ top: 12, bottom: 12 })
             }
             .width('100%')
             .padding(16)
@@ -267,6 +284,26 @@ export struct SettingsPage {
         }
       }
     })
+  }
+
+  clickBeian(){
+    try {
+      const context = getContext(this) as common.UIAbilityContext;
+      if (!context) {
+        IBestToast.show('无法打开页面');
+        return;
+      }
+      const want: Want = {
+        uri: 'https://beian.miit.gov.cn'
+      };
+      context.startAbility(want).catch((err: Error) => {
+        Logger.error(`Failed to open page. Error: ${err.message}`);
+        IBestToast.show(`无法打开页面, 错误信息: ${err.message}`);
+      });
+    } catch (err) {
+      Logger.error(`Failed to open page. Error: ${JSON.stringify(err)}`);
+      IBestToast.show(`无法打开页面, 错误信息: ${JSON.stringify(err)}`);
+    }
   }
 
   openEmail() {
