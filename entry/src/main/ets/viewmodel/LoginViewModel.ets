@@ -1,4 +1,4 @@
-import { accessToken, prelogin } from '../network/AuthApi';
+import { accessToken, prelogin, sendEmailLogin } from '../network/AuthApi';
 import {
   ACCESS_TOKEN_KEY_1,
   ACCESS_TOKEN_KEY_2,
@@ -31,6 +31,7 @@ import { asset } from '@kit.AssetStoreKit';
 import { getServerConfig } from '../network/HttpClient';
 import { AccessTokenRequest, AccessTokenResponse } from '../model/AccessToken';
 import { PreloginRequest, PreloginResponse } from '../model/Prelogin';
+import { SendEmailLoginRequest } from '../model/SendEmailLogin';
 
 /**
  * 登录界面ViewModel
@@ -45,8 +46,10 @@ export class LoginViewModel {
   errorMessage: string = '';
   successMessage: string = '';
   needTwoFactor: boolean = false;
+  needNewDevice: boolean = false;
   twoFactorToken: string = '';
   twoFactorRemember: boolean = false;
+  twoFactorProvider: number = 0;
   // 预登录信息
   kdfType: number = 0; // 0=PBKDF2, 1=Argon2id
   kdfIterations: number = 0;
@@ -224,7 +227,14 @@ export class LoginViewModel {
       // 检查是否为2FA错误
       if (error?.response?.data?.error === 'invalid_grant' &&
         error?.response?.data?.error_description === 'Two factor required.') {
+        // 提取2FA方式字段
+        this.twoFactorProvider = error?.response?.data?.TwoFactorProviders[0];
         this.needTwoFactor = true;
+        return false;
+      }
+      // 检查是否需要新设备验证
+      if (error?.response?.data?.error === 'device_error') {
+        this.needNewDevice = true;
         return false;
       }
       Logger.error(`Login failed: ${error}`);
@@ -246,8 +256,34 @@ export class LoginViewModel {
         deviceIdentifier: this.deviceIdentifier,
         deviceName: this.deviceName,
         twoFactorToken: this.twoFactorToken,
-        twoFactorProvider: 0,
+        twoFactorProvider: this.twoFactorProvider,
         twoFactorRemember: this.twoFactorRemember ? 1 : 0
+      };
+
+      this.accessTokenResponse = await accessToken(request);
+      this.successMessage = '登录成功！';
+      Logger.debug('Login successful, tokens received');
+      return true;
+    } catch (error) {
+      Logger.error(`Login failed: ${error}`);
+      this.errorMessage = '登录失败，请重试';
+      return false;
+    }
+  }
+
+  // 带新设备验证码的登录请求
+  async performLoginWithNewDevice(): Promise<boolean> {
+    try {
+      const request: AccessTokenRequest = {
+        grant_type: GrantType.PASSWORD,
+        username: this.email.trim().toLowerCase(),
+        password: this.loginPassword,
+        scope: SCOPE_KEY,
+        client_id: Header_Client_Name,
+        deviceType: this.deviceType,
+        deviceIdentifier: this.deviceIdentifier,
+        deviceName: this.deviceName,
+        newDeviceOtp: this.twoFactorToken,
       };
 
       this.accessTokenResponse = await accessToken(request);
@@ -297,6 +333,8 @@ export class LoginViewModel {
       let loginSuccess: boolean = false;
       if (this.needTwoFactor) {
         loginSuccess = await this.performLoginWith2FA();
+      } else if (this.needNewDevice) {
+        loginSuccess = await this.performLoginWithNewDevice();
       } else {
         loginSuccess = await this.performLogin();
       }
@@ -316,6 +354,7 @@ export class LoginViewModel {
   // 保存登录凭据和加密参数
   private saveLoginInfo() {
     this.needTwoFactor = false;
+    this.needNewDevice = false;
     // 删除原本的凭据
     deleteAsset(MASTER_KEY);
     deleteAsset(ACCESS_TOKEN_KEY_1);
@@ -396,8 +435,10 @@ export class LoginViewModel {
     newViewModel.deviceName = this.deviceName;
     newViewModel.deviceInfoInitialized = this.deviceInfoInitialized;
     newViewModel.needTwoFactor = this.needTwoFactor;
+    newViewModel.needNewDevice = this.needNewDevice;
     newViewModel.needSaveEmail = this.needSaveEmail;
     newViewModel.accessTokenResponse = this.accessTokenResponse;
+    newViewModel.twoFactorProvider = this.twoFactorProvider;
     return newViewModel;
   }
 
@@ -448,5 +489,22 @@ export class LoginViewModel {
     const serverConfig = await getServerConfig();
     this.serverType = serverConfig.serverType;
     this.serverAddress = serverConfig.serverAddress;
+  }
+
+  async doSendEmailLogin(): Promise<boolean> {
+    if (!await this.hashMasterKey()) {
+      return false;
+    }
+    const request: SendEmailLoginRequest = {
+      authRequestAccessCode: "",
+      authRequestId: "",
+      ssoEmail2FaSessionToken: "",
+      deviceIdentifier
+      : this.deviceIdentifier,
+      email: this.email,
+      masterPasswordHash: this.loginPassword
+    }
+
+    return await sendEmailLogin(request);
   }
 }

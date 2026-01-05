@@ -16,10 +16,12 @@ export struct LoginPage {
   @State viewModel: LoginViewModel = new LoginViewModel();
   @State isLoading: boolean = false;
   @State isNeed2FA: boolean = false;
+  @State isNeedNewDevice: boolean = false;
   @State twoFactorInputError: boolean = false;
   @State twoFactorInputHint: string = '';
   @State needToSaveEmail: boolean = false;
   @State twoFactorRemember: boolean = false;
+  @State pendingEmailLogin: boolean = false;
   serverTypeList: string[] = ["bitwarden.com", "bitwarden.eu", "Self-hosted"];
   private exitTime: number = 0;
   pathInfos: NavPathStack = new NavPathStack();
@@ -43,13 +45,14 @@ export struct LoginPage {
   @Builder
   twoFactorInputContent() {
     Column({ space: 20 }) {
-      Text('请输入身份验证器的两步验证码')
+      Text('请输入两步验证码')
         .margin(12)
       TextInput({ placeholder: '请输入' })
         .onChange(value => {
           this.viewModel.twoFactorToken = value;
           this.twoFactorInputError = false;
         })
+        .type(InputType.Number)
       Row() {
         IBestSwitch({
           value: $twoFactorRemember,
@@ -68,6 +71,57 @@ export struct LoginPage {
           .fontColor(Color.Red)
           .fontSize(16)
       }
+
+      if (this.viewModel.twoFactorProvider == 1) {
+        Button('发送验证码到邮箱')
+          .onClick(async () => {
+            this.pendingEmailLogin = true;
+            const result = await this.viewModel.doSendEmailLogin();
+            if (!result) {
+              this.twoFactorInputError = true;
+              this.twoFactorInputHint = '发送验证码失败';
+            } else {
+              this.twoFactorInputError = true;
+              this.twoFactorInputHint = '已发送验证码';
+            }
+            this.pendingEmailLogin = false;
+          })
+          .enabled(!this.pendingEmailLogin)
+      }
+    }.padding(20)
+  }
+
+  @Builder
+  newDeviceInputContent() {
+    Column({ space: 20 }) {
+      Text('请输入邮件中的新设备验证码')
+        .margin(12)
+      TextInput({ placeholder: '请输入' })
+        .onChange(value => {
+          this.viewModel.twoFactorToken = value;
+          this.twoFactorInputError = false;
+        })
+        .type(InputType.Number)
+
+      if (this.twoFactorInputError) {
+        Text(this.twoFactorInputHint)
+          .width("100%")
+          .textAlign(TextAlign.Center)
+          .fontColor(Color.Red)
+          .fontSize(16)
+      }
+
+      Button('发送验证码到邮箱')
+        .onClick(() => {
+          const result = this.viewModel.doSendEmailLogin();
+          if (!result) {
+            this.twoFactorInputError = true;
+            this.twoFactorInputHint = '发送验证码失败';
+          } else {
+            this.twoFactorInputError = true;
+            this.twoFactorInputHint = '已发送验证码';
+          }
+        })
     }.padding(20)
   }
 
@@ -208,6 +262,36 @@ export struct LoginPage {
           }
         })
 
+        // 弹出新设备输入框
+        IBestDialog({
+          visible: this.isNeedNewDevice,
+          title: '新设备验证',
+          showCancelButton: true,
+          closeOnClickOverlay: false,
+          defaultBuilder: (): void => this.newDeviceInputContent(),
+          beforeClose: async (action) => {
+            if (action === 'cancel') {
+              return true;
+            }
+            const valueLength = this.viewModel.twoFactorToken.trim().length;
+            this.twoFactorInputError = !valueLength;
+            if (this.twoFactorInputError) {
+              this.twoFactorInputHint = '验证码不能为空';
+              return false;
+            }
+            const result = await this.viewModel.login();
+            if (!result) {
+              this.twoFactorInputError = true;
+              this.twoFactorInputHint = '无效的验证码';
+              return false;
+            }
+            this.isNeedNewDevice = false;
+            this.updateUI();
+            this.navigateToVault();
+            return true;
+          }
+        })
+
         // 显示预登录信息（可选）
         // if (this.viewModel.kdfIterations > 0) {
         //   Text(`KDF迭代次数: ${this.viewModel.kdfIterations}`)
@@ -253,9 +337,12 @@ export struct LoginPage {
     this.viewModel.clearError();
     this.isLoading = true;
     this.viewModel.needTwoFactor = false;
+    this.viewModel.needNewDevice = false;
     const loginSuccess = await this.viewModel.login();
     if (this.viewModel.needTwoFactor) {
       this.isNeed2FA = true;
+    } else if (this.viewModel.needNewDevice) {
+      this.isNeedNewDevice = true;
     } else if (loginSuccess) {
       // 登录成功，跳转到密码库页面
       this.navigateToVault();
