@@ -12,7 +12,7 @@ import { CipherFieldType, CipherItemType, DBTableName } from '../utils/Constants
 import { CryptoUtil } from '../utils/CryptoUtil';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
 import {
-  moveCipherToRecycler as deleteCipherApi,
+  deleteCipher,
   moveCipherToRecycler,
   restoreCipher,
   updateCipher as updateCipherApi
@@ -435,7 +435,7 @@ export class CipherDetailViewModel {
     try {
       // 确认是否彻底删除
       if (isRealDelete) {
-        await deleteCipherApi(cipherId);
+        await deleteCipher(cipherId);
         Logger.info(`Cipher ${cipherId} deleted successfully from server`);
 
         // 从本地数据库删除
