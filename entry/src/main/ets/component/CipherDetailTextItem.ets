@@ -1,6 +1,7 @@
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
 import { IBestToast } from '@ibestservices/ibest-ui';
 import { Logger } from '@nzy/logger';
+import { common, Want } from '@kit.AbilityKit';
 
 @Component
 export struct CipherDetailTextItem {
@@ -20,6 +21,8 @@ export struct CipherDetailTextItem {
   @Prop isEditable: boolean = false;
   // 是否只能输入数字
   @Prop isNumberOnly: boolean = false;
+  // 是否链接
+  @Prop isUri: boolean = false;
   // 内容变化回调
   onValueChange?: (value: string) => void;
 
@@ -42,6 +45,15 @@ export struct CipherDetailTextItem {
           })
           .type((this.showHideButton ? InputType.Password : InputType.Normal) |
             (this.isNumberOnly ? InputType.Number : InputType.Normal))
+        if (this.isUri) {
+          Button() {
+            Image($r('app.media.icon_cancel'))
+              .width(18)
+          }
+          .backgroundColor(Color.Transparent)
+          .onClick(() => this.doClearUri())
+          .margin({ right: 8 })
+        }
       } else {
         Text(this.content ? (this.showContent ? this.content : this.placeholder) : '')
           .fontSize(14)
@@ -50,8 +62,8 @@ export struct CipherDetailTextItem {
 
       if (this.showHideButton && !this.isEditable && this.content) {
         Button() {
-          Text(this.showContent ? '隐藏' : '显示')
-            .fontSize(12)
+          Image(this.showContent ? $r('app.media.icon_show') : $r('app.media.icon_hide'))
+            .width(18)
         }
         .backgroundColor(Color.Transparent)
         .onClick(() => this.showContent = !this.showContent)
@@ -60,11 +72,22 @@ export struct CipherDetailTextItem {
 
       if (this.showCopyButton && !this.isEditable && this.content) {
         Button() {
-          Text('复制')
-            .fontSize(12)
+          Image($r('app.media.icon_copy'))
+            .width(18)
         }
         .backgroundColor(Color.Transparent)
-        .onClick(() => this.copyText(this.content));
+        .onClick(() => this.copyText(this.content))
+        .margin({ right: 8 })
+      }
+
+      if (this.isUri && !this.isEditable) {
+        Button() {
+          Image($r('app.media.icon_jump'))
+            .width(18)
+        }
+        .backgroundColor(Color.Transparent)
+        .onClick(() => this.doUriJump())
+        .margin({ right: 8 })
       }
     }
     .width('100%')
@@ -84,5 +107,37 @@ export struct CipherDetailTextItem {
       const err = error as BusinessError;
       Logger.error(`Failed to paste, error message: ${err.message}}`);
     }
+  }
+
+  private async doUriJump() {
+    try {
+      const context = getContext(this) as common.UIAbilityContext;
+      if (!context) {
+        IBestToast.show('无法跳转到网站');
+        return;
+      }
+
+      // 检查网址是否有前缀
+      let uri = this.content;
+      if (!this.content.startsWith('http://') && !this.content.startsWith('https://')) {
+        // 如果没有协议前缀，添加前缀
+        uri = 'http://' + this.content;
+      }
+
+      const want: Want = {
+        uri: uri
+      };
+      context.startAbility(want).catch((err: Error) => {
+        Logger.error(`Failed to open uri. Error: ${err.message}`);
+        IBestToast.show(`无法跳转到网站, 错误信息: ${err.message}`);
+      });
+    } catch (err) {
+      Logger.error(`Failed to open uri. Error: ${JSON.stringify(err)}`);
+      IBestToast.show(`无法跳转到网站, 错误信息: ${JSON.stringify(err)}`);
+    }
+  }
+
+  private doClearUri() {
+    this.content = '';
   }
 }
