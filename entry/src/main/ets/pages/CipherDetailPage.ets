@@ -37,6 +37,7 @@ export struct CipherDetailPage {
   @State showDeleteDialog: boolean = false;
   @State selectedCardBrand: CardBrandType | string = CardBrandType.NONE;
   @State selectedIdentityTitle: IdentityTitleType | string = IdentityTitleType.NONE;
+  @State editUris: CipherUri[] = [] as CipherUri[];
   pathInfos: NavPathStack = new NavPathStack();
   private viewModel: CipherDetailViewModel = new CipherDetailViewModel();
   private identityTitleGroup: string = 'identityTitleSelector';
@@ -119,6 +120,9 @@ export struct CipherDetailPage {
   EditItemBtn: NavigationMenuItem = {
     'value': '', 'icon': 'resources/base/media/icon_edit.svg', 'action': () => {
       this.isEditable = true;
+      if (this.cipher.type === CipherItemType.LOGIN && this.cipher.login) {
+        this.editUris = this.cipher.login.uris;
+      }
     }
   }
   DeleteItemBtn: NavigationMenuItem = {
@@ -188,6 +192,12 @@ export struct CipherDetailPage {
   private async saveCipher() {
     this.isSaving = true;
     try {
+      if (this.cipher.type === CipherItemType.LOGIN && this.cipher.login) {
+        // 过滤掉 uri 字段为空的元素
+        const filteredUris = this.editUris.filter(uri => uri.uri && uri.uri.trim() !== '');
+        this.cipher.login.uris = filteredUris;
+      }
+
       // 调用 ViewModel 的 updateCipher 方法
       await this.viewModel.updateCipher(this.cipher);
       // 保存成功，退出编辑模式
@@ -214,6 +224,19 @@ export struct CipherDetailPage {
     } catch (error) {
       Logger.error('Failed to restore cipher:', error);
       IBestToast.show(`还原失败, 错误信息: ${JSON.stringify(error)}`);
+    }
+  }
+
+  /**
+   * 添加网站输入框
+   */
+  private addUriEdit() {
+    if (this.cipher.login?.uris) {
+      const tempUri: CipherUri = {
+        uri: "",
+        uriChecksum: ""
+      };
+      this.editUris.push(tempUri);
     }
   }
 
@@ -432,16 +455,45 @@ export struct CipherDetailPage {
       })
 
       // 网址
-      if (this.cipher.login?.uris && this.cipher.login.uris.length > 0) {
+      if (this.cipher.login?.uris && this.cipher.login.uris.length > 0 && !this.isEditable) {
         ForEach(this.cipher.login.uris as CipherUri[], (uri: CipherUri) => {
           CipherDetailTextItem({
             label: '网站',
             content: uri.uri,
             isEditable: this.isEditable,
+            isUri: true,
             onValueChange: (value: string) => {
               uri.uri = value;
             }
           })
+        })
+      }
+
+      if (this.isEditable) {
+        ForEach(this.editUris, (uri: CipherUri) => {
+          CipherDetailTextItem({
+            label: '网站',
+            content: uri.uri,
+            isEditable: this.isEditable,
+            isUri: true,
+            onValueChange: (value: string) => {
+              uri.uri = value;
+            }
+          })
+        })
+
+        Button() {
+          Text('添加网站')
+            .fontSize(18)
+            .fontColor(Color.White)
+        }
+        .width(200)
+        .height(50)
+        .backgroundColor('#007DFF')
+        .borderRadius(25)
+        .margin({ top: 24 })
+        .onClick(() => {
+          this.addUriEdit();
         })
       }
 
