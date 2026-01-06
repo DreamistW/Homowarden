@@ -32,9 +32,9 @@ export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
       config.headers['Accept-Language'] = "zh-CN,zh;q=0.9";
       // config.headers['accept'] = 'application/json';
       // config.headers['origin'] = config.baseURL
-      Logger.debug(`[HTTP] Request ${config.method?.toUpperCase()} ${config.baseURL ||
+      Logger.info(`[HTTP] Request ${config.method?.toUpperCase()} ${config.baseURL ||
         baseURL}${config.url}`);
-      // Logger.debug(`[HTTP] ${config.method?.toUpperCase()} ${config.baseURL ||
+      // Logger.info(`[HTTP] ${config.method?.toUpperCase()} ${config.baseURL ||
       //   baseURL}${config.url}\nHeader:${JSON.stringify(config.headers)}\nRequest: ${JSON.stringify(config.data)}`);
       return config;
     },
@@ -47,7 +47,7 @@ export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
   // 响应拦截器
   instance.interceptors.response.use(
     (response: AxiosResponse) => {
-      // Logger.debug(`[HTTP] Response ${response.config.baseURL ||
+      // Logger.info(`[HTTP] Response ${response.config.baseURL ||
       //   baseURL}${response.config.url}\nResponse: ${JSON.stringify(response.data)}`);
       return response;
     },
@@ -64,11 +64,11 @@ export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
 export async function getServerConfig(): Promise<ServerConfig> {
   let serverConfig: ServerConfig = { serverType: ServerType.US, serverAddress: '' };
   await DataPreferences.getInstance().getPromise<ServerType>(SERVER_TYPE_KEY).then((data) => {
-    // Logger.debug(`Server Type preference: ${data}`);
+    // Logger.info(`Server Type preference: ${data}`);
     serverConfig.serverType = data;
   })
   await DataPreferences.getInstance().getPromise<string>(SERVER_ADDRESS_KEY).then((data) => {
-    // Logger.debug(`Server Address preference: ${data}`);
+    // Logger.info(`Server Address preference: ${data}`);
     serverConfig.serverAddress = data;
   })
   return serverConfig;

@@ -13,7 +13,7 @@ export class DatabaseUtil {
 
   public static getInstance(): DatabaseUtil {
     if (DatabaseUtil.instance == null) {
-      Logger.debug(`DatabaseUtil is not initialized`);
+      Logger.info(`DatabaseUtil is not initialized`);
     }
     return DatabaseUtil.instance;
   }
@@ -70,7 +70,7 @@ export class DatabaseUtil {
             reject(err);
             return;
           }
-          Logger.debug(`Insert into ${table} successful, rowId = ${rowId}`);
+          Logger.info(`Insert into ${table} successful, rowId = ${rowId}`);
           DatabaseUtil.store?.commit();
           resolve(rowId);
         })
@@ -93,7 +93,7 @@ export class DatabaseUtil {
             reject(err);
             return;
           }
-          Logger.debug(`Updated ${table}, row count: ${rows}`);
+          Logger.info(`Updated ${table}, row count: ${rows}`);
           DatabaseUtil.store?.commit();
           resolve();
         })
@@ -115,7 +115,7 @@ export class DatabaseUtil {
             Logger.error(`Delete from ${table} failed, message is ${err.message}`);
             resolve();
           }
-          Logger.debug(`Deleted from ${table}, row count: ${rows}`);
+          Logger.info(`Deleted from ${table}, row count: ${rows}`);
           DatabaseUtil.store?.commit();
           resolve();
         })
@@ -137,7 +137,7 @@ export class DatabaseUtil {
             Logger.error(`Delete from ${table} failed, message is ${err.message}`);
             resolve();
           }
-          Logger.debug(`Deleted from ${table}, row count: ${rows}`);
+          Logger.info(`Deleted from ${table}, row count: ${rows}`);
           DatabaseUtil.store?.commit();
           resolve();
         })
@@ -159,7 +159,7 @@ export class DatabaseUtil {
             Logger.error(`Query ${table} failed, message is ${err.message}`);
             reject(err);
           } else {
-            Logger.debug(`Query from ${table}, row count: ${resultSet.rowCount}`);
+            Logger.info(`Query from ${table}, row count: ${resultSet.rowCount}`);
             while (resultSet.goToNextRow()) {
               result.push(resultSet.getRow());
             }
@@ -186,7 +186,7 @@ export class DatabaseUtil {
             Logger.error(`Query ${table} failed, message is ${err.message}`);
             reject(err);
           } else {
-            Logger.debug(`Query from ${table}, row count: ${resultSet.rowCount}}`);
+            Logger.info(`Query from ${table}, row count: ${resultSet.rowCount}}`);
             if (resultSet.goToNextRow()) {
               result = resultSet.getRow();
             }
@@ -325,7 +325,7 @@ export class DatabaseUtil {
     this.executeSql(createSecureNoteTable);
     this.executeSql(createFieldsTable);
 
-    Logger.debug('Database tables created successfully');
+    Logger.info('Database tables created successfully');
   }
 
   /**

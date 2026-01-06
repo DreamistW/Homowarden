@@ -1,4 +1,4 @@
-import { accessToken, prelogin } from '../network/AuthApi';
+import { accessToken, prelogin, sendEmailLogin } from '../network/AuthApi';
 import {
   ACCESS_TOKEN_KEY_1,
   ACCESS_TOKEN_KEY_2,
@@ -31,6 +31,7 @@ import { asset } from '@kit.AssetStoreKit';
 import { getServerConfig } from '../network/HttpClient';
 import { AccessTokenRequest, AccessTokenResponse } from '../model/AccessToken';
 import { PreloginRequest, PreloginResponse } from '../model/Prelogin';
+import { SendEmailLoginRequest } from '../model/SendEmailLogin';
 
 /**
  * 登录界面ViewModel
@@ -45,8 +46,10 @@ export class LoginViewModel {
   errorMessage: string = '';
   successMessage: string = '';
   needTwoFactor: boolean = false;
+  needNewDevice: boolean = false;
   twoFactorToken: string = '';
   twoFactorRemember: boolean = false;
+  twoFactorProvider: number = 0;
   // 预登录信息
   kdfType: number = 0; // 0=PBKDF2, 1=Argon2id
   kdfIterations: number = 0;
@@ -82,7 +85,7 @@ export class LoginViewModel {
         const deviceInfo = await DeviceUtil.getDeviceInfo();
         this.deviceIdentifier = deviceInfo.deviceIdentifier;
         this.deviceInfoInitialized = true;
-        Logger.debug(`Device info initialized: type=${this.deviceType}, name=${this.deviceName}, id=${this.deviceIdentifier}`);
+        Logger.info(`Device info initialized: type=${this.deviceType}, name=${this.deviceName}, id=${this.deviceIdentifier}`);
       } catch (error) {
         Logger.error(`Failed to initialize device info: ${error}`);
         // 如果获取失败，使用临时生成的UUID
@@ -133,7 +136,7 @@ export class LoginViewModel {
       this.kdfMemory = response.kdfMemory;
       this.kdfParallelism = response.kdfParallelism;
 
-      Logger.debug(`Prelogin successful: KDF type=${this.kdfType}, iterations=${this.kdfIterations}, memory=${this.kdfMemory}, parallelism=${this.kdfParallelism}`);
+      Logger.info(`Prelogin successful: KDF type=${this.kdfType}, iterations=${this.kdfIterations}, memory=${this.kdfMemory}, parallelism=${this.kdfParallelism}`);
       return true;
     } catch (error) {
       Logger.error(`Prelogin failed: ${error}`);
@@ -170,7 +173,7 @@ export class LoginViewModel {
         return false;
       }
 
-      Logger.debug('Master key derived successfully');
+      Logger.info('Master key derived successfully');
       return true;
     } catch (error) {
       Logger.error(`Master key derivation failed: ${error}`);
@@ -190,7 +193,7 @@ export class LoginViewModel {
         1,
         32
       );
-      Logger.debug('Hash master key successfully');
+      Logger.info('Hash master key successfully');
       return true;
     } catch (error) {
       Logger.error(`Master key hash failed: ${error}`);
@@ -218,13 +221,20 @@ export class LoginViewModel {
 
       this.accessTokenResponse = await accessToken(request);
       this.successMessage = '登录成功！';
-      Logger.debug('Login successful, tokens received');
+      Logger.info('Login successful, tokens received');
       return true;
     } catch (error) {
       // 检查是否为2FA错误
       if (error?.response?.data?.error === 'invalid_grant' &&
         error?.response?.data?.error_description === 'Two factor required.') {
+        // 提取2FA方式字段
+        this.twoFactorProvider = error?.response?.data?.TwoFactorProviders[0];
         this.needTwoFactor = true;
+        return false;
+      }
+      // 检查是否需要新设备验证
+      if (error?.response?.data?.error === 'device_error') {
+        this.needNewDevice = true;
         return false;
       }
       Logger.error(`Login failed: ${error}`);
@@ -246,13 +256,39 @@ export class LoginViewModel {
         deviceIdentifier: this.deviceIdentifier,
         deviceName: this.deviceName,
         twoFactorToken: this.twoFactorToken,
-        twoFactorProvider: 0,
+        twoFactorProvider: this.twoFactorProvider,
         twoFactorRemember: this.twoFactorRemember ? 1 : 0
       };
 
       this.accessTokenResponse = await accessToken(request);
       this.successMessage = '登录成功！';
-      Logger.debug('Login successful, tokens received');
+      Logger.info('Login successful, tokens received');
+      return true;
+    } catch (error) {
+      Logger.error(`Login failed: ${error}`);
+      this.errorMessage = '登录失败，请重试';
+      return false;
+    }
+  }
+
+  // 带新设备验证码的登录请求
+  async performLoginWithNewDevice(): Promise<boolean> {
+    try {
+      const request: AccessTokenRequest = {
+        grant_type: GrantType.PASSWORD,
+        username: this.email.trim().toLowerCase(),
+        password: this.loginPassword,
+        scope: SCOPE_KEY,
+        client_id: Header_Client_Name,
+        deviceType: this.deviceType,
+        deviceIdentifier: this.deviceIdentifier,
+        deviceName: this.deviceName,
+        newDeviceOtp: this.twoFactorToken,
+      };
+
+      this.accessTokenResponse = await accessToken(request);
+      this.successMessage = '登录成功！';
+      Logger.info('Login successful, tokens received');
       return true;
     } catch (error) {
       Logger.error(`Login failed: ${error}`);
@@ -297,6 +333,8 @@ export class LoginViewModel {
       let loginSuccess: boolean = false;
       if (this.needTwoFactor) {
         loginSuccess = await this.performLoginWith2FA();
+      } else if (this.needNewDevice) {
+        loginSuccess = await this.performLoginWithNewDevice();
       } else {
         loginSuccess = await this.performLogin();
       }
@@ -316,6 +354,7 @@ export class LoginViewModel {
   // 保存登录凭据和加密参数
   private saveLoginInfo() {
     this.needTwoFactor = false;
+    this.needNewDevice = false;
     // 删除原本的凭据
     deleteAsset(MASTER_KEY);
     deleteAsset(ACCESS_TOKEN_KEY_1);
@@ -356,7 +395,7 @@ export class LoginViewModel {
 
     DataPreferences.getInstance().putSync(LOGIN_STATUS_KEY, 1);
 
-    // Logger.debug(`登录信息: \naccessToken: ${this.accessTokenResponse.access_token},\nrefreshToken: ${this.accessTokenResponse.refresh_token},\nexpiresIn: ${this.accessTokenResponse.expires_in},\n`)
+    // Logger.info(`登录信息: \naccessToken: ${this.accessTokenResponse.access_token},\nrefreshToken: ${this.accessTokenResponse.refresh_token},\nexpiresIn: ${this.accessTokenResponse.expires_in},\n`)
   }
 
   private createAssetModel(alias: string, secret: string, label?: string[]): AssetModel {
@@ -396,8 +435,10 @@ export class LoginViewModel {
     newViewModel.deviceName = this.deviceName;
     newViewModel.deviceInfoInitialized = this.deviceInfoInitialized;
     newViewModel.needTwoFactor = this.needTwoFactor;
+    newViewModel.needNewDevice = this.needNewDevice;
     newViewModel.needSaveEmail = this.needSaveEmail;
     newViewModel.accessTokenResponse = this.accessTokenResponse;
+    newViewModel.twoFactorProvider = this.twoFactorProvider;
     return newViewModel;
   }
 
@@ -422,7 +463,7 @@ export class LoginViewModel {
     this.password = '';
     this.masterKey = '';
 
-    Logger.debug('Sensitive data cleared from LoginViewModel');
+    Logger.info('Sensitive data cleared from LoginViewModel');
   }
 
   // 保存服务器配置
@@ -448,5 +489,22 @@ export class LoginViewModel {
     const serverConfig = await getServerConfig();
     this.serverType = serverConfig.serverType;
     this.serverAddress = serverConfig.serverAddress;
+  }
+
+  async doSendEmailLogin(): Promise<boolean> {
+    if (!await this.hashMasterKey()) {
+      return false;
+    }
+    const request: SendEmailLoginRequest = {
+      authRequestAccessCode: "",
+      authRequestId: "",
+      ssoEmail2FaSessionToken: "",
+      deviceIdentifier
+      : this.deviceIdentifier,
+      email: this.email,
+      masterPasswordHash: this.loginPassword
+    }
+
+    return await sendEmailLogin(request);
   }
 }

@@ -6,6 +6,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { PreloginRequest, PreloginResponse } from '../model/Prelogin';
 import { AccessTokenRequest, AccessTokenResponse } from '../model/AccessToken';
 import { RefreshTokenRequest, RefreshTokenResponse } from '../model/RefreshToken';
+import { SendEmailLoginRequest } from '../model/SendEmailLogin';
 
 
 // 预登录接口
@@ -70,6 +71,10 @@ export async function accessToken(request: AccessTokenRequest): Promise<AccessTo
     fields.push('twoFactorRemember' as keyof AccessTokenRequest);
   }
 
+  if (request.newDeviceOtp) {
+    fields.push('newDeviceOtp' as keyof AccessTokenRequest);
+  }
+
   const formBody = toFormUrlEncoded(request, fields);
 
   return client.post('/identity/connect/token', formBody,
@@ -123,4 +128,32 @@ export async function refreshToken(request: RefreshTokenRequest): Promise<Refres
       Logger.error("Failed to refresh token, error message: " + error.message);
       return Promise.reject(error);
     })
+}
+
+export async function sendEmailLogin(request: SendEmailLoginRequest): Promise<boolean> {
+  const serverConfig = await getServerConfig();
+  let baseURL = '';
+  if (serverConfig.serverType == ServerType.US) {
+    baseURL = `https://vault.${SERVER_BASE_URL_US}`;
+  } else if (serverConfig.serverType == ServerType.EU) {
+    baseURL = `https://vault.${SERVER_BASE_URL_EU}`;
+  } else {
+    baseURL = `https://${serverConfig.serverAddress}`;
+  }
+  const client = createHttpClient(baseURL);
+  return client.post('/api/two-factor/send-email-login', request, {
+    headers: {
+      'origin': baseURL,
+      'Content-Type': 'application/json',
+    }
+  }).then((response: AxiosResponse) => {
+    if (response.status === 200) {
+      return true;
+    } else {
+      return false;
+    }
+  }).catch((error: BusinessError) => {
+    Logger.error("Failed to send email request, error message: " + error.message);
+    return false;
+  })
 }

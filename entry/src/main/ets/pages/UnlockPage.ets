@@ -6,10 +6,14 @@ import { common } from '@kit.AbilityKit';
 import { IBestToast } from '@ibestservices/ibest-ui';
 import { DataPreferences } from '@abner/datastore';
 import {
-  BACKGROUND_TIMESTAMP, BIOMETRIC_AUTH, EMAIL_KEY, KDF_PARAM_KEY, MASTER_KEY
+  BACKGROUND_TIMESTAMP,
+  BIOMETRIC_AUTH,
+  EMAIL_KEY,
+  KDF_PARAM_KEY,
+  MASTER_KEY
 } from '../utils/Constants';
 import { Logger } from '@nzy/logger';
-import { queryAssetSync } from '../utils/AssetUtil';
+import { clearAssetAndPreferences, queryAssetSync } from '../utils/AssetUtil';
 import { PreloginResponse } from '../model/Prelogin';
 import { CryptoUtil } from '../utils/CryptoUtil';
 
@@ -95,6 +99,23 @@ export struct UnlockPage {
           } else {
             IBestToast.show('未开启生物识别');
           }
+        })
+        .margin({ bottom: 24 })
+
+        // 注销按钮
+        Button() {
+          Text('注销')
+            .fontSize(18)
+            .fontColor(Color.White)
+        }
+        .width(200)
+        .height(50)
+        .backgroundColor('#007DFF')
+        .borderRadius(25)
+        .onClick(() => {
+          clearAssetAndPreferences();
+          // 跳转到登录页面
+          this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
         })
 
         Blank()
@@ -227,12 +248,12 @@ export struct UnlockPage {
 
       // 获取认证对象
       const userAuthInstance = userAuth.getUserAuthInstance(authParam, widgetParam);
-      Logger.debug('get userAuth instance success');
+      Logger.info('get userAuth instance success');
 
       // 订阅认证结果
       userAuthInstance.on('result', {
         onResult: (result) => {
-          Logger.debug(`userAuthInstance callback result: ${JSON.stringify(result)}`);
+          Logger.info(`userAuthInstance callback result: ${JSON.stringify(result)}`);
           // 取消订阅认证结果
           userAuthInstance.off('result');
 
@@ -253,9 +274,9 @@ export struct UnlockPage {
           }
         }
       });
-      Logger.debug('auth on success');
+      Logger.info('auth on success');
       userAuthInstance.start();
-      Logger.debug('auth start success');
+      Logger.info('auth start success');
     } catch (error) {
       const err = error as BusinessError;
       Logger.error(`Failed to start biometric auth. Error: ${JSON.stringify(err)}`);

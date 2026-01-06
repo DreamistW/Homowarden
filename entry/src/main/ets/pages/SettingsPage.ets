@@ -1,26 +1,14 @@
 import { DataPreferences } from '@abner/datastore/src/main/ets/preferences/DataPreferences';
 import { EntryRouter } from '../../../../EntryRouter';
 import {
-  ACCESS_TOKEN_KEY_1,
-  ACCESS_TOKEN_KEY_2,
   AUTO_LOCK,
   BACKGROUND_TIMESTAMP,
-  BIOMETRIC_AUTH,
-  KDF_PARAM_KEY,
-  LOGIN_STATUS_KEY,
-  MASTER_KEY,
-  PRIVATE_KEY_1,
-  PRIVATE_KEY_2,
-  REFRESH_TOKEN_KEY,
-  TOKEN_EXPIRE_TIME_KEY,
-  TWO_FACTOR_TOKEN_KEY,
-  USER_KEY
-} from '../utils/Constants';
+  BIOMETRIC_AUTH} from '../utils/Constants';
 import { bundleManager, common, Want } from '@kit.AbilityKit';
 import { userAuth } from '@kit.UserAuthenticationKit';
 import { cryptoFramework } from '@kit.CryptoArchitectureKit';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { deleteAsset } from '../utils/AssetUtil';
+import { clearAssetAndPreferences } from '../utils/AssetUtil';
 import { Logger } from '@nzy/logger';
 import { IBestToast } from '@ibestservices/ibest-ui';
 
@@ -269,6 +257,26 @@ export struct SettingsPage {
     })
   }
 
+  clickBeian() {
+    try {
+      const context = getContext(this) as common.UIAbilityContext;
+      if (!context) {
+        IBestToast.show('无法打开页面');
+        return;
+      }
+      const want: Want = {
+        uri: 'https://beian.miit.gov.cn'
+      };
+      context.startAbility(want).catch((err: Error) => {
+        Logger.error(`Failed to open page. Error: ${err.message}`);
+        IBestToast.show(`无法打开页面, 错误信息: ${err.message}`);
+      });
+    } catch (err) {
+      Logger.error(`Failed to open page. Error: ${JSON.stringify(err)}`);
+      IBestToast.show(`无法打开页面, 错误信息: ${JSON.stringify(err)}`);
+    }
+  }
+
   openEmail() {
     try {
       const context = getContext(this) as common.UIAbilityContext;
@@ -339,12 +347,12 @@ export struct SettingsPage {
 
       // 获取认证对象
       const userAuthInstance = userAuth.getUserAuthInstance(authParam, widgetParam);
-      Logger.debug('get userAuth instance success');
+      Logger.info('get userAuth instance success');
 
       // 订阅认证结果
       userAuthInstance.on('result', {
         onResult: (result) => {
-          Logger.debug(`userAuthInstance callback result: ${JSON.stringify(result)}`);
+          Logger.info(`userAuthInstance callback result: ${JSON.stringify(result)}`);
           // 取消订阅认证结果
           userAuthInstance.off('result');
 
@@ -360,9 +368,9 @@ export struct SettingsPage {
           }
         }
       });
-      Logger.debug('auth on success');
+      Logger.info('auth on success');
       userAuthInstance.start();
-      Logger.debug('auth start success');
+      Logger.info('auth start success');
     } catch (error) {
       const err = error as BusinessError;
       Logger.error(`Failed to start biometric auth. Error: ${JSON.stringify(err)}`);
@@ -372,19 +380,7 @@ export struct SettingsPage {
   }
 
   private logout() {
-    // 清除登录信息
-    DataPreferences.getInstance().put(LOGIN_STATUS_KEY, 0);
-    // 删除原本的凭据
-    deleteAsset(MASTER_KEY);
-    deleteAsset(ACCESS_TOKEN_KEY_1);
-    deleteAsset(ACCESS_TOKEN_KEY_2);
-    deleteAsset(REFRESH_TOKEN_KEY);
-    deleteAsset(TOKEN_EXPIRE_TIME_KEY);
-    deleteAsset(PRIVATE_KEY_1);
-    deleteAsset(PRIVATE_KEY_2);
-    deleteAsset(USER_KEY);
-    deleteAsset(KDF_PARAM_KEY);
-    deleteAsset(TWO_FACTOR_TOKEN_KEY);
+    clearAssetAndPreferences();
     // 跳转到登录页面
     this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
   }

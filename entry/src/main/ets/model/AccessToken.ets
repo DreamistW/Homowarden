@@ -10,6 +10,7 @@ export interface AccessTokenRequest {
   twoFactorToken?: string;
   twoFactorProvider?: number;
   twoFactorRemember?: number;
+  newDeviceOtp?: string;
 }
 
 export interface AccessTokenResponse {

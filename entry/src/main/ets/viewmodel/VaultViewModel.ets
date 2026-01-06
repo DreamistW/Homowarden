@@ -62,12 +62,12 @@ export class VaultViewModel {
    */
   private async syncCiphersFromServer(): Promise<void> {
     try {
-      Logger.debug('Starting to sync ciphers from server...');
+      Logger.info('Starting to sync ciphers from server...');
 
       const response = await getAllCiphers();
 
       if (response && response.data && Array.isArray(response.data)) {
-        Logger.debug(`Received ${response.data.length} ciphers from server`);
+        Logger.info(`Received ${response.data.length} ciphers from server`);
 
         // 启用数据库外键
         const enableForeignKeys = `PRAGMA foreign_keys = ON`;
@@ -100,7 +100,7 @@ export class VaultViewModel {
       this.stats = await this.getCipherTypeStats();
       this.buildFilterOptions();
 
-      Logger.debug(`Successfully synced ${this.allCiphers.length} ciphers from server`);
+      Logger.info(`Successfully synced ${this.allCiphers.length} ciphers from server`);
     }
   }
 
@@ -108,7 +108,7 @@ export class VaultViewModel {
    * 处理需要重新登录的情况
    */
   private handleReLoginRequired(): void {
-    Logger.debug('User needs to re-login');
+    Logger.info('User needs to re-login');
     if (this.onReLoginRequired) {
       this.onReLoginRequired();
     }
@@ -298,7 +298,7 @@ export class VaultViewModel {
         }
       }
 
-      Logger.debug(`Cipher stats: ${JSON.stringify(stats)}`);
+      Logger.info(`Cipher stats: ${JSON.stringify(stats)}`);
     } catch (error) {
       Logger.error(`Failed to get cipher stats: ${error}`);
       this.errorMessage = `获取密码项统计失败, 错误信息: ${JSON.stringify(error)}`;

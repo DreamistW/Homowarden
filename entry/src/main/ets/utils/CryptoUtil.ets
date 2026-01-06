@@ -123,14 +123,14 @@ export class CryptoUtil {
       const cipherBlob: cryptoFramework.DataBlob =
         { data: new util.Base64Helper().decodeSync(partsOfText[1]) };
       const symKey = await CryptoUtil.genSymKeyByData(key);
-      // Logger.debug(`cipherText length: ${cipherBlob.data.length}`);
-      // Logger.debug(`key length: ${key.length}`);
+      // Logger.info(`cipherText length: ${cipherBlob.data.length}`);
+      // Logger.info(`key length: ${key.length}`);
       const decoder = cryptoFramework.createCipher('AES256|CBC|PKCS7');
       const paramSpec: cryptoFramework.IvParamsSpec = {
         algName: 'IvParamsSpec',
         iv: { data: new util.Base64Helper().decodeSync(partsOfText[0]) },
       }
-      // Logger.debug(`iv length: ${paramSpec.iv.data.length}`);
+      // Logger.info(`iv length: ${paramSpec.iv.data.length}`);
       await decoder.init(cryptoFramework.CryptoMode.DECRYPT_MODE, symKey, paramSpec);
       const decryptedData = await decoder.doFinal(cipherBlob);
       return new util.Base64Helper().encodeToStringSync(decryptedData.data)
