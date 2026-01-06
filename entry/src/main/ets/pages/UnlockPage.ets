@@ -6,24 +6,14 @@ import { common } from '@kit.AbilityKit';
 import { IBestToast } from '@ibestservices/ibest-ui';
 import { DataPreferences } from '@abner/datastore';
 import {
-  ACCESS_TOKEN_KEY_1,
-  ACCESS_TOKEN_KEY_2,
-  AUTO_LOCK,
   BACKGROUND_TIMESTAMP,
   BIOMETRIC_AUTH,
   EMAIL_KEY,
   KDF_PARAM_KEY,
-  LOGIN_STATUS_KEY,
-  MASTER_KEY,
-  PRIVATE_KEY_1,
-  PRIVATE_KEY_2,
-  REFRESH_TOKEN_KEY,
-  TOKEN_EXPIRE_TIME_KEY,
-  TWO_FACTOR_TOKEN_KEY,
-  USER_KEY
+  MASTER_KEY
 } from '../utils/Constants';
 import { Logger } from '@nzy/logger';
-import { deleteAsset, queryAssetSync } from '../utils/AssetUtil';
+import { clearAssetAndPreferences, queryAssetSync } from '../utils/AssetUtil';
 import { PreloginResponse } from '../model/Prelogin';
 import { CryptoUtil } from '../utils/CryptoUtil';
 
@@ -123,22 +113,7 @@ export struct UnlockPage {
         .backgroundColor('#007DFF')
         .borderRadius(25)
         .onClick(() => {
-          // 清除登录信息
-          DataPreferences.getInstance().put(LOGIN_STATUS_KEY, 0);
-          // 清除安全设置
-          DataPreferences.getInstance().put(BIOMETRIC_AUTH, 0);
-          DataPreferences.getInstance().put(AUTO_LOCK, 0);
-          // 删除原本的凭据
-          deleteAsset(MASTER_KEY);
-          deleteAsset(ACCESS_TOKEN_KEY_1);
-          deleteAsset(ACCESS_TOKEN_KEY_2);
-          deleteAsset(REFRESH_TOKEN_KEY);
-          deleteAsset(TOKEN_EXPIRE_TIME_KEY);
-          deleteAsset(PRIVATE_KEY_1);
-          deleteAsset(PRIVATE_KEY_2);
-          deleteAsset(USER_KEY);
-          deleteAsset(KDF_PARAM_KEY);
-          deleteAsset(TWO_FACTOR_TOKEN_KEY);
+          clearAssetAndPreferences();
           // 跳转到登录页面
           this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
         })
