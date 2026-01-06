@@ -67,6 +67,7 @@ export struct VaultPage {
     };
 
     await this.viewModel.loadCiphers();
+    this.viewModel.filterCiphers(this.selectedType, this.searchText);
     this.isLoading = false;
   }
 
