@@ -85,7 +85,7 @@ export class LoginViewModel {
         const deviceInfo = await DeviceUtil.getDeviceInfo();
         this.deviceIdentifier = deviceInfo.deviceIdentifier;
         this.deviceInfoInitialized = true;
-        Logger.debug(`Device info initialized: type=${this.deviceType}, name=${this.deviceName}, id=${this.deviceIdentifier}`);
+        Logger.info(`Device info initialized: type=${this.deviceType}, name=${this.deviceName}, id=${this.deviceIdentifier}`);
       } catch (error) {
         Logger.error(`Failed to initialize device info: ${error}`);
         // 如果获取失败，使用临时生成的UUID
@@ -136,7 +136,7 @@ export class LoginViewModel {
       this.kdfMemory = response.kdfMemory;
       this.kdfParallelism = response.kdfParallelism;
 
-      Logger.debug(`Prelogin successful: KDF type=${this.kdfType}, iterations=${this.kdfIterations}, memory=${this.kdfMemory}, parallelism=${this.kdfParallelism}`);
+      Logger.info(`Prelogin successful: KDF type=${this.kdfType}, iterations=${this.kdfIterations}, memory=${this.kdfMemory}, parallelism=${this.kdfParallelism}`);
       return true;
     } catch (error) {
       Logger.error(`Prelogin failed: ${error}`);
@@ -173,7 +173,7 @@ export class LoginViewModel {
         return false;
       }
 
-      Logger.debug('Master key derived successfully');
+      Logger.info('Master key derived successfully');
       return true;
     } catch (error) {
       Logger.error(`Master key derivation failed: ${error}`);
@@ -193,7 +193,7 @@ export class LoginViewModel {
         1,
         32
       );
-      Logger.debug('Hash master key successfully');
+      Logger.info('Hash master key successfully');
       return true;
     } catch (error) {
       Logger.error(`Master key hash failed: ${error}`);
@@ -221,7 +221,7 @@ export class LoginViewModel {
 
       this.accessTokenResponse = await accessToken(request);
       this.successMessage = '登录成功！';
-      Logger.debug('Login successful, tokens received');
+      Logger.info('Login successful, tokens received');
       return true;
     } catch (error) {
       // 检查是否为2FA错误
@@ -262,7 +262,7 @@ export class LoginViewModel {
 
       this.accessTokenResponse = await accessToken(request);
       this.successMessage = '登录成功！';
-      Logger.debug('Login successful, tokens received');
+      Logger.info('Login successful, tokens received');
       return true;
     } catch (error) {
       Logger.error(`Login failed: ${error}`);
@@ -288,7 +288,7 @@ export class LoginViewModel {
 
       this.accessTokenResponse = await accessToken(request);
       this.successMessage = '登录成功！';
-      Logger.debug('Login successful, tokens received');
+      Logger.info('Login successful, tokens received');
       return true;
     } catch (error) {
       Logger.error(`Login failed: ${error}`);
@@ -395,7 +395,7 @@ export class LoginViewModel {
 
     DataPreferences.getInstance().putSync(LOGIN_STATUS_KEY, 1);
 
-    // Logger.debug(`登录信息: \naccessToken: ${this.accessTokenResponse.access_token},\nrefreshToken: ${this.accessTokenResponse.refresh_token},\nexpiresIn: ${this.accessTokenResponse.expires_in},\n`)
+    // Logger.info(`登录信息: \naccessToken: ${this.accessTokenResponse.access_token},\nrefreshToken: ${this.accessTokenResponse.refresh_token},\nexpiresIn: ${this.accessTokenResponse.expires_in},\n`)
   }
 
   private createAssetModel(alias: string, secret: string, label?: string[]): AssetModel {
@@ -463,7 +463,7 @@ export class LoginViewModel {
     this.password = '';
     this.masterKey = '';
 
-    Logger.debug('Sensitive data cleared from LoginViewModel');
+    Logger.info('Sensitive data cleared from LoginViewModel');
   }
 
   // 保存服务器配置

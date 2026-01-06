@@ -1,9 +1,8 @@
 import { DataPreferences } from '@abner/datastore/src/main/ets/preferences/DataPreferences';
 import { EntryRouter } from '../../../../EntryRouter';
 import {
-  AUTO_LOCK,
-  BACKGROUND_TIMESTAMP,
-  BIOMETRIC_AUTH} from '../utils/Constants';
+  AUTO_LOCK, BACKGROUND_TIMESTAMP, BIOMETRIC_AUTH
+} from '../utils/Constants';
 import { bundleManager, common, Want } from '@kit.AbilityKit';
 import { userAuth } from '@kit.UserAuthenticationKit';
 import { cryptoFramework } from '@kit.CryptoArchitectureKit';
@@ -364,12 +363,12 @@ export struct SettingsPage {
 
       // 获取认证对象
       const userAuthInstance = userAuth.getUserAuthInstance(authParam, widgetParam);
-      Logger.debug('get userAuth instance success');
+      Logger.info('get userAuth instance success');
 
       // 订阅认证结果
       userAuthInstance.on('result', {
         onResult: (result) => {
-          Logger.debug(`userAuthInstance callback result: ${JSON.stringify(result)}`);
+          Logger.info(`userAuthInstance callback result: ${JSON.stringify(result)}`);
           // 取消订阅认证结果
           userAuthInstance.off('result');
 
@@ -385,9 +384,9 @@ export struct SettingsPage {
           }
         }
       });
-      Logger.debug('auth on success');
+      Logger.info('auth on success');
       userAuthInstance.start();
-      Logger.debug('auth start success');
+      Logger.info('auth start success');
     } catch (error) {
       const err = error as BusinessError;
       Logger.error(`Failed to start biometric auth. Error: ${JSON.stringify(err)}`);

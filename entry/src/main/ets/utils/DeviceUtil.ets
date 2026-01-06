@@ -63,9 +63,9 @@ export class DeviceUtil {
           Logger.error("Save device id failed, error message: " + error?.message);
         }
       })
-      Logger.debug(`Generated new device identifier: ${deviceId}`);
+      Logger.info(`Generated new device identifier: ${deviceId}`);
     } else {
-      Logger.debug(`Retrieved existing device identifier: ${deviceId}`);
+      Logger.info(`Retrieved existing device identifier: ${deviceId}`);
     }
     return deviceId;
   }
@@ -142,7 +142,7 @@ export class DeviceUtil {
    */
   static async clearDeviceIdentifier(): Promise<void> {
     DataPreferences.getInstance().delete(DEVICE_ID_KEY);
-    Logger.debug('Device identifier cleared from DataStore');
+    Logger.info('Device identifier cleared from DataStore');
   }
 
   // 生成时间戳

@@ -248,12 +248,12 @@ export struct UnlockPage {
 
       // 获取认证对象
       const userAuthInstance = userAuth.getUserAuthInstance(authParam, widgetParam);
-      Logger.debug('get userAuth instance success');
+      Logger.info('get userAuth instance success');
 
       // 订阅认证结果
       userAuthInstance.on('result', {
         onResult: (result) => {
-          Logger.debug(`userAuthInstance callback result: ${JSON.stringify(result)}`);
+          Logger.info(`userAuthInstance callback result: ${JSON.stringify(result)}`);
           // 取消订阅认证结果
           userAuthInstance.off('result');
 
@@ -274,9 +274,9 @@ export struct UnlockPage {
           }
         }
       });
-      Logger.debug('auth on success');
+      Logger.info('auth on success');
       userAuthInstance.start();
-      Logger.debug('auth start success');
+      Logger.info('auth start success');
     } catch (error) {
       const err = error as BusinessError;
       Logger.error(`Failed to start biometric auth. Error: ${JSON.stringify(err)}`);

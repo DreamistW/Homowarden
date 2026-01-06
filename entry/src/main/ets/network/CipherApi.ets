@@ -48,7 +48,7 @@ async function getAccessToken(): Promise<string> {
         grant_type: GrantType.REFRESH
       }
       const newTokenObj = await refreshToken(refreshRequest);
-      Logger.debug("Refresh token successfully");
+      Logger.info("Refresh token successfully");
       if (newTokenObj && newTokenObj.access_token) {
         // 分段保存新token
         if (newTokenObj.access_token.length > 1000) {
