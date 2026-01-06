@@ -34,8 +34,8 @@ export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
       // config.headers['origin'] = config.baseURL
       Logger.info(`[HTTP] Request ${config.method?.toUpperCase()} ${config.baseURL ||
         baseURL}${config.url}`);
-      Logger.info(`[HTTP] ${config.method?.toUpperCase()} ${config.baseURL ||
-        baseURL}${config.url}\nHeader:${JSON.stringify(config.headers)}\nRequest: ${JSON.stringify(config.data)}`);
+      // Logger.info(`[HTTP] ${config.method?.toUpperCase()} ${config.baseURL ||
+      //   baseURL}${config.url}\nHeader:${JSON.stringify(config.headers)}\nRequest: ${JSON.stringify(config.data)}`);
       return config;
     },
     (error: AxiosError) => {
