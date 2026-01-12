@@ -154,15 +154,21 @@ export class CryptoUtil {
     const macData = new Uint8Array(ivBytes.length + cipherBytes.length);
     macData.set(ivBytes, 0);
     macData.set(cipherBytes, ivBytes.length);
-    let mac = cryptoFramework.createMac('SHA256');
-    await mac.init(await CryptoUtil.genSymKeyByData(macKey));
-    await mac.update({ data: macData });
-    let macResult = await mac.doFinal();
-    const macResultStr = new util.Base64Helper().encodeToStringSync(macResult.data);
-    if (partsOfText[2] == macResultStr) {
-      return true;
-    } else {
-      return false;
+    try {
+      let mac = cryptoFramework.createMac('SHA256');
+      await mac.init(await CryptoUtil.genSymKeyByData(macKey));
+      await mac.update({ data: macData });
+      let macResult = await mac.doFinal();
+      const macResultStr = new util.Base64Helper().encodeToStringSync(macResult.data);
+      if (partsOfText[2] == macResultStr) {
+        return true;
+      } else {
+        return false;
+      }
+    } catch (err) {
+      const error = err as BusinessError;
+      Logger.error(`Failed to verify HMAC, error message: ${error.message}`);
+      throw new Error(err);
     }
   }
 
@@ -179,13 +185,18 @@ export class CryptoUtil {
     const keyBytes = new util.Base64Helper().decodeSync(symKey);
     // MAC验证
     const macKeyBytes = keyBytes.slice(32);
-    const macResult = await CryptoUtil.verifyHMAC(cipherText, macKeyBytes);
-    if (macResult) {
-      const plainText = await CryptoUtil.decryptAESCBC(cipherText, keyBytes.slice(0, 32));
-      return CryptoUtil.base64DecodeToString(plainText);
-    } else {
-      throw new Error(`MAC verification failed`);
+    try {
+      const macResult = await CryptoUtil.verifyHMAC(cipherText, macKeyBytes);
+      if (macResult) {
+        const plainText = await CryptoUtil.decryptAESCBC(cipherText, keyBytes.slice(0, 32));
+        return CryptoUtil.base64DecodeToString(plainText);
+      }
+    } catch (err) {
+      const error = err as BusinessError;
+      Logger.error(`Failed to decrypt, error message: ${error.message}`);
+      return `Failed to decrypt, error message: ${error.message}`;
     }
+    return '';
   }
 
   // Base64字符串解码
