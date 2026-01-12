@@ -43,15 +43,17 @@ export class VaultViewModel {
   /**
    * 加载所有密码项
    */
-  async loadCiphers(): Promise<void> {
+  async loadCiphers(): Promise<boolean> {
     try {
       this.isLoading = true;
       this.errorMessage = '';
       // 从服务器同步数据
       await this.syncCiphersFromServer();
+      return true;
     } catch (error) {
       Logger.error(`Failed to load ciphers: ${error}`);
-      this.errorMessage = `加载密码项失败, 错误信息: ${JSON.stringify(error)}`;
+      this.errorMessage = `加载密码项失败, 错误信息: ${error.message}`;
+      return false;
     } finally {
       this.isLoading = false;
     }

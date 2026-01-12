@@ -8,7 +8,8 @@ import {
   IBestDropdownMenu,
   IBestField,
   IBestFieldValueType,
-  IBestPullRefresh
+  IBestPullRefresh,
+  IBestToast
 } from '@ibestservices/ibest-ui';
 import { DataPreferences } from '@abner/datastore';
 import {
@@ -66,7 +67,10 @@ export struct VaultPage {
       this.needReLogin = true;
     };
 
-    await this.viewModel.loadCiphers();
+    const result = await this.viewModel.loadCiphers();
+    if (!result) {
+      IBestToast.show(this.viewModel.errorMessage);
+    }
     this.viewModel.filterCiphers(this.selectedType, this.searchText);
     this.isLoading = false;
   }

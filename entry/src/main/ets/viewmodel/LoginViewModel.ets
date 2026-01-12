@@ -228,7 +228,7 @@ export class LoginViewModel {
       if (error?.response?.data?.error === 'invalid_grant' &&
         error?.response?.data?.error_description === 'Two factor required.') {
         // 提取2FA方式字段
-        this.twoFactorProvider = error?.response?.data?.TwoFactorProviders[0];
+        this.twoFactorProvider = error?.response?.data?.TwoFactorProviders.includes("0") ? 0 : 1;
         this.needTwoFactor = true;
         return false;
       }
@@ -238,7 +238,7 @@ export class LoginViewModel {
         return false;
       }
       Logger.error(`Login failed: ${error}`);
-      this.errorMessage = '登录失败，请检查邮箱和密码';
+      this.errorMessage = `登录失败, 请检查邮箱和密码`;
       return false;
     }
   }

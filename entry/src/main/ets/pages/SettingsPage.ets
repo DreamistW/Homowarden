@@ -1,14 +1,13 @@
 import { DataPreferences } from '@abner/datastore/src/main/ets/preferences/DataPreferences';
 import { EntryRouter } from '../../../../EntryRouter';
 import {
-  AUTO_LOCK,
-  BACKGROUND_TIMESTAMP,
-  BIOMETRIC_AUTH} from '../utils/Constants';
+  AUTO_LOCK, BACKGROUND_TIMESTAMP, BIOMETRIC_AUTH, EMAIL_KEY
+} from '../utils/Constants';
 import { bundleManager, common, Want } from '@kit.AbilityKit';
 import { userAuth } from '@kit.UserAuthenticationKit';
 import { cryptoFramework } from '@kit.CryptoArchitectureKit';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { clearAssetAndPreferences } from '../utils/AssetUtil';
+import { clearAssetAndPreferences, queryAssetSync } from '../utils/AssetUtil';
 import { Logger } from '@nzy/logger';
 import { IBestToast } from '@ibestservices/ibest-ui';
 
@@ -24,11 +23,17 @@ export struct SettingsPage {
   @State syncEnabled: boolean = true;
   pathInfos: NavPathStack = new NavPathStack();
   @State versionName: string = '1.0.0';
+  email: string = '';
 
   aboutToAppear() {
     this.getVersionName();
     this.loadBiometricAuthStatus();
     this.loadAutoLockStatus();
+    this.getEmail();
+  }
+
+  getEmail() {
+    this.email = queryAssetSync(EMAIL_KEY);
   }
 
   loadAutoLockStatus() {
@@ -171,6 +176,19 @@ export struct SettingsPage {
               // .onClick(() => {
               //   // 导出密码库
               // })
+
+              Row() {
+                Text('已登录账户')
+                  .fontSize(16)
+
+                Blank()
+
+                Text(this.email)
+                  .fontSize(16)
+                  .fontColor('#666666')
+              }
+              .width('100%')
+              .padding({ top: 12, bottom: 12 })
 
               Button() {
                 Text('注销')
