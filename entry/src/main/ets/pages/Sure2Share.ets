@@ -1,6 +1,6 @@
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
 import { systemShare } from '@kit.ShareKit';
-import { uniformTypeDescriptor } from '@kit.ArkData';
+import { relationalStore, uniformTypeDescriptor } from '@kit.ArkData';
 import { common } from '@kit.AbilityKit';
 import { inputMethod } from '@kit.IMEKit';
 import { getFullLink, getShareLink, replaceOutputText } from '../utils/ParseLinkUtil';
@@ -9,6 +9,7 @@ import { AUTO_LOCK, BACKGROUND_TIMESTAMP } from '../utils/Constants';
 import { EntryRouter } from '../../../../EntryRouter';
 import { Logger } from '@nzy/logger';
 import { IBestToast } from '@ibestservices/ibest-ui';
+import { ShareDatabaseUtil } from '../utils/ShareDatabaseUtil';
 
 @Builder
 export function Sure2SharePageBuilder() {
@@ -22,6 +23,13 @@ export struct Sure2SharePage {
   @State inputText: string = '';
   @State outputText: string = '';
   pathInfos: NavPathStack = new NavPathStack();
+  historyBtn: NavigationMenuItem = {
+    'value': 'History',
+    'icon': 'resources/base/media/icon_history.svg',
+    'action': () => {
+      this.pathInfos.pushPath({ name: EntryRouter.ShareHistoryPage });
+    }
+  }
 
   async convertLink() {
     const shareLink = await getShareLink(this.inputText);
@@ -39,7 +47,15 @@ export struct Sure2SharePage {
       IBestToast.show(`替换链接失败`);
       return;
     }
-    IBestToast.show(`转换成功`);
+    IBestToast.show(`转换成功, 已保存至历史记录`);
+    // 写入记录到数据库
+    const dbUtil = ShareDatabaseUtil.getInstance();
+    const item: relationalStore.ValuesBucket = {
+      id: dbUtil.generateId(),
+      content: this.outputText,
+      timestamp: Date.now()
+    }
+    dbUtil.insertData('history', item);
   }
 
   copyLink(text: string) {
@@ -219,5 +235,6 @@ export struct Sure2SharePage {
         }
       }
     })
+    .menus([this.historyBtn])
   }
 }

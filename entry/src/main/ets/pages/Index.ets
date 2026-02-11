@@ -23,12 +23,14 @@ struct PrivacyDialogContent {
 
   build() {
     Column() {
-      Text("隐私政策")
+      Text("欢迎")
         .fontSize(20)
         .margin({ top: 20, bottom: 10 })
 
       Text() {
-        Span('请仔细阅读并同意')
+        Span('欢迎使用 Homowarden\n\n')
+        Span('注意: 本应用的密钥数据存储在关键资产区域, 不会随应用卸载而清除, 卸载应用前请务必注销登录\n\n')
+        Span('在开始使用之前, 请仔细阅读并同意')
         Span('隐私政策')
           .fontColor(Color.Blue)
           .decoration({ type: TextDecorationType.Underline })

@@ -6,4 +6,5 @@ export class EntryRouter {
   static CipherDetailPage = 'CipherDetailPage';
   static UnlockPage = 'UnlockPage';
   static Sure2SharePage = 'Sure2SharePage';
+  static ShareHistoryPage = 'ShareHistoryPage'
 }
