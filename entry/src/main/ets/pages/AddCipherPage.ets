@@ -1,6 +1,7 @@
 import { DataPreferences } from '@abner/datastore';
 import { IBestDropdownItem, IBestDropdownMenu, IBestRadio, IBestRadioGroup, IBestToast } from '@ibestservices/ibest-ui';
 import { EntryRouter } from '../../../../EntryRouter';
+import { TotpEditItem } from '../component/TotpEditItem';
 import {
   AUTO_LOCK,
   BACKGROUND_TIMESTAMP,
@@ -23,6 +24,7 @@ export struct AddCipherPage {
   @State isSubmitting: boolean = false;
   @State identityTitle: IdentityTitleType | string = IdentityTitleType.NONE;
   @State cardBrand: CardBrandType | string = CardBrandType.NONE;
+  @State totpSecret: string = '';
   allowSave: boolean = false;
   pathInfos: NavPathStack = new NavPathStack();
   ConfirmBtn: NavigationMenuItem = {
@@ -160,6 +162,14 @@ export struct AddCipherPage {
                 this.viewModel.loginUri.uri = v;
               })
               .margin({ left: 16, right: 16 })
+
+            // TOTP两步验证
+            TotpEditItem({
+              totpSecret: $totpSecret,
+              onSecretChange: (value: string) => {
+                this.viewModel.loginItem.totp = value;
+              }
+            }).margin({ left: 16, right: 16 })
           } else if (this.cipherType == CipherItemType.IDENTITY) {
             // 称呼
             Text('称呼')

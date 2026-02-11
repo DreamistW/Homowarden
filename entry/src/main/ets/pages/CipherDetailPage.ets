@@ -11,6 +11,8 @@ import {
 import { CipherDetailViewModel } from '../viewmodel/CipherDetailViewModel';
 import { CipherDetailTextItem } from '../component/CipherDetailTextItem';
 import { CipherDetailDropdownItem } from '../component/CipherDetailDropdownItem';
+import { TotpDisplayItem } from '../component/TotpDisplayItem';
+import { TotpEditItem } from '../component/TotpEditItem';
 import {
   IBestCheckbox,
   IBestDialog,
@@ -38,6 +40,8 @@ export struct CipherDetailPage {
   @State selectedCardBrand: CardBrandType | string = CardBrandType.NONE;
   @State selectedIdentityTitle: IdentityTitleType | string = IdentityTitleType.NONE;
   @State editUris: CipherUri[] = [] as CipherUri[];
+  @State totpSecret: string = '';
+  @State showTotpSecret: boolean = false;
   pathInfos: NavPathStack = new NavPathStack();
   private viewModel: CipherDetailViewModel = new CipherDetailViewModel();
   private identityTitleGroup: string = 'identityTitleSelector';
@@ -177,6 +181,12 @@ export struct CipherDetailPage {
         }
         if (this.cipher.identity?.title) {
           this.selectedIdentityTitle = this.getIdentityTitleEnum(this.cipher.identity.title);
+        }
+        // 初始化TOTP密钥
+        if (this.cipher.login?.totp) {
+          this.totpSecret = this.cipher.login.totp;
+        } else {
+          this.totpSecret = '';
         }
       }
     } catch (error) {
@@ -487,19 +497,33 @@ export struct CipherDetailPage {
             .fontSize(18)
             .fontColor(Color.White)
         }
-        .width(200)
-        .height(50)
+        .width(150)
+        .height(40)
         .backgroundColor('#007DFF')
         .borderRadius(25)
-        .margin({ top: 24 })
+        .margin({ top: 24, bottom: 24 })
         .onClick(() => {
           this.addUriEdit();
         })
       }
 
-      // TOTP
-      if (this.cipher.login?.totp) {
-        // TODO: 显示实时TOTP验证码
+      // TOTP验证码显示（仅查看模式且有TOTP密钥时）
+      if (!this.isEditable && this.cipher.login?.totp) {
+        TotpDisplayItem({
+          secret: this.cipher.login.totp
+        })
+      }
+
+      // TOTP密钥编辑（编辑模式）
+      if (this.isEditable) {
+        TotpEditItem({
+          totpSecret: $totpSecret,
+          onSecretChange: (value: string) => {
+            if (this.cipher.login) {
+              this.cipher.login.totp = value;
+            }
+          }
+        })
       }
     }
     .width('100%')

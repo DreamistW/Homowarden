@@ -54,6 +54,8 @@ export class AddCipherViewModel {
       this.loginItem.username ? await CryptoUtil.encryptField(this.loginItem.username, this.symmetricKey) : null;
     const encPassword =
       this.loginItem.password ? await CryptoUtil.encryptField(this.loginItem.password, this.symmetricKey) : null;
+    const encTotp =
+      this.loginItem.totp ? await CryptoUtil.encryptField(this.loginItem.totp, this.symmetricKey) : null;
 
     let encUris: CipherUri[] = [];
     if (this.loginUri.uri) {
@@ -70,7 +72,7 @@ export class AddCipherViewModel {
       username: encUsername,
       password: encPassword,
       passwordRevisionDate: null,
-      totp: null,
+      totp: encTotp,
       uris: encUris
     };
     return login;
