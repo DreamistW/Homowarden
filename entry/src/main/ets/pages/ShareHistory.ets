@@ -5,6 +5,9 @@ import { systemShare } from '@kit.ShareKit';
 import { uniformTypeDescriptor } from '@kit.ArkData';
 import { common } from '@kit.AbilityKit';
 import { getShareLink } from '../utils/ParseLinkUtil';
+import { DataPreferences } from '@abner/datastore';
+import { AUTO_LOCK, BACKGROUND_TIMESTAMP } from '../utils/Constants';
+import { EntryRouter } from '../../../../EntryRouter';
 
 @Builder
 export function HistoryPageBuilder() {
@@ -13,7 +16,7 @@ export function HistoryPageBuilder() {
 
 @Component
 struct History {
-  pathStack: NavPathStack = new NavPathStack();
+  pathInfos: NavPathStack = new NavPathStack();
   @State searchText: string = '';
   @State historyList: HistoryItem[] = [];
   @State filteredList: HistoryItem[] = [];
@@ -189,6 +192,22 @@ struct History {
       .height('100%')
     }
     .title('历史记录')
+    .onReady((ctx: NavDestinationContext) => {
+      this.pathInfos = ctx.pathStack;
+    })
+    .onHidden(() => {
+      DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
+    })
+    .onShown(() => {
+      const autoLockStatus = DataPreferences.getInstance().getSync<number>(AUTO_LOCK);
+      if (autoLockStatus == 1) {
+        const currentTime = Math.floor(Date.now() / 1000);
+        const backgroundTime = DataPreferences.getInstance().getSync<number>(BACKGROUND_TIMESTAMP);
+        if (currentTime - backgroundTime > 120) {
+          this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
+        }
+      }
+    })
   }
 
   // 历史记录项构建器
