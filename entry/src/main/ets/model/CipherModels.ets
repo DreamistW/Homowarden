@@ -104,3 +104,11 @@ export interface CipherDetailParams {
   cipher: Cipher;
   symmetricKey: string;
 }
+
+/**
+ * 从密码库跳转到验证码列表的参数
+ */
+export interface TotpListParams {
+  ciphers: Cipher[];
+  symmetricKey: string;
+}

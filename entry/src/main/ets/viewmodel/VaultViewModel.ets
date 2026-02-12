@@ -99,7 +99,7 @@ export class VaultViewModel {
       const ciphersData = await DatabaseUtil.getInstance().queryAllData(DBTableName.MAIN);
       this.allCiphers = await this.buildCiphersFromData(ciphersData);
       this.filteredCiphers = this.allCiphers.filter(cipher => cipher.deletedDate == null);
-      this.stats = await this.getCipherTypeStats();
+      this.stats = await this.getCipherTypeStats(ciphersData);
       this.buildFilterOptions();
 
       Logger.info(`Successfully synced ${this.allCiphers.length} ciphers from server`);
@@ -261,7 +261,7 @@ export class VaultViewModel {
   /**
    * 获取各类型密码项数量统计
    */
-  async getCipherTypeStats(): Promise<CipherStats> {
+  async getCipherTypeStats(data: relationalStore.ValuesBucket[]): Promise<CipherStats> {
     let stats: CipherStats = {
       total: 0,
       login: 0,
@@ -272,9 +272,7 @@ export class VaultViewModel {
       deleted: 0
     };
     try {
-      const ciphersData = await DatabaseUtil.getInstance().queryAllData(DBTableName.MAIN);
-
-      for (const cipherData of ciphersData) {
+      for (const cipherData of data) {
         if (cipherData.favorite as number === 1) {
           stats.favorite++;
         }

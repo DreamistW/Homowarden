@@ -34,6 +34,16 @@
       "name": "Sure2SharePage",
       "pageSourceFile": "src/main/ets/pages/Sure2Share.ets",
       "buildFunction": "Sure2SharePageBuilder"
+    },
+    {
+      "name": "ShareHistoryPage",
+      "pageSourceFile": "src/main/ets/pages/ShareHistory.ets",
+      "buildFunction": "HistoryPageBuilder"
+    },
+    {
+      "name": "TotpListPage",
+      "pageSourceFile": "src/main/ets/pages/TotpListPage.ets",
+      "buildFunction": "TotpListPageBuilder"
     }
   ]
 }

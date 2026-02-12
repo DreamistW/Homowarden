@@ -4,6 +4,7 @@ import { window } from '@kit.ArkUI';
 import { IBestInit } from '@ibestservices/ibest-ui';
 import { DataPreferences } from '@abner/datastore';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
+import { ShareDatabaseUtil } from '../utils/ShareDatabaseUtil';
 
 const DOMAIN = 0x0000;
 
@@ -12,9 +13,13 @@ export default class EntryAbility extends UIAbility {
     this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
     DataPreferences.getInstance().init(this.context);
-    DatabaseUtil.init(this.context).then(() => {
-      hilog.info(DOMAIN, 'testTag', '%{public}s', 'Database initialized');
-    });
+    try{
+      DatabaseUtil.init(this.context);
+      ShareDatabaseUtil.init(this.context);
+    }
+    catch (err) {
+      console.error(`Failed to init database. Error: ${JSON.stringify(err)}`);
+    }
   }
 
   onDestroy(): void {

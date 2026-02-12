@@ -11,6 +11,10 @@
     {
       "name": "EntryAbility_label",
       "value": "Homowarden"
+    },
+    {
+      "name": "camera_permission_reason",
+      "value": "需要使用相机扫描TOTP二维码"
     }
   ]
 }

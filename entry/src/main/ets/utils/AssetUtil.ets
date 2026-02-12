@@ -5,17 +5,21 @@ import { Logger } from '@nzy/logger';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { AssetModel } from '../model/AssetModel';
 import { DataPreferences } from '@abner/datastore';
-import { ACCESS_TOKEN_KEY_1,
+import {
+  ACCESS_TOKEN_KEY_1,
   ACCESS_TOKEN_KEY_2,
-  AUTO_LOCK, BIOMETRIC_AUTH,
+  AUTO_LOCK,
+  BIOMETRIC_AUTH,
   KDF_PARAM_KEY,
-  LOGIN_STATUS_KEY, MASTER_KEY,
+  LOGIN_STATUS_KEY,
+  MASTER_KEY,
   PRIVATE_KEY_1,
   PRIVATE_KEY_2,
   REFRESH_TOKEN_KEY,
   TOKEN_EXPIRE_TIME_KEY,
   TWO_FACTOR_TOKEN_KEY,
-  USER_KEY} from './Constants';
+  USER_KEY
+} from './Constants';
 
 function stringToArray(str: string): Uint8Array {
   let textEncoder = new util.TextEncoder();
@@ -149,7 +153,7 @@ export function deleteAsset(alias: string) {
 /**
  * 注销时清除关键资产和参数
  */
-export function clearAssetAndPreferences(){
+export function clearAssetAndPreferences() {
   // 清除登录信息
   DataPreferences.getInstance().put(LOGIN_STATUS_KEY, 0);
   // 清除安全设置

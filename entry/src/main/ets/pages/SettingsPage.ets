@@ -9,7 +9,7 @@ import { cryptoFramework } from '@kit.CryptoArchitectureKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { clearAssetAndPreferences, queryAssetSync } from '../utils/AssetUtil';
 import { Logger } from '@nzy/logger';
-import { IBestToast } from '@ibestservices/ibest-ui';
+import { IBestDialogUtil, IBestToast } from '@ibestservices/ibest-ui';
 
 @Builder
 export function SettingsPageBuilder() {
@@ -178,7 +178,7 @@ export struct SettingsPage {
               // })
 
               Row() {
-                Text('已登录账户')
+                Text('已登录: ')
                   .fontSize(16)
 
                 Blank()
@@ -189,6 +189,10 @@ export struct SettingsPage {
               }
               .width('100%')
               .padding({ top: 12, bottom: 12 })
+
+              Text('卸载本应用前请务必注销登录, 切记')
+                .fontSize(12)
+                .fontColor('#666666')
 
               Button() {
                 Text('注销')
@@ -398,8 +402,18 @@ export struct SettingsPage {
   }
 
   private logout() {
-    clearAssetAndPreferences();
-    // 跳转到登录页面
-    this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
+    IBestDialogUtil.open({
+      title: '确认',
+      message: '确定要注销登录吗?',
+      showCancelButton: true,
+      onCancel: () => {
+        return;
+      },
+      onConfirm: () => {
+        clearAssetAndPreferences();
+        // 跳转到登录页面
+        this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
+      }
+    })
   }
 } 

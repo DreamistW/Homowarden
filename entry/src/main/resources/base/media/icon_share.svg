@@ -3,34 +3,19 @@
         xmlns="http://www.w3.org/2000/svg"
         width="1024"
         height="1024"
-        viewBox="0 0 1024 1024"
+        viewBox="330 270 420 484"
         fill="none">
 
-    <!-- 左节点 -->
+    <!-- 连接线 -->
+    <line x1="420" y1="512" x2="660" y2="360"
+          stroke="#FFFFFF" stroke-width="60" stroke-linecap="round"/>
+
+    <line x1="420" y1="512" x2="660" y2="664"
+          stroke="#FFFFFF" stroke-width="60" stroke-linecap="round"/>
+
+    <!-- 圆点 -->
     <circle cx="420" cy="512" r="90" fill="#FFFFFF"/>
-
-    <!-- 右上节点 -->
     <circle cx="660" cy="360" r="90" fill="#FFFFFF"/>
-
-    <!-- 右下节点 -->
     <circle cx="660" cy="664" r="90" fill="#FFFFFF"/>
-
-    <!-- 连接线（左 → 右上） -->
-    <path
-            d="M 410 540
-           L 640 390
-           L 670 420
-           L 440 570
-           Z"
-            fill="#FFFFFF"/>
-
-    <!-- 连接线（左 → 右下） -->
-    <path
-            d="M 440 450
-           L 670 600
-           L 640 630
-           L 410 480
-           Z"
-            fill="#FFFFFF"/>
 
 </svg>

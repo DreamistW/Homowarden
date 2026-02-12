@@ -1,5 +1,5 @@
 import { EntryRouter } from '../../../../EntryRouter';
-import { Cipher, CipherDetailParams } from '../model/CipherModels';
+import { Cipher, CipherDetailParams, TotpListParams } from '../model/CipherModels';
 import { VaultViewModel } from '../viewmodel/VaultViewModel';
 import { common } from '@kit.AbilityKit';
 import {
@@ -8,6 +8,7 @@ import {
   IBestDropdownMenu,
   IBestField,
   IBestFieldValueType,
+  IBestFloatBubble,
   IBestPullRefresh,
   IBestToast
 } from '@ibestservices/ibest-ui';
@@ -38,21 +39,30 @@ export struct VaultPage {
   @State passwordInput: string = '';
   @State passwordError: string = '';
   @State pendingCipher: Cipher | null = null;
+  @State showAddBtn: boolean = false;
   private exitTime: number = 0;
   pathInfos: NavPathStack = new NavPathStack();
   AddItemBtn: NavigationMenuItem = {
-    'value': '', 'icon': 'resources/base/media/icon_add.svg', 'action': () => {
+    'value': '添加', 'icon': 'resources/base/media/icon_add.svg', 'action': () => {
       this.pathInfos.pushPath({ name: EntryRouter.AddCipherPage, param: this.viewModel.symmetricKey });
     }
   }
   SettingsBtn: NavigationMenuItem = {
-    'value': '', 'icon': 'resources/base/media/icon_settings.svg', 'action': () => {
+    'value': '设置', 'icon': 'resources/base/media/icon_settings.svg', 'action': () => {
       this.pathInfos.pushPath({ name: EntryRouter.SettingsPage });
     }
   }
   Sure2ShareBtn: NavigationMenuItem = {
-    'value': '', 'icon': 'resources/base/media/icon_share.svg', 'action': () => {
+    'value': '安心分享', 'icon': 'resources/base/media/icon_share.svg', 'action': () => {
       this.pathInfos.pushPath({ name: EntryRouter.Sure2SharePage });
+    }
+  }
+  TotpCodeBtn: NavigationMenuItem = {
+    'value': '验证码', 'icon': 'resources/base/media/icon_time.svg', 'action': () => {
+      this.pathInfos.pushPath({
+        name: EntryRouter.TotpListPage,
+        param: { ciphers: this.viewModel.allCiphers, symmetricKey: this.viewModel.symmetricKey } as TotpListParams
+      });
     }
   }
   groupId: string = 'filter_menu';
@@ -236,6 +246,14 @@ export struct VaultPage {
             }
           }
         })
+
+        IBestFloatBubble({
+          show: this.showAddBtn,
+          icon: $r("app.media.icon_add"),
+          onBubbleClick: () => {
+            this.pathInfos.pushPath({ name: EntryRouter.AddCipherPage, param: this.viewModel.symmetricKey });
+          }
+        })
       }
       .width('100%')
       .height('100%')
@@ -264,11 +282,13 @@ export struct VaultPage {
       }
       return true;
     })
-    .menus([this.Sure2ShareBtn, this.AddItemBtn, this.SettingsBtn])
+    .menus([this.Sure2ShareBtn, this.TotpCodeBtn, this.SettingsBtn])
     .onHidden(() => {
+      this.showAddBtn = false;
       DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
     })
     .onShown(() => {
+      this.showAddBtn = true;
       const autoLockStatus = DataPreferences.getInstance().getSync<number>(AUTO_LOCK);
       if (autoLockStatus == 1) {
         const currentTime = Math.floor(Date.now() / 1000);
