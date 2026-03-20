@@ -31,3 +31,7 @@ Homowarden 是一款专为 HarmonyOS 打造的密码管理应用，它是跨平�
 ![Screenshot 4](1766567017880-03d23da7-87f3-47c0-ad77-5c7dc0935f4d.jpg)
 
 ![Screenshot 5](1766567022027-7e4e6231-f901-493c-b4a6-763001f64617.jpg)
+
+## License
+
+This project is licensed under the MIT License. See the LICENSE file for details.
