@@ -23,6 +23,7 @@ import {
 import { Logger } from '@nzy/logger';
 import { DataPreferences } from '@abner/datastore';
 import { EntryRouter } from '../../../../EntryRouter';
+import { HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
 
 @Builder
 export function CipherDetailPageBuilder() {
@@ -121,33 +122,53 @@ export struct CipherDetailPage {
     }
   }
 
-  EditItemBtn: NavigationMenuItem = {
-    'value': '', 'icon': 'resources/base/media/icon_edit.svg', 'action': () => {
-      this.isEditable = true;
-      if (this.cipher.type === CipherItemType.LOGIN && this.cipher.login) {
-        this.editUris = this.cipher.login.uris;
+  EditItemBtn: HdsNavigationBadgeIconOptions = {
+    content: {
+      label: '编辑',
+      icon: $r('app.media.icon_edit'),
+      action: () => {
+        this.isEditable = true;
+        if (this.cipher.type === CipherItemType.LOGIN && this.cipher.login) {
+          this.editUris = this.cipher.login.uris;
+        }
       }
     }
   }
-  DeleteItemBtn: NavigationMenuItem = {
-    'value': '', 'icon': 'resources/base/media/icon_delete.svg', 'action': () => {
-      this.deleteCipher();
+  DeleteItemBtn: HdsNavigationBadgeIconOptions = {
+    content: {
+      label: '删除',
+      icon: $r('app.media.icon_delete'),
+      action: () => {
+        this.deleteCipher();
+      }
     }
   }
-  ConfirmEditBtn: NavigationMenuItem = {
-    'value': '', 'icon': 'resources/base/media/icon_confirm.svg', 'action': async () => {
-      await this.saveCipher();
+  ConfirmEditBtn: HdsNavigationBadgeIconOptions = {
+    content: {
+      label: '确认',
+      icon: $r('app.media.icon_confirm'),
+      action: async () => {
+        await this.saveCipher();
+      }
     }
   }
-  CancelEditBtn: NavigationMenuItem = {
-    'value': '', 'icon': 'resources/base/media/icon_cancel.svg', 'action': () => {
-      this.isEditable = false;
-      this.loadCipherDetail();
+  CancelEditBtn: HdsNavigationBadgeIconOptions = {
+    content: {
+      label: '取消',
+      icon: $r('app.media.icon_cancel'),
+      action: () => {
+        this.isEditable = false;
+        this.loadCipherDetail();
+      }
     }
   }
-  RestoreItemBtn: NavigationMenuItem = {
-    'value': '', 'icon': 'resources/base/media/icon_restore.svg', 'action': async () => {
-      await this.restoreCipher();
+  RestoreItemBtn: HdsNavigationBadgeIconOptions = {
+    content: {
+      label: '还原',
+      icon: $r('app.media.icon_restore'),
+      action: async () => {
+        await this.restoreCipher();
+      }
     }
   }
 
@@ -251,7 +272,7 @@ export struct CipherDetailPage {
   }
 
   build() {
-    NavDestination() {
+    HdsNavDestination() {
       Column() {
         if (this.isLoading) {
           Column() {
@@ -403,7 +424,18 @@ export struct CipherDetailPage {
       .width('100%')
       .height('100%')
     }
-    .title('详情')
+    .titleBar({
+      content: {
+        title: {
+          mainTitle: '详情'
+        },
+        menu: {
+          value: this.isEditable ? [this.CancelEditBtn, this.ConfirmEditBtn] :
+            this.cipher.deletedDate ? [this.RestoreItemBtn, this.DeleteItemBtn] : [this.EditItemBtn, this.DeleteItemBtn]
+        }
+      },
+      enableComponentSafeArea: true
+    })
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
       const param = ctx.pathInfo.param as CipherDetailParams;
@@ -413,8 +445,6 @@ export struct CipherDetailPage {
         this.loadCipherDetail();
       }
     })
-    .menus(this.isEditable ? [this.CancelEditBtn, this.ConfirmEditBtn] :
-      this.cipher.deletedDate ? [this.RestoreItemBtn, this.DeleteItemBtn] : [this.EditItemBtn, this.DeleteItemBtn])
     .onHidden(() => {
       DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
     })

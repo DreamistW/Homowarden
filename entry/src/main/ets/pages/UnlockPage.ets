@@ -16,6 +16,7 @@ import { Logger } from '@nzy/logger';
 import { clearAssetAndPreferences, queryAssetSync } from '../utils/AssetUtil';
 import { PreloginResponse } from '../model/Prelogin';
 import { CryptoUtil } from '../utils/CryptoUtil';
+import { HdsNavDestination } from '@hms.hds.hdsBaseComponent';
 
 @Builder
 export function UnlockPageBuilder() {
@@ -36,7 +37,7 @@ export struct UnlockPage {
   }
 
   build() {
-    NavDestination() {
+    HdsNavDestination() {
       Column() {
         // 应用图标
         Image($r('app.media.app_small_icon'))
@@ -45,10 +46,10 @@ export struct UnlockPage {
           .margin({ top: 100, bottom: 40 })
 
         // 应用名称
-        Text($r('app.string.app_name'))
-          .fontSize(24)
-          .fontWeight(FontWeight.Medium)
-          .margin({ bottom: 80 })
+        // Text($r('app.string.app_name'))
+        //   .fontSize(24)
+        //   .fontWeight(FontWeight.Medium)
+        //   .margin({ bottom: 80 })
 
         Text('密码库已锁定, 请输入主密码')
           .fontSize(14)

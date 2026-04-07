@@ -10,6 +10,7 @@ import { EntryRouter } from '../../../../EntryRouter';
 import { Logger } from '@nzy/logger';
 import { IBestToast } from '@ibestservices/ibest-ui';
 import { ShareDatabaseUtil } from '../utils/ShareDatabaseUtil';
+import { HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
 
 @Builder
 export function Sure2SharePageBuilder() {
@@ -23,11 +24,13 @@ export struct Sure2SharePage {
   @State inputText: string = '';
   @State outputText: string = '';
   pathInfos: NavPathStack = new NavPathStack();
-  historyBtn: NavigationMenuItem = {
-    'value': 'History',
-    'icon': 'resources/base/media/icon_history.svg',
-    'action': () => {
-      this.pathInfos.pushPath({ name: EntryRouter.ShareHistoryPage });
+  historyBtn: HdsNavigationBadgeIconOptions = {
+    content: {
+      label: 'History',
+      icon: $r('app.media.icon_history'),
+      action: () => {
+        this.pathInfos.pushPath({ name: EntryRouter.ShareHistoryPage });
+      }
     }
   }
 
@@ -95,7 +98,7 @@ export struct Sure2SharePage {
   }
 
   build() {
-    NavDestination() {
+    HdsNavDestination() {
       Column() {
         Text(this.hint)
           .alignRules({
@@ -218,7 +221,15 @@ export struct Sure2SharePage {
       .height('100%')
       .width('100%')
     }
-    .title('安心分享')
+    .titleBar({
+      content: {
+        title: {
+          mainTitle: '安心分享'
+        },
+        menu: { value: [this.historyBtn] }
+      },
+      enableComponentSafeArea: true
+    })
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
     })
@@ -235,6 +246,5 @@ export struct Sure2SharePage {
         }
       }
     })
-    .menus([this.historyBtn])
   }
 }

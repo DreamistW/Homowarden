@@ -8,7 +8,6 @@ import {
   IBestDropdownMenu,
   IBestField,
   IBestFieldValueType,
-  IBestFloatBubble,
   IBestPullRefresh,
   IBestToast
 } from '@ibestservices/ibest-ui';
@@ -21,6 +20,9 @@ import {
   NEED_RELOAD_CIPHERS
 } from '../utils/Constants';
 import { CipherItem } from '../component/CipherItem';
+import {
+  HdsNavDestination, HdsNavigationBadgeIconOptions
+} from '@hms.hds.hdsBaseComponent';
 
 @Builder
 export function VaultPageBuilder() {
@@ -42,27 +44,43 @@ export struct VaultPage {
   @State showAddBtn: boolean = false;
   private exitTime: number = 0;
   pathInfos: NavPathStack = new NavPathStack();
-  AddItemBtn: NavigationMenuItem = {
-    'value': '添加', 'icon': 'resources/base/media/icon_add.svg', 'action': () => {
-      this.pathInfos.pushPath({ name: EntryRouter.AddCipherPage, param: this.viewModel.symmetricKey });
+  AddItemBtn: HdsNavigationBadgeIconOptions = {
+    content: {
+      label: '添加',
+      icon: $r('app.media.icon_add'),
+      action: () => {
+        this.pathInfos.pushPath({ name: EntryRouter.AddCipherPage, param: this.viewModel.symmetricKey });
+      }
     }
   }
-  SettingsBtn: NavigationMenuItem = {
-    'value': '设置', 'icon': 'resources/base/media/icon_settings.svg', 'action': () => {
-      this.pathInfos.pushPath({ name: EntryRouter.SettingsPage });
+  SettingsBtn: HdsNavigationBadgeIconOptions = {
+    content: {
+      label: '设置',
+      icon: $r('app.media.icon_settings'),
+      action: () => {
+        this.pathInfos.pushPath({ name: EntryRouter.SettingsPage });
+      }
     }
   }
-  Sure2ShareBtn: NavigationMenuItem = {
-    'value': '安心分享', 'icon': 'resources/base/media/icon_share.svg', 'action': () => {
-      this.pathInfos.pushPath({ name: EntryRouter.Sure2SharePage });
+  Sure2ShareBtn: HdsNavigationBadgeIconOptions = {
+    content: {
+      label: '安心分享',
+      icon: $r('app.media.icon_share'),
+      action: () => {
+        this.pathInfos.pushPath({ name: EntryRouter.Sure2SharePage });
+      }
     }
   }
-  TotpCodeBtn: NavigationMenuItem = {
-    'value': '验证码', 'icon': 'resources/base/media/icon_time.svg', 'action': () => {
-      this.pathInfos.pushPath({
-        name: EntryRouter.TotpListPage,
-        param: { ciphers: this.viewModel.allCiphers, symmetricKey: this.viewModel.symmetricKey } as TotpListParams
-      });
+  TotpCodeBtn: HdsNavigationBadgeIconOptions = {
+    content: {
+      label: '验证码',
+      icon: $r('app.media.icon_key'),
+      action: () => {
+        this.pathInfos.pushPath({
+          name: EntryRouter.TotpListPage,
+          param: { ciphers: this.viewModel.allCiphers, symmetricKey: this.viewModel.symmetricKey } as TotpListParams
+        });
+      }
     }
   }
   groupId: string = 'filter_menu';
@@ -165,7 +183,7 @@ export struct VaultPage {
   }
 
   build() {
-    NavDestination() {
+    HdsNavDestination() {
       Column() {
         // 搜索栏
         Row() {
@@ -247,18 +265,29 @@ export struct VaultPage {
           }
         })
 
-        IBestFloatBubble({
-          show: this.showAddBtn,
-          icon: $r("app.media.icon_add"),
-          onBubbleClick: () => {
-            this.pathInfos.pushPath({ name: EntryRouter.AddCipherPage, param: this.viewModel.symmetricKey });
-          }
-        })
+        // IBestFloatBubble({
+        //   show: this.showAddBtn,
+        //   icon: $r("app.media.icon_add"),
+        //   onBubbleClick: () => {
+        //     this.pathInfos.pushPath({ name: EntryRouter.AddCipherPage, param: this.viewModel.symmetricKey });
+        //   }
+        // })
       }
       .width('100%')
       .height('100%')
     }
-    .title('密码库')
+    .titleBar({
+      content: {
+        title: {
+          mainTitle: '密码库'
+        },
+        menu: {
+          value: [this.AddItemBtn, this.TotpCodeBtn, this.Sure2ShareBtn, this.SettingsBtn],
+          maxCount: 5
+        }
+      },
+      enableComponentSafeArea: true,
+    })
     .hideBackButton(true)
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
@@ -282,7 +311,6 @@ export struct VaultPage {
       }
       return true;
     })
-    .menus([this.Sure2ShareBtn, this.TotpCodeBtn, this.SettingsBtn])
     .onHidden(() => {
       this.showAddBtn = false;
       DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));

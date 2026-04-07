@@ -1,0 +1,38 @@
+<svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="1024"
+        height="1024"
+        viewBox="330 270 420 484">
+
+    <!-- 上连接线（用 path 画的“粗线”） -->
+    <path
+            d="M420 512
+           L660 360"
+            stroke="none"
+            fill="none"/>
+
+
+    <!-- 上连接（胶囊形） -->
+    <path
+            d="M 408 494
+           L 648 342
+           A 30 30 0 0 1 672 378
+           L 432 530
+           A 30 30 0 0 1 408 494 Z"
+            fill="#EAEAEA"/>
+
+    <!-- 下连接 -->
+    <path
+            d="M 408 530
+           L 648 682
+           A 30 30 0 0 1 672 646
+           L 432 494
+           A 30 30 0 0 1 408 530 Z"
+            fill="#EAEAEA"/>
+
+    <!-- 圆点 -->
+    <circle cx="420" cy="512" r="70" fill="#EAEAEA"/>
+    <circle cx="660" cy="360" r="70" fill="#EAEAEA"/>
+    <circle cx="660" cy="664" r="70" fill="#EAEAEA"/>
+
+</svg>

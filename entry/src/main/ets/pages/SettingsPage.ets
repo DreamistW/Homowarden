@@ -10,6 +10,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { clearAssetAndPreferences, queryAssetSync } from '../utils/AssetUtil';
 import { Logger } from '@nzy/logger';
 import { IBestDialogUtil, IBestToast } from '@ibestservices/ibest-ui';
+import { HdsNavDestination } from '@kit.UIDesignKit';
 
 @Builder
 export function SettingsPageBuilder() {
@@ -61,7 +62,7 @@ export struct SettingsPage {
   }
 
   build() {
-    NavDestination() {
+    HdsNavDestination() {
       Column() {
         Scroll() {
           Column() {
@@ -277,7 +278,14 @@ export struct SettingsPage {
       .width('100%')
       .height('100%')
     }
-    .title('设置')
+    .titleBar({
+      content: {
+        title: {
+          mainTitle: '设置'
+        }
+      },
+      enableComponentSafeArea: true
+    })
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
     })

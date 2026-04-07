@@ -3,6 +3,7 @@ import { EntryRouter } from '../../../../EntryRouter';
 import { TotpListItem } from '../component/TotpListItem';
 import { TotpListViewModel } from '../viewmodel/TotpListViewModel';
 import { IBestDialog } from '@ibestservices/ibest-ui';
+import { HdsNavDestination } from '@kit.UIDesignKit';
 
 @Builder
 export function TotpListPageBuilder() {
@@ -67,7 +68,7 @@ export struct TotpListPage {
   }
 
   build() {
-    NavDestination() {
+    HdsNavDestination() {
       Column() {
         // 内容区
         if (this.isLoading) {
@@ -82,7 +83,7 @@ export struct TotpListPage {
           .justifyContent(FlexAlign.Center)
         } else if (this.viewModel.filteredCiphers.length === 0) {
           Column() {
-            Image($r('app.media.icon_time'))
+            Image($r('app.media.icon_key'))
               .width(80)
               .height(80)
               .fillColor('#CCCCCC')
@@ -144,7 +145,12 @@ export struct TotpListPage {
       .width('100%')
       .height('100%')
     }
-    .title('验证码')
+    .titleBar({
+      content: {
+        title: { mainTitle: '验证码' }
+      },
+      enableComponentSafeArea: true
+    })
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
       const param = ctx.pathInfo.param as TotpListParams;

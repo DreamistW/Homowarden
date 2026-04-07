@@ -8,6 +8,7 @@ import { getShareLink } from '../utils/ParseLinkUtil';
 import { DataPreferences } from '@abner/datastore';
 import { AUTO_LOCK, BACKGROUND_TIMESTAMP } from '../utils/Constants';
 import { EntryRouter } from '../../../../EntryRouter';
+import { HdsNavDestination } from '@kit.UIDesignKit';
 
 @Builder
 export function HistoryPageBuilder() {
@@ -142,7 +143,7 @@ struct History {
   }
 
   build() {
-    NavDestination() {
+    HdsNavDestination() {
       Column() {
         // 搜索栏
         Search({
@@ -191,7 +192,14 @@ struct History {
       .width('100%')
       .height('100%')
     }
-    .title('历史记录')
+    .titleBar({
+      content: {
+        title: {
+          mainTitle: '分享历史'
+        }
+      },
+      enableComponentSafeArea: true
+    })
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
     })

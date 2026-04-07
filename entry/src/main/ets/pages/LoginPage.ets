@@ -5,6 +5,7 @@ import { LoginViewModel } from '../viewmodel/LoginViewModel';
 import { EntryRouter } from '../../../../EntryRouter';
 import { common } from '@kit.AbilityKit';
 import { DataPreferences } from '@abner/datastore';
+import { HdsNavDestination } from '@hms.hds.hdsBaseComponent';
 
 @Builder
 export function LoginPageBuilder() {
@@ -126,7 +127,7 @@ export struct LoginPage {
   }
 
   build() {
-    NavDestination() {
+    HdsNavDestination() {
       Column() {
         // 邮箱输入框
         TextInput({
@@ -304,7 +305,14 @@ export struct LoginPage {
       .height('100%')
       .padding(24)
     }
-    .title('登录')
+    .titleBar({
+      content: {
+        title: {
+          mainTitle: '登录'
+        }
+      },
+      enableComponentSafeArea: true
+    })
     .hideBackButton(true)
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;

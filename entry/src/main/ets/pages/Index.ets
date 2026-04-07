@@ -12,6 +12,7 @@ import { EntryRouter } from '../../../../EntryRouter';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
 import { Logger } from '@nzy/logger';
 import { IBestToast } from '@ibestservices/ibest-ui';
+import { HdsNavigation } from '@kit.UIDesignKit';
 
 @CustomDialog
 struct PrivacyDialogContent {
@@ -114,7 +115,7 @@ struct Index {
   }
 
   build() {
-    Navigation(this.pathInfos) {
+    HdsNavigation(this.pathInfos) {
     }
     .width('100%')
     .mode(NavigationMode.Stack)

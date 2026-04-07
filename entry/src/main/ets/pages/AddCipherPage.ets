@@ -11,6 +11,7 @@ import {
   NEED_RELOAD_CIPHERS
 } from '../utils/Constants';
 import { AddCipherViewModel } from '../viewmodel/AddCipherViewModel';
+import { HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
 
 @Builder
 export function AddCipherPageBuilder() {
@@ -27,12 +28,14 @@ export struct AddCipherPage {
   @State totpSecret: string = '';
   allowSave: boolean = false;
   pathInfos: NavPathStack = new NavPathStack();
-  ConfirmBtn: NavigationMenuItem = {
-    'value': '',
-    'icon': 'resources/base/media/icon_confirm.svg',
-    isEnabled: true,
-    'action': () => {
-      this.saveCipher();
+  ConfirmBtn: HdsNavigationBadgeIconOptions = {
+    content: {
+      label: '确认',
+      icon: $r('app.media.icon_confirm'),
+      isEnabled: true,
+      action: () => {
+        this.saveCipher();
+      }
     }
   }
   itemTypeGroup: string = 'itemTypeSelector';
@@ -40,7 +43,7 @@ export struct AddCipherPage {
   cardBrandGroup: string = 'cardBrandSelector';
 
   build() {
-    NavDestination() {
+    HdsNavDestination() {
       Scroll() {
         Column() {
           Column() {
@@ -643,7 +646,17 @@ export struct AddCipherPage {
       }
       .scrollable(ScrollDirection.Vertical)
     }
-    .title('添加项目')
+    .titleBar({
+      content: {
+        title: {
+          mainTitle: '添加密码项'
+        },
+        menu: {
+          value: [this.ConfirmBtn]
+        }
+      },
+      enableComponentSafeArea: true
+    })
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
       const param = ctx.pathInfo.param as string;
@@ -651,7 +664,6 @@ export struct AddCipherPage {
         this.viewModel.symmetricKey = param;
       }
     })
-    .menus([this.ConfirmBtn])
     .onHidden(() => {
       DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
     })
