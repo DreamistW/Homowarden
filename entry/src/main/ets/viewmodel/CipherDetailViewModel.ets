@@ -232,6 +232,8 @@ export class CipherDetailViewModel {
       // 调用 API 更新
       const updatedCipher = await updateCipherApi(cipher.id, encryptedCipher);
       Logger.info(`Cipher ${cipher.id} updated successfully`);
+      // 将更新的密码项写入数据库
+      await DatabaseUtil.getInstance().updateCipherToDatabase(encryptedCipher);
       return updatedCipher;
     } catch (error) {
       Logger.error(`Failed to update cipher ${cipher.id}: ${error}`);

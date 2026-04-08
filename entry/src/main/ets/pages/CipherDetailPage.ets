@@ -235,6 +235,8 @@ export struct CipherDetailPage {
       this.isEditable = false;
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
       IBestToast.show(`保存成功`);
+      // 重新加载密码项
+      await this.loadCipherDetail();
     } catch (error) {
       Logger.error('Failed to save cipher:', error);
       IBestToast.show(`编辑失败, 错误信息: ${JSON.stringify(error)}`);
