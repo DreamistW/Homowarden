@@ -23,6 +23,8 @@ import { CipherItem } from '../component/CipherItem';
 import {
   HdsNavDestination, HdsNavigationBadgeIconOptions
 } from '@hms.hds.hdsBaseComponent';
+import { hdsMaterial } from '@kit.UIDesignKit';
+import { HdsMiniBarButton } from 'hds_button';
 
 @Builder
 export function VaultPageBuilder() {
@@ -184,97 +186,112 @@ export struct VaultPage {
 
   build() {
     HdsNavDestination() {
-      Column() {
-        // 搜索栏
-        Row() {
-          Column() {
-            IBestDropdownMenu({ groupId: this.groupId }) {
-              IBestDropdownItem({
-                groupId: this.groupId,
-                options: this.viewModel.filterOptions,
-                value: this.selectedType,
-                onChange: value => {
-                  this.viewModel.filterCiphers(value, this.searchText);
-                  this.selectedType = value;
-                }
-              })
-            }
-          }.width('30%')
+      Stack({ alignContent: Alignment.BottomEnd }) {
+        Column() {
+          // 搜索栏
+          Row() {
+            Column() {
+              IBestDropdownMenu({ groupId: this.groupId }) {
+                IBestDropdownItem({
+                  groupId: this.groupId,
+                  options: this.viewModel.filterOptions,
+                  value: this.selectedType,
+                  onChange: value => {
+                    this.viewModel.filterCiphers(value, this.searchText);
+                    this.selectedType = value;
+                  }
+                })
+              }
+            }.width('30%')
 
-          IBestField({
-            value: this.searchText,
-            placeholder: "搜索密码项...",
-            showLabel: false,
-            hasBorder: false,
-            clearable: true,
-            onChange: (value: IBestFieldValueType) => {
-              this.searchText = value as string;
-              this.viewModel.filterCiphers('all', this.searchText);
+            IBestField({
+              value: this.searchText,
+              placeholder: "搜索密码项...",
+              showLabel: false,
+              hasBorder: false,
+              clearable: true,
+              onChange: (value: IBestFieldValueType) => {
+                this.searchText = value as string;
+                this.viewModel.filterCiphers('all', this.searchText);
+              }
+            }).width('70%')
+              .borderRadius(0)
+              .layoutWeight(1)
+          }
+          .width('100%')
+          .padding({ left: 16, right: 16, bottom: 8 })
+
+          IBestPullRefresh({
+            loading: $isLoading,
+            scroller: this.listScroller,
+            defaultContent: () => this.listContent(),
+            onRefresh: () => this.loadCiphers(),
+            isEnableSlideUp: false
+          })
+
+          // 重新登录弹框
+          IBestDialog({
+            visible: this.needReLogin,
+            title: '重新登录',
+            showCancelButton: false,
+            closeOnClickOverlay: false,
+            defaultBuilder: (): void => this.reLoginDialogContent(),
+            onConfirm: () => {
+              DataPreferences.getInstance().putSync(LOGIN_STATUS_KEY, 0);
+              this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
+              return true;
             }
-          }).width('70%')
-            .borderRadius(0)
-            .layoutWeight(1)
+          })
+
+          // 主密码验证弹框
+          IBestDialog({
+            visible: this.showPasswordDialog,
+            title: '主密码验证',
+            showCancelButton: true,
+            closeOnClickOverlay: false,
+            defaultBuilder: (): void => this.passwordVerifyDialogContent(),
+            beforeClose: async (action) => {
+              if (action === 'cancel') {
+                return true;
+              }
+              const result = await this.verifyMasterPassword();
+              if (result) {
+                // 验证成功，导航到详情页
+                if (this.pendingCipher) {
+                  this.doNavigateToDetail(this.pendingCipher);
+                  this.pendingCipher = null;
+                }
+                return true;
+              } else {
+                return false;
+              }
+            }
+          })
+
+          // IBestFloatBubble({
+          //   show: this.showAddBtn,
+          //   icon: $r("app.media.icon_add"),
+          //   onBubbleClick: () => {
+          //     this.pathInfos.pushPath({ name: EntryRouter.AddCipherPage, param: this.viewModel.symmetricKey });
+          //   }
+          // })
         }
         .width('100%')
-        .padding({ left: 16, right: 16, bottom: 8 })
+        .height('100%')
 
-        IBestPullRefresh({
-          loading: $isLoading,
-          scroller: this.listScroller,
-          defaultContent: () => this.listContent(),
-          onRefresh: () => this.loadCiphers(),
-          isEnableSlideUp: false
-        })
-
-        // 重新登录弹框
-        IBestDialog({
-          visible: this.needReLogin,
-          title: '重新登录',
-          showCancelButton: false,
-          closeOnClickOverlay: false,
-          defaultBuilder: (): void => this.reLoginDialogContent(),
-          onConfirm: () => {
-            DataPreferences.getInstance().putSync(LOGIN_STATUS_KEY, 0);
-            this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
-            return true;
+        if (this.showAddBtn) {
+          HdsMiniBarButton({
+            onButtonClick: () => {
+              this.pathInfos.pushPath({ name: EntryRouter.AddCipherPage, param: this.viewModel.symmetricKey });
+            },
+            materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          }) {
+            Image($r('app.media.icon_add'))
+              .width(25)
+              .height(25)
           }
-        })
-
-        // 主密码验证弹框
-        IBestDialog({
-          visible: this.showPasswordDialog,
-          title: '主密码验证',
-          showCancelButton: true,
-          closeOnClickOverlay: false,
-          defaultBuilder: (): void => this.passwordVerifyDialogContent(),
-          beforeClose: async (action) => {
-            if (action === 'cancel') {
-              return true;
-            }
-            const result = await this.verifyMasterPassword();
-            if (result) {
-              // 验证成功，导航到详情页
-              if (this.pendingCipher) {
-                this.doNavigateToDetail(this.pendingCipher);
-                this.pendingCipher = null;
-              }
-              return true;
-            } else {
-              return false;
-            }
-          }
-        })
-
-        // IBestFloatBubble({
-        //   show: this.showAddBtn,
-        //   icon: $r("app.media.icon_add"),
-        //   onBubbleClick: () => {
-        //     this.pathInfos.pushPath({ name: EntryRouter.AddCipherPage, param: this.viewModel.symmetricKey });
-        //   }
-        // })
+        }
       }
-      .width('100%')
-      .height('100%')
     }
     .titleBar({
       content: {
@@ -282,11 +299,17 @@ export struct VaultPage {
           mainTitle: '密码库'
         },
         menu: {
-          value: [this.AddItemBtn, this.TotpCodeBtn, this.Sure2ShareBtn, this.SettingsBtn],
+          value: [this.TotpCodeBtn, this.Sure2ShareBtn, this.SettingsBtn],
           maxCount: 5
         }
       },
       enableComponentSafeArea: true,
+      style: {
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
+        }
+      }
     })
     .hideBackButton(true)
     .onReady((ctx: NavDestinationContext) => {

@@ -8,7 +8,7 @@ import { getShareLink } from '../utils/ParseLinkUtil';
 import { DataPreferences } from '@abner/datastore';
 import { AUTO_LOCK, BACKGROUND_TIMESTAMP } from '../utils/Constants';
 import { EntryRouter } from '../../../../EntryRouter';
-import { HdsNavDestination } from '@kit.UIDesignKit';
+import { hdsMaterial, HdsNavDestination } from '@kit.UIDesignKit';
 
 @Builder
 export function HistoryPageBuilder() {
@@ -198,7 +198,13 @@ struct History {
           mainTitle: '分享历史'
         }
       },
-      enableComponentSafeArea: true
+      enableComponentSafeArea: true,
+      style: {
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
+        }
+      }
     })
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;

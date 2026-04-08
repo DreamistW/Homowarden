@@ -6,6 +6,8 @@ import { EntryRouter } from '../../../../EntryRouter';
 import { common } from '@kit.AbilityKit';
 import { DataPreferences } from '@abner/datastore';
 import { HdsNavDestination } from '@hms.hds.hdsBaseComponent';
+import { HdsMiniBarButton } from 'hds_button';
+import { hdsMaterial } from '@kit.UIDesignKit';
 
 @Builder
 export function LoginPageBuilder() {
@@ -206,16 +208,31 @@ export struct LoginPage {
           .margin(12)
         }
 
-        // 登录按钮
-        Button(this.isLoading ? '登录中...' : '登录')
-          .onClick(() => {
-            if (!this.isLoading) {
-              this.handleLogin();
+        Column() {
+          // 登录按钮
+          if (!this.isLoading) {
+            HdsMiniBarButton({
+              onButtonClick: () => {
+                this.handleLogin();
+              },
+              materialType: hdsMaterial.MaterialType.ADAPTIVE,
+              barWidth: 150,
+              barHeight: 50
+            }) {
+              Text(this.isLoading ? '登录中...' : '登录')
+                .fontSize(18)
+                .fontColor(Color.White)
             }
-          })
-          .margin(12)
-          .stateEffect(!this.isLoading)
-          .enabled(!this.isLoading)
+          } else {
+            Button('登录中...')
+              .margin(14)
+              .stateEffect(!this.isLoading)
+              .enabled(false)
+              .width(150)
+              .height(50)
+              .borderRadius(75)
+          }
+        }
 
         // 显示错误信息
         if (this.viewModel.errorMessage) {

@@ -3,7 +3,7 @@ import { EntryRouter } from '../../../../EntryRouter';
 import { TotpListItem } from '../component/TotpListItem';
 import { TotpListViewModel } from '../viewmodel/TotpListViewModel';
 import { IBestDialog } from '@ibestservices/ibest-ui';
-import { HdsNavDestination } from '@kit.UIDesignKit';
+import { hdsMaterial, HdsNavDestination } from '@kit.UIDesignKit';
 
 @Builder
 export function TotpListPageBuilder() {
@@ -149,7 +149,13 @@ export struct TotpListPage {
       content: {
         title: { mainTitle: '验证码' }
       },
-      enableComponentSafeArea: true
+      enableComponentSafeArea: true,
+      style: {
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
+        }
+      }
     })
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;

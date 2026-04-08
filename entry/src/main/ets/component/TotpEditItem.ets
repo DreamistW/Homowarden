@@ -3,6 +3,8 @@ import { Logger } from '@nzy/logger';
 import { TOTPUtil } from '../utils/TOTPUtil';
 import { scanBarcode, scanCore } from '@kit.ScanKit';
 import { BusinessError } from '@kit.BasicServicesKit';
+import { HdsMiniBarButton } from 'hds_button';
+import { hdsMaterial } from '@kit.UIDesignKit';
 
 /**
  * TOTP密钥编辑组件
@@ -77,28 +79,58 @@ export struct TotpEditItem {
           .margin({ right: 8 })
           .focusable(false)
 
-        // 清除按钮（仅当有密钥时显示）
-        if (this.totpSecret && this.totpSecret.length > 0) {
-          Button() {
-            Image($r('app.media.icon_cancel'))
-              .width(18)
-          }
-          .backgroundColor(Color.Transparent)
-          .margin({ left: 8, right: 8 })
-          .onClick(() => {
-            this.totpSecret = '';
-            this.onSecretChange?.('');
-            IBestToast.show('密钥已清除');
-          })
-        }
+        Row() {
+          // 清除按钮（仅当有密钥时显示）
+          if (this.totpSecret && this.totpSecret.length > 0) {
+            HdsMiniBarButton({
+              onButtonClick: () => {
+                this.totpSecret = '';
+                this.onSecretChange?.('');
+                IBestToast.show('密钥已清除');
+              },
+              materialType: hdsMaterial.MaterialType.ADAPTIVE,
+              barWidth: 40,
+              barHeight: 40
+            }) {
+              Image($r('app.media.icon_cancel'))
+                .width(20)
+                .height(20)
+            }
 
-        Button() {
-          Image($r('app.media.icon_scan_barcode'))
-            .width(18)
+            // Button() {
+            //   Image($r('app.media.icon_cancel'))
+            //     .width(18)
+            // }
+            // .backgroundColor(Color.Transparent)
+            // .margin({ left: 8, right: 8 })
+            // .onClick(() => {
+            //   this.totpSecret = '';
+            //   this.onSecretChange?.('');
+            //   IBestToast.show('密钥已清除');
+            // })
+          }
+
+          HdsMiniBarButton({
+            onButtonClick: () => {
+              this.scanQRCode()
+            },
+            materialType: hdsMaterial.MaterialType.ADAPTIVE,
+            barWidth: 40,
+            barHeight: 40
+          }) {
+            Image($r('app.media.icon_scan_barcode'))
+              .width(20)
+              .height(20)
+          }
+
+          // Button() {
+          //   Image($r('app.media.icon_scan_barcode'))
+          //     .width(18)
+          // }
+          // .backgroundColor(Color.Transparent)
+          // .onClick(() => this.scanQRCode())
+          // .margin({ right: 8 })
         }
-        .backgroundColor(Color.Transparent)
-        .onClick(() => this.scanQRCode())
-        .margin({ right: 8 })
       }
       .width('100%')
     }

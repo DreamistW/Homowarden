@@ -2,6 +2,8 @@ import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
 import { IBestToast } from '@ibestservices/ibest-ui';
 import { Logger } from '@nzy/logger';
 import { common, Want } from '@kit.AbilityKit';
+import { HdsMiniBarButton } from 'hds_button';
+import { hdsMaterial } from '@kit.UIDesignKit';
 
 @Component
 export struct CipherDetailTextItem {
@@ -46,13 +48,28 @@ export struct CipherDetailTextItem {
           .type((this.showHideButton ? InputType.Password : InputType.Normal) |
             (this.isNumberOnly ? InputType.Number : InputType.Normal))
         if (this.isUri) {
-          Button() {
-            Image($r('app.media.icon_cancel'))
-              .width(18)
+          Column() {
+            HdsMiniBarButton({
+              onButtonClick: () => {
+                this.doClearUri();
+              },
+              materialType: hdsMaterial.MaterialType.ADAPTIVE,
+              barWidth: 40,
+              barHeight: 40
+            }) {
+              Image($r('app.media.icon_cancel'))
+                .width(20)
+                .height(20)
+            }
           }
-          .backgroundColor(Color.Transparent)
-          .onClick(() => this.doClearUri())
-          .margin({ right: 8 })
+
+          // Button() {
+          //   Image($r('app.media.icon_cancel'))
+          //     .width(18)
+          // }
+          // .backgroundColor(Color.Transparent)
+          // .onClick(() => this.doClearUri())
+          // .margin({ right: 8 })
         }
       } else {
         Text(this.content ? (this.showContent ? this.content : this.placeholder) : '')

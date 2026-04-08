@@ -11,7 +11,7 @@ import {
   NEED_RELOAD_CIPHERS
 } from '../utils/Constants';
 import { AddCipherViewModel } from '../viewmodel/AddCipherViewModel';
-import { HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
+import { hdsMaterial, HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
 
 @Builder
 export function AddCipherPageBuilder() {
@@ -655,7 +655,13 @@ export struct AddCipherPage {
           value: [this.ConfirmBtn]
         }
       },
-      enableComponentSafeArea: true
+      enableComponentSafeArea: true,
+      style: {
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
+        }
+      }
     })
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;

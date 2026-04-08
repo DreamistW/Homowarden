@@ -17,6 +17,8 @@ import { clearAssetAndPreferences, queryAssetSync } from '../utils/AssetUtil';
 import { PreloginResponse } from '../model/Prelogin';
 import { CryptoUtil } from '../utils/CryptoUtil';
 import { HdsNavDestination } from '@hms.hds.hdsBaseComponent';
+import { HdsMiniBarButton } from 'hds_button';
+import { hdsMaterial } from '@kit.UIDesignKit';
 
 @Builder
 export function UnlockPageBuilder() {
@@ -58,8 +60,9 @@ export struct UnlockPage {
             left: 16,
             right: 16,
             top: 12,
-            bottom: 4
+            bottom: 12
           })
+
         TextInput({ text: this.masterPassword })
           .onChange((v: string) => {
             this.masterPassword = v;
@@ -67,59 +70,108 @@ export struct UnlockPage {
           .margin({ left: 16, right: 16, bottom: 24 })
           .type(InputType.Password)
 
-        // 密码解锁按钮
-        Button() {
-          Text('主密码解锁')
-            .fontSize(18)
-            .fontColor(Color.White)
+        // 按钮
+        Column() {
+          // 密码解锁
+          HdsMiniBarButton({
+            onButtonClick: () => {
+              this.startPasswordAuth();
+            },
+            materialType: hdsMaterial.MaterialType.ADAPTIVE,
+            barWidth: 150,
+            barHeight: 50
+          }) {
+            Text('主密码解锁')
+              .fontSize(18)
+              .fontColor(Color.White)
+          }
+
+          // 生物识别解锁
+          HdsMiniBarButton({
+            onButtonClick: () => {
+              if (DataPreferences.getInstance().getSync<number>(BIOMETRIC_AUTH) == 1) {
+                // 点击解锁按钮拉起生物认证
+                this.startBiometricAuth();
+              } else {
+                IBestToast.show('未开启生物识别');
+              }
+            },
+            materialType: hdsMaterial.MaterialType.ADAPTIVE,
+            barWidth: 150,
+            barHeight: 50
+          }) {
+            Text('生物识别解锁')
+              .fontSize(18)
+              .fontColor(Color.White)
+          }
+
+          // 注销
+          HdsMiniBarButton({
+            onButtonClick: () => {
+              clearAssetAndPreferences();
+              // 跳转到登录页面
+              this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
+            },
+            materialType: hdsMaterial.MaterialType.ADAPTIVE,
+            barWidth: 150,
+            barHeight: 50
+          }) {
+            Text('注销')
+              .fontSize(18)
+              .fontColor(Color.White)
+          }
         }
-        .width(200)
-        .height(50)
-        .backgroundColor('#007DFF')
-        .borderRadius(25)
-        .onClick(() => {
-          // 主密码解锁
-          this.startPasswordAuth();
-        })
-        .margin({ bottom: 24 })
+
+        // Button() {
+        //   Text('主密码解锁')
+        //     .fontSize(18)
+        //     .fontColor(Color.White)
+        // }
+        // .width(200)
+        // .height(50)
+        // .backgroundColor('#007DFF')
+        // .borderRadius(25)
+        // .onClick(() => {
+        //   // 主密码解锁
+        //   this.startPasswordAuth();
+        // })
+        // .margin({ bottom: 24 })
 
         // 生物解锁按钮
-        Button() {
-          Text('生物识别解锁')
-            .fontSize(18)
-            .fontColor(Color.White)
-        }
-        .width(200)
-        .height(50)
-        .backgroundColor('#007DFF')
-        .borderRadius(25)
-        .onClick(() => {
-          if (DataPreferences.getInstance().getSync<number>(BIOMETRIC_AUTH) == 1) {
-            // 点击解锁按钮拉起生物认证
-            this.startBiometricAuth();
-          } else {
-            IBestToast.show('未开启生物识别');
-          }
-        })
-        .margin({ bottom: 24 })
+        // Button() {
+        //   Text('生物识别解锁')
+        //     .fontSize(18)
+        //     .fontColor(Color.White)
+        // }
+        // .width(200)
+        // .height(50)
+        // .backgroundColor('#007DFF')
+        // .borderRadius(25)
+        // .onClick(() => {
+        //   if (DataPreferences.getInstance().getSync<number>(BIOMETRIC_AUTH) == 1) {
+        //     // 点击解锁按钮拉起生物认证
+        //     this.startBiometricAuth();
+        //   } else {
+        //     IBestToast.show('未开启生物识别');
+        //   }
+        // })
+        // .margin({ bottom: 24 })
 
         // 注销按钮
-        Button() {
-          Text('注销')
-            .fontSize(18)
-            .fontColor(Color.White)
-        }
-        .width(200)
-        .height(50)
-        .backgroundColor('#007DFF')
-        .borderRadius(25)
-        .onClick(() => {
-          clearAssetAndPreferences();
-          // 跳转到登录页面
-          this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
-        })
-
-        Blank()
+        // Button() {
+        //   Text('注销')
+        //     .fontSize(18)
+        //     .fontColor(Color.White)
+        // }
+        // .width(200)
+        // .height(50)
+        // .backgroundColor('#007DFF')
+        // .borderRadius(25)
+        // .onClick(() => {
+        //   clearAssetAndPreferences();
+        //   // 跳转到登录页面
+        //   this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
+        // })
       }
       .width('100%')
       .height('100%')

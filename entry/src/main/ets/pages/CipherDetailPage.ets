@@ -23,7 +23,8 @@ import {
 import { Logger } from '@nzy/logger';
 import { DataPreferences } from '@abner/datastore';
 import { EntryRouter } from '../../../../EntryRouter';
-import { HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
+import { hdsMaterial, HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
+import { HdsMiniBarButton } from 'hds_button';
 
 @Builder
 export function CipherDetailPageBuilder() {
@@ -128,9 +129,6 @@ export struct CipherDetailPage {
       icon: $r('app.media.icon_edit'),
       action: () => {
         this.isEditable = true;
-        if (this.cipher.type === CipherItemType.LOGIN && this.cipher.login) {
-          this.editUris = this.cipher.login.uris;
-        }
       }
     }
   }
@@ -196,6 +194,9 @@ export struct CipherDetailPage {
       const cipherDetail = await this.viewModel.getCipherDetail(this.cipher);
       if (cipherDetail) {
         this.cipher = cipherDetail;
+        if (this.cipher.type === CipherItemType.LOGIN && this.cipher.login) {
+          this.editUris = this.cipher.login.uris;
+        }
         // 初始化下拉菜单的选中值
         if (this.cipher.card?.brand) {
           this.selectedCardBrand = this.getCardBrandEnum(this.cipher.card.brand);
@@ -436,7 +437,13 @@ export struct CipherDetailPage {
             this.cipher.deletedDate ? [this.RestoreItemBtn, this.DeleteItemBtn] : [this.EditItemBtn, this.DeleteItemBtn]
         }
       },
-      enableComponentSafeArea: true
+      enableComponentSafeArea: true,
+      style: {
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
+        }
+      }
     })
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
@@ -498,7 +505,7 @@ export struct CipherDetailPage {
 
       // 网址
       if (this.cipher.login?.uris && this.cipher.login.uris.length > 0 && !this.isEditable) {
-        ForEach(this.cipher.login.uris as CipherUri[], (uri: CipherUri) => {
+        ForEach(this.editUris, (uri: CipherUri, index: number) => {
           CipherDetailTextItem({
             label: '网站',
             content: uri.uri,
@@ -524,19 +531,34 @@ export struct CipherDetailPage {
           })
         })
 
-        Button() {
-          Text('添加网站')
-            .fontSize(18)
-            .fontColor(Color.White)
+        Row() {
+          HdsMiniBarButton({
+            onButtonClick: () => {
+              this.addUriEdit();
+            },
+            materialType: hdsMaterial.MaterialType.ADAPTIVE,
+            barWidth: 150,
+            barHeight: 50
+          }) {
+            Text('添加网站')
+              .fontSize(18)
+              .fontColor(Color.White)
+          }
         }
-        .width(150)
-        .height(40)
-        .backgroundColor('#007DFF')
-        .borderRadius(25)
-        .margin({ top: 24, bottom: 24 })
-        .onClick(() => {
-          this.addUriEdit();
-        })
+
+        // Button() {
+        //   Text('添加网站')
+        //     .fontSize(18)
+        //     .fontColor(Color.White)
+        // }
+        // .width(150)
+        // .height(40)
+        // .backgroundColor('#007DFF')
+        // .borderRadius(25)
+        // .margin({ top: 24, bottom: 24 })
+        // .onClick(() => {
+        //   this.addUriEdit();
+        // })
       }
 
       // TOTP验证码显示（仅查看模式且有TOTP密钥时）

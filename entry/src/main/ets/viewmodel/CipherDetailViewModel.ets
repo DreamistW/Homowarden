@@ -444,6 +444,7 @@ export class CipherDetailViewModel {
         await this.deleteFromLocalDatabase(cipherId);
         Logger.info(`Cipher ${cipherId} deleted from local database`);
       } else {
+
         await moveCipherToRecycler(cipherId);
       }
     } catch (error) {

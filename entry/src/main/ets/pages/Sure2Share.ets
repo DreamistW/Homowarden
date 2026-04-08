@@ -10,7 +10,7 @@ import { EntryRouter } from '../../../../EntryRouter';
 import { Logger } from '@nzy/logger';
 import { IBestToast } from '@ibestservices/ibest-ui';
 import { ShareDatabaseUtil } from '../utils/ShareDatabaseUtil';
-import { HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
+import { hdsMaterial, HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
 
 @Builder
 export function Sure2SharePageBuilder() {
@@ -228,7 +228,13 @@ export struct Sure2SharePage {
         },
         menu: { value: [this.historyBtn] }
       },
-      enableComponentSafeArea: true
+      enableComponentSafeArea: true,
+      style: {
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
+        }
+      }
     })
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;

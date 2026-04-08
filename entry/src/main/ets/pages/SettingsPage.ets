@@ -10,7 +10,8 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { clearAssetAndPreferences, queryAssetSync } from '../utils/AssetUtil';
 import { Logger } from '@nzy/logger';
 import { IBestDialogUtil, IBestToast } from '@ibestservices/ibest-ui';
-import { HdsNavDestination } from '@kit.UIDesignKit';
+import { hdsMaterial, HdsNavDestination } from '@kit.UIDesignKit';
+import { HdsMiniBarButton } from 'hds_button';
 
 @Builder
 export function SettingsPageBuilder() {
@@ -191,21 +192,51 @@ export struct SettingsPage {
               .width('100%')
               .padding({ top: 12, bottom: 12 })
 
-              Text('卸载本应用前请务必注销登录, 切记')
-                .fontSize(12)
-                .fontColor('#666666')
+              Column() {
+                HdsMiniBarButton({
+                  onButtonClick: () => {
+                    this.lockVault();
+                  },
+                  materialType: hdsMaterial.MaterialType.ADAPTIVE,
+                  barWidth: 150,
+                  barHeight: 50
+                }) {
+                  Text('立即锁定')
+                    .fontSize(18)
+                    .fontColor(Color.White)
+                }
 
-              Button() {
-                Text('注销')
-                  .fontSize(16)
-                  .fontColor('#FF3B30')
+                Blank()
+
+                Text('卸载本应用前请务必注销登录, 切记')
+                  .fontSize(12)
+                  .fontColor('#666666')
+
+                HdsMiniBarButton({
+                  onButtonClick: () => {
+                    this.logout();
+                  },
+                  materialType: hdsMaterial.MaterialType.ADAPTIVE,
+                  barWidth: 150,
+                  barHeight: 50
+                }) {
+                  Text('注销')
+                    .fontSize(18)
+                    .fontColor(Color.White)
+                }
               }
-              .backgroundColor(Color.Transparent)
-              .width('100%')
-              .height(48)
-              .onClick(() => {
-                this.logout();
-              })
+
+              // Button() {
+              //   Text('注销')
+              //     .fontSize(16)
+              //     .fontColor('#FF3B30')
+              // }
+              // .backgroundColor(Color.Transparent)
+              // .width('100%')
+              // .height(48)
+              // .onClick(() => {
+              //   this.logout();
+              // })
             }
             .width('100%')
             .padding(16)
@@ -284,7 +315,13 @@ export struct SettingsPage {
           mainTitle: '设置'
         }
       },
-      enableComponentSafeArea: true
+      enableComponentSafeArea: true,
+      style: {
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
+        }
+      }
     })
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
@@ -440,5 +477,9 @@ export struct SettingsPage {
         this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
       }
     })
+  }
+
+  private lockVault() {
+    this.pathInfos.replacePath({ name: EntryRouter.UnlockPage });
   }
 } 
