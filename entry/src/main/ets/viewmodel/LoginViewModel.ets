@@ -237,8 +237,8 @@ export class LoginViewModel {
         this.needNewDevice = true;
         return false;
       }
-      Logger.error(`Login failed: ${error}`);
-      this.errorMessage = `登录失败, 请检查邮箱和密码`;
+      Logger.error(`Login failed: ${error?.response?.data?.message}`);
+      this.errorMessage = `登录失败, 错误信息: ${error?.response?.data?.message}`;
       return false;
     }
   }
