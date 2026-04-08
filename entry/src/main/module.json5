@@ -54,6 +54,9 @@
       },
       {
         "name": "ohos.permission.ACCESS_BIOMETRIC"
+      },
+      {
+        "name": "ohos.permission.DLP_GET_HIDE_STATUS"
       }
     ],
     "routerMap": "$profile:router_map"

@@ -13,6 +13,8 @@ import { DatabaseUtil } from '../utils/DatabaseUtil';
 import { Logger } from '@nzy/logger';
 import { IBestToast } from '@ibestservices/ibest-ui';
 import { HdsNavigation } from '@kit.UIDesignKit';
+import { window } from '@kit.ArkUI';
+import { dlpAntiPeep } from '@kit.DeviceSecurityKit';
 
 @CustomDialog
 struct PrivacyDialogContent {
@@ -71,10 +73,92 @@ struct PrivacyDialogContent {
 struct Index {
   pathInfos: NavPathStack = new NavPathStack();
   @State private showPrivacyDialog: boolean = true;
+  @State private showPrivacyMask: boolean = false;
+  @State private hasInitializedRoute: boolean = false;
+  private hasShownMask: boolean = false;
   private isLogin: boolean = false;
+  // 防窥状态变化回调
+  private onStatusChange = async (status: dlpAntiPeep.DlpAntiPeepStatus): Promise<void> => {
+    if (status === dlpAntiPeep.DlpAntiPeepStatus.PASS) { // 表示当前状态为无人窥视
+      Logger.info('DlpAntiPeepStatus is PASS.');
+    } else if (status === dlpAntiPeep.DlpAntiPeepStatus.HIDE) { // 表示有人在窥屏，应用可以进行隐私保护操作。
+      Logger.info('DlpAntiPeepStatus is HIDE.');
+      if (!this.hasShownMask) {
+        await this.setMaskLayer(); // 拉起系统蒙层
+      }
+    }
+  }
+
+  // 检查防窥保护开关并订阅通知
+  async aboutToAppear() {
+    try {
+      const isOpen = await dlpAntiPeep.isDlpAntiPeepSwitchOn();
+      if (isOpen) {
+        dlpAntiPeep.on('dlpAntiPeep', this.onStatusChange);
+      } else {
+        // 开关未开启，引导用户设置
+        const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+        const result = await dlpAntiPeep.requestAntiPeepOptions(context);
+        if (result === dlpAntiPeep.AntiPeepOptionsResult.SUCCESS ||
+          result === dlpAntiPeep.AntiPeepOptionsResult.ALREADY_ON) { // 表示防窥保护开关开启成功或已开启
+          dlpAntiPeep.on('dlpAntiPeep', this.onStatusChange);
+        }
+      }
+    } catch (error) {
+      Logger.error(`Failed to init DlpAntiPeep. Code: ${error.code}, message: ${error.message}`);
+    }
+  }
+
+  // 拉起系统蒙层
+  private async setMaskLayer(): Promise<void> {
+    try {
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      const windowClass = await window.getLastWindow(context);
+      const windowId = windowClass.getWindowProperties().id;
+      await dlpAntiPeep.setAntiPeepMaskLayer(windowId);
+      this.hasShownMask = true; // 避免窥视状态时频繁拉起蒙层
+    } catch (error) {
+      Logger.error(`Failed to set AntiPeep MaskLayer. Code: ${error.code}, message: ${error.message}`);
+    }
+  }
 
   aboutToDisappear(): void {
     this.privacyDialogController.close();
+    // 取消订阅防窥保护
+    try {
+      dlpAntiPeep.off('dlpAntiPeep', this.onStatusChange);
+    } catch (error) {
+      Logger.error(`Failed to off DlpAntiPeep. Code: ${error.code}, message: ${error.message}`);
+    }
+  }
+
+  onPageShow(): void {
+    Logger.info('Index onPageShow');
+    let windowStage = AppStorage.get('windowStage') as window.WindowStage;
+    windowStage.on('windowStageEvent', (data) => {
+      if (data === window.WindowStageEventType.PAUSED) {
+        this.showPrivacyMask = true;
+      } else {
+        this.showPrivacyMask = false;
+      }
+    })
+    this.hasShownMask = false;
+    this.getLoginStatus();
+    if (this.isLogin) {
+      const autoLockStatus = DataPreferences.getInstance().getSync<number>(AUTO_LOCK);
+      if (autoLockStatus == 1) {
+        const currentTime = Math.floor(Date.now() / 1000);
+        const backgroundTime = DataPreferences.getInstance().getSync<number>(BACKGROUND_TIMESTAMP);
+        if (currentTime - backgroundTime > 120) {
+          this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
+        }
+      }
+    }
+  }
+
+  onPageHide(): void {
+    Logger.info('Index onPageHide');
+    DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
   }
 
   privacyDialogController: CustomDialogController = new CustomDialogController({
@@ -114,34 +198,47 @@ struct Index {
     this.pathInfos.pushPath({ name: EntryRouter.LoginPage });
   }
 
+  private initAppEntry() {
+    if (!DataPreferences.getInstance().hasSync(SAVE_EMAIL)) {
+      DataPreferences.getInstance().putSync(SAVE_EMAIL, 0);
+    }
+    if (!DataPreferences.getInstance().hasSync(BIOMETRIC_AUTH)) {
+      DataPreferences.getInstance().putSync(BIOMETRIC_AUTH, 0);
+    }
+    if (!DataPreferences.getInstance().hasSync(AUTO_LOCK)) {
+      DataPreferences.getInstance().putSync(AUTO_LOCK, 0);
+    }
+    this.getLoginStatus();
+    this.getPrivacyStatus();
+    if (this.showPrivacyDialog) {
+      this.privacyDialogController.open();
+    } else {
+      this.getLoginStatus();
+      if (!this.isLogin) {
+        this.pathInfos.pushPath({ name: EntryRouter.LoginPage });
+      } else {
+        this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
+      }
+    }
+  }
+
   build() {
-    HdsNavigation(this.pathInfos) {
+    Stack() {
+      HdsNavigation(this.pathInfos) {
+      }
+      .width('100%')
+      .height('100%')
+      .mode(NavigationMode.Stack)
+      .onAppear(() => {
+        if (this.hasInitializedRoute) {
+          return;
+        }
+        this.hasInitializedRoute = true;
+        this.initAppEntry();
+      })
     }
     .width('100%')
-    .mode(NavigationMode.Stack)
-    .onAppear(() => {
-      if (!DataPreferences.getInstance().hasSync(SAVE_EMAIL)) {
-        DataPreferences.getInstance().putSync(SAVE_EMAIL, 0);
-      }
-      if (!DataPreferences.getInstance().hasSync(BIOMETRIC_AUTH)) {
-        DataPreferences.getInstance().putSync(BIOMETRIC_AUTH, 0);
-      }
-      if (!DataPreferences.getInstance().hasSync(AUTO_LOCK)) {
-        DataPreferences.getInstance().putSync(AUTO_LOCK, 0);
-      }
-      DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
-      this.getLoginStatus();
-      this.getPrivacyStatus();
-      if (this.showPrivacyDialog) {
-        this.privacyDialogController.open();
-      } else {
-        this.getLoginStatus();
-        if (!this.isLogin) {
-          this.pathInfos.pushPath({ name: EntryRouter.LoginPage });
-        } else {
-          this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
-        }
-      }
-    })
+    .height('100%')
+    .foregroundBlurStyle(this.showPrivacyMask ? BlurStyle.Thick : BlurStyle.NONE)
   }
 }

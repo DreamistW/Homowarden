@@ -670,19 +670,6 @@ export struct AddCipherPage {
         this.viewModel.symmetricKey = param;
       }
     })
-    .onHidden(() => {
-      DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
-    })
-    .onShown(() => {
-      const autoLockStatus = DataPreferences.getInstance().getSync<number>(AUTO_LOCK);
-      if (autoLockStatus == 1) {
-        const currentTime = Math.floor(Date.now() / 1000);
-        const backgroundTime = DataPreferences.getInstance().getSync<number>(BACKGROUND_TIMESTAMP);
-        if (currentTime - backgroundTime > 120) {
-          this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
-        }
-      }
-    })
   }
 
   private canSave() {

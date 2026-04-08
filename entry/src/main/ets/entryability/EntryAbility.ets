@@ -13,11 +13,10 @@ export default class EntryAbility extends UIAbility {
     this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
     DataPreferences.getInstance().init(this.context);
-    try{
+    try {
       DatabaseUtil.init(this.context);
       ShareDatabaseUtil.init(this.context);
-    }
-    catch (err) {
+    } catch (err) {
       console.error(`Failed to init database. Error: ${JSON.stringify(err)}`);
     }
   }
@@ -29,6 +28,8 @@ export default class EntryAbility extends UIAbility {
   onWindowStageCreate(windowStage: window.WindowStage): void {
     // Main window is created, set main page for this ability
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageCreate');
+
+    AppStorage.setOrCreate('windowStage', windowStage);
 
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {
