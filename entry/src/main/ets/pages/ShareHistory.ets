@@ -5,9 +5,6 @@ import { systemShare } from '@kit.ShareKit';
 import { uniformTypeDescriptor } from '@kit.ArkData';
 import { common } from '@kit.AbilityKit';
 import { getShareLink } from '../utils/ParseLinkUtil';
-import { DataPreferences } from '@abner/datastore';
-import { AUTO_LOCK, BACKGROUND_TIMESTAMP } from '../utils/Constants';
-import { EntryRouter } from '../../../../EntryRouter';
 import { hdsMaterial, HdsNavDestination } from '@kit.UIDesignKit';
 
 @Builder

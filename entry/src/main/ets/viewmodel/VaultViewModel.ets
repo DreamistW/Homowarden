@@ -43,12 +43,17 @@ export class VaultViewModel {
   /**
    * 加载所有密码项
    */
-  async loadCiphers(): Promise<boolean> {
+  async loadCiphers(forceSync: boolean = false): Promise<boolean> {
     try {
-      this.isLoading = true;
       this.errorMessage = '';
-      // 从服务器同步数据
-      await this.syncCiphersFromServer();
+
+      if (forceSync) {
+        this.isLoading = true;
+        // 从服务器同步数据
+        await this.syncCiphersFromServer();
+      }
+
+      await this.loadCiphersFromDatabase();
       return true;
     } catch (error) {
       Logger.error(`Failed to load ciphers: ${error}`);
@@ -93,17 +98,18 @@ export class VaultViewModel {
         this.errorMessage = '登录已过期，请重新登录';
         this.handleReLoginRequired();
       }
-    } finally {
-      // 从数据库加载并显示
-      this.symmetricKey = await this.getSymmetricKey();
-      const ciphersData = await DatabaseUtil.getInstance().queryAllData(DBTableName.MAIN);
-      this.allCiphers = await this.buildCiphersFromData(ciphersData);
-      this.filteredCiphers = this.allCiphers.filter(cipher => cipher.deletedDate == null);
-      this.stats = await this.getCipherTypeStats(ciphersData);
-      this.buildFilterOptions();
-
-      Logger.info(`Successfully synced ${this.allCiphers.length} ciphers from server`);
     }
+  }
+
+  private async loadCiphersFromDatabase() {
+    this.symmetricKey = await this.getSymmetricKey();
+    const ciphersData = await DatabaseUtil.getInstance().queryAllData(DBTableName.MAIN);
+    this.allCiphers = await this.buildCiphersFromData(ciphersData);
+    this.filteredCiphers = this.allCiphers.filter(cipher => cipher.deletedDate == null);
+    this.stats = await this.getCipherTypeStats(ciphersData);
+    this.buildFilterOptions();
+
+    Logger.info(`Loaded ${this.allCiphers.length} ciphers from database`);
   }
 
   /**
@@ -113,6 +119,22 @@ export class VaultViewModel {
     Logger.info('User needs to re-login');
     if (this.onReLoginRequired) {
       this.onReLoginRequired();
+    }
+  }
+
+  /**
+   * 后台同步数据：不显示全屏 loading
+   */
+  async syncCiphersInBackground(): Promise<boolean> {
+    try {
+      this.errorMessage = '';
+      await this.syncCiphersFromServer();
+      await this.loadCiphersFromDatabase();
+      Logger.info('Background sync completed');
+      return true;
+    } catch (error) {
+      Logger.error(`Background sync failed: ${error}`);
+      return false;
     }
   }
 
@@ -235,7 +257,7 @@ export class VaultViewModel {
 
         // 搜索用户名（如果是登录类型）
         if (cipher.login && cipher.login.username &&
-        cipher.login.username.toLowerCase().includes(searchLower)) {
+          cipher.login.username.toLowerCase().includes(searchLower)) {
           return true;
         }
 
@@ -255,7 +277,7 @@ export class VaultViewModel {
    * 刷新数据
    */
   async refresh(): Promise<void> {
-    await this.loadCiphers();
+    await this.loadCiphers(true);
   }
 
   /**

@@ -13,11 +13,7 @@ import {
 } from '@ibestservices/ibest-ui';
 import { DataPreferences } from '@abner/datastore';
 import {
-  AUTO_LOCK,
-  BACKGROUND_TIMESTAMP,
-  FilterType,
-  LOGIN_STATUS_KEY,
-  NEED_RELOAD_CIPHERS
+  FilterType, LOGIN_STATUS_KEY, NEED_RELOAD_CIPHERS
 } from '../utils/Constants';
 import { CipherItem } from '../component/CipherItem';
 import {
@@ -88,17 +84,62 @@ export struct VaultPage {
   groupId: string = 'filter_menu';
 
   async aboutToAppear() {
-    await this.loadCiphers();
+    await this.loadCiphersWithBackgroundSync();
   }
 
-  private async loadCiphers() {
+  private async loadCiphersWithBackgroundSync() {
     // 设置重新登录回调
     this.viewModel.onReLoginRequired = () => {
       this.needReLogin = true;
     };
 
-    const result = await this.viewModel.loadCiphers();
-    if (!result) {
+    // 第一步：先加载本地数据库
+    const localResult = await this.viewModel.loadCiphers(false);
+    if (!localResult) {
+      IBestToast.show(this.viewModel.errorMessage);
+    }
+
+    this.viewModel.filterCiphers(this.selectedType, this.searchText);
+
+    // 第二步：如果本地没数据，则直接强制同步
+    if (this.viewModel.allCiphers.length === 0) {
+      this.isLoading = true;
+      const syncResult = await this.viewModel.loadCiphers(true);
+      this.isLoading = false;
+      if (!syncResult && !this.needReLogin) {
+        IBestToast.show(this.viewModel.errorMessage);
+      }
+      this.viewModel.filterCiphers(this.selectedType, this.searchText);
+      return;
+    }
+
+    // 第三步：本地已有数据，则后台静默同步
+    void this.doBackgroundSync();
+  }
+
+  private async doBackgroundSync() {
+    const result = await this.viewModel.syncCiphersInBackground();
+
+    if (result) {
+      // 后台同步完成后，重新应用当前筛选条件
+      this.viewModel.filterCiphers(this.selectedType, this.searchText);
+    } else {
+      // 后台同步失败时，不影响已显示的本地数据
+      if (!this.needReLogin && this.viewModel.errorMessage) {
+        IBestToast.show('已显示本地数据，后台同步失败');
+      }
+    }
+  }
+
+  private async loadCiphers(forceSync: boolean = true) {
+    // 设置重新登录回调
+    this.viewModel.onReLoginRequired = () => {
+      this.needReLogin = true;
+    };
+
+    this.isLoading = true;
+    const result = await this.viewModel.loadCiphers(forceSync);
+    if (!result && !this.needReLogin) {
       IBestToast.show(this.viewModel.errorMessage);
     }
     this.viewModel.filterCiphers(this.selectedType, this.searchText);
@@ -225,7 +266,7 @@ export struct VaultPage {
             loading: $isLoading,
             scroller: this.listScroller,
             defaultContent: () => this.listContent(),
-            onRefresh: () => this.loadCiphers(),
+            onRefresh: () => this.loadCiphers(true),
             isEnableSlideUp: false
           })
 
@@ -316,9 +357,10 @@ export struct VaultPage {
       this.pathInfos = ctx.pathStack;
     })
     .onActive(async () => {
+      this.showAddBtn = true;
       const result = DataPreferences.getInstance().getSync<number>(NEED_RELOAD_CIPHERS);
       if (result == 1) {
-        await this.loadCiphers();
+        await this.loadCiphersWithBackgroundSync();
         DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 0);
       }
     })

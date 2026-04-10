@@ -1,7 +1,5 @@
 import { Cipher, CipherDetailParams, CipherField, CipherUri } from '../model/CipherModels';
 import {
-  AUTO_LOCK,
-  BACKGROUND_TIMESTAMP,
   CardBrandType,
   CipherFieldType,
   CipherItemType,
@@ -22,7 +20,6 @@ import {
 } from '@ibestservices/ibest-ui';
 import { Logger } from '@nzy/logger';
 import { DataPreferences } from '@abner/datastore';
-import { EntryRouter } from '../../../../EntryRouter';
 import { hdsMaterial, HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
 import { HdsMiniBarButton } from 'hds_button';
 
@@ -293,10 +290,26 @@ export struct CipherDetailPage {
         } else if (this.cipher && this.cipher.id) {
           Scroll() {
             Column() {
-              Text(this.cipher.name)
-                .fontSize(16)
-                .fontWeight(FontWeight.Bold)
-                .margin({ bottom: 8 })
+              // Text(this.cipher.name)
+              //   .fontSize(16)
+              //   .fontWeight(FontWeight.Bold)
+              //   .margin({ top: 8, bottom: 8 })
+
+              Row() {
+                // 项目名称
+                CipherDetailTextItem({
+                  label: '项目名称',
+                  content: this.cipher.name,
+                  isEditable: this.isEditable,
+                  showCopyButton: false,
+                  onValueChange: (value: string) => {
+                    this.cipher.name = value;
+                  }
+                })
+              }
+              .margin({ top: 8, bottom: 8 })
+              .width('100%')
+              .padding(16)
 
               // 登录信息
               if (this.cipher.type === CipherItemType.LOGIN && this.cipher.login) {

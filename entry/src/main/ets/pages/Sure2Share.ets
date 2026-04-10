@@ -4,8 +4,6 @@ import { relationalStore, uniformTypeDescriptor } from '@kit.ArkData';
 import { common } from '@kit.AbilityKit';
 import { inputMethod } from '@kit.IMEKit';
 import { getFullLink, getShareLink, replaceOutputText } from '../utils/ParseLinkUtil';
-import { DataPreferences } from '@abner/datastore';
-import { AUTO_LOCK, BACKGROUND_TIMESTAMP } from '../utils/Constants';
 import { EntryRouter } from '../../../../EntryRouter';
 import { Logger } from '@nzy/logger';
 import { IBestToast } from '@ibestservices/ibest-ui';

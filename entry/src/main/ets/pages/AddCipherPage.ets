@@ -1,10 +1,7 @@
 import { DataPreferences } from '@abner/datastore';
 import { IBestDropdownItem, IBestDropdownMenu, IBestRadio, IBestRadioGroup, IBestToast } from '@ibestservices/ibest-ui';
-import { EntryRouter } from '../../../../EntryRouter';
 import { TotpEditItem } from '../component/TotpEditItem';
 import {
-  AUTO_LOCK,
-  BACKGROUND_TIMESTAMP,
   CardBrandType,
   CipherItemType,
   IdentityTitleType,
@@ -100,7 +97,7 @@ export struct AddCipherPage {
           }
 
           // 名称
-          Text('名称')
+          Text('项目名称')
             .fontSize(14)
             .fontColor('#666666')
             .margin({

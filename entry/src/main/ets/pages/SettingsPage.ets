@@ -1,7 +1,7 @@
 import { DataPreferences } from '@abner/datastore/src/main/ets/preferences/DataPreferences';
 import { EntryRouter } from '../../../../EntryRouter';
 import {
-  AUTO_LOCK, BACKGROUND_TIMESTAMP, BIOMETRIC_AUTH, EMAIL_KEY
+  AUTO_LOCK, BIOMETRIC_AUTH, EMAIL_KEY
 } from '../utils/Constants';
 import { bundleManager, common, Want } from '@kit.AbilityKit';
 import { userAuth } from '@kit.UserAuthenticationKit';
