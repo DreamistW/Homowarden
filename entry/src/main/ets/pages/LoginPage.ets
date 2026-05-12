@@ -8,6 +8,7 @@ import { DataPreferences } from '@abner/datastore';
 import { HdsNavDestination } from '@hms.hds.hdsBaseComponent';
 import { HdsMiniBarButton } from 'hds_button';
 import { hdsMaterial } from '@kit.UIDesignKit';
+import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 
 @Builder
 export function LoginPageBuilder() {
@@ -275,7 +276,7 @@ export struct LoginPage {
             }
             this.isNeed2FA = false;
             this.updateUI();
-            this.navigateToVault();
+            await this.navigateToVault();
             return true;
           }
         })
@@ -305,7 +306,7 @@ export struct LoginPage {
             }
             this.isNeedNewDevice = false;
             this.updateUI();
-            this.navigateToVault();
+            await this.navigateToVault();
             return true;
           }
         })
@@ -370,7 +371,7 @@ export struct LoginPage {
       this.isNeedNewDevice = true;
     } else if (loginSuccess) {
       // 登录成功，跳转到密码库页面
-      this.navigateToVault();
+      await this.navigateToVault();
     }
     this.updateUI();
     this.isLoading = false;
@@ -378,7 +379,8 @@ export struct LoginPage {
   }
 
   // 跳转到密码库页面
-  private navigateToVault(): void {
+  private async navigateToVault(): Promise<void> {
+    await WindowPrivacyUtil.applyForCurrentState();
     this.pathInfos.replacePath({ name: EntryRouter.VaultPage });
   }
 

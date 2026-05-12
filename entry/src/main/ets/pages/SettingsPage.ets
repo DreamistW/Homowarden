@@ -12,6 +12,7 @@ import { Logger } from '@nzy/logger';
 import { IBestDialogUtil, IBestToast } from '@ibestservices/ibest-ui';
 import { hdsMaterial, HdsNavDestination } from '@kit.UIDesignKit';
 import { HdsMiniBarButton } from 'hds_button';
+import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 
 @Builder
 export function SettingsPageBuilder() {
@@ -22,6 +23,7 @@ export function SettingsPageBuilder() {
 export struct SettingsPage {
   @State autoLockEnabled: boolean = true;
   @State biometricEnabled: boolean = false;
+  @State screenCaptureProtectionEnabled: boolean = true;
   @State syncEnabled: boolean = true;
   pathInfos: NavPathStack = new NavPathStack();
   @State versionName: string = '1.0.0';
@@ -31,6 +33,7 @@ export struct SettingsPage {
     this.getVersionName();
     this.loadBiometricAuthStatus();
     this.loadAutoLockStatus();
+    this.loadScreenCaptureProtectionStatus();
     this.getEmail();
   }
 
@@ -116,6 +119,28 @@ export struct SettingsPage {
               .padding({ top: 12, bottom: 12 })
 
               Text('开启后, 应用置于后台两分钟会自动锁定密码库')
+                .fontSize(12)
+                .fontColor('#666666')
+
+              Row() {
+                Text('禁止截图和录屏')
+                  .fontSize(16)
+
+                Blank()
+
+                Toggle({ type: ToggleType.Switch, isOn: this.screenCaptureProtectionEnabled })
+                  .onChange(async (isOn: boolean) => {
+                    this.screenCaptureProtectionEnabled = isOn;
+                    const applied = await WindowPrivacyUtil.setScreenCaptureProtectionEnabled(isOn);
+                    if (!applied) {
+                      IBestToast.show('截图录屏保护设置失败');
+                    }
+                  })
+              }
+              .width('100%')
+              .padding({ top: 12, bottom: 12 })
+
+              Text('开启后, 登录态下所有页面会禁止截图和录屏')
                 .fontSize(12)
                 .fontColor('#666666')
             }
@@ -384,6 +409,10 @@ export struct SettingsPage {
     DataPreferences.getInstance().putSync(BIOMETRIC_AUTH, status ? 1 : 0);
   }
 
+  loadScreenCaptureProtectionStatus() {
+    this.screenCaptureProtectionEnabled = WindowPrivacyUtil.isScreenCaptureProtectionEnabled();
+  }
+
   // 发起生物识别认证
   startBiometricAuth() {
     try {
@@ -460,6 +489,7 @@ export struct SettingsPage {
       },
       onConfirm: () => {
         clearAssetAndPreferences();
+        void WindowPrivacyUtil.applyForCurrentState();
         // 跳转到登录页面
         this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
       }
@@ -469,4 +499,4 @@ export struct SettingsPage {
   private lockVault() {
     this.pathInfos.replacePath({ name: EntryRouter.UnlockPage });
   }
-} 
+}

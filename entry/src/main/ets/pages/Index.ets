@@ -5,6 +5,7 @@ import {
   BIOMETRIC_AUTH,
   LOGIN_STATUS_KEY,
   PRIVACY_AGREED_KEY,
+  SCREEN_CAPTURE_PROTECTION,
   SAVE_EMAIL
 } from '../utils/Constants';
 import { common, Want } from '@kit.AbilityKit';
@@ -15,6 +16,7 @@ import { IBestToast } from '@ibestservices/ibest-ui';
 import { HdsNavigation } from '@kit.UIDesignKit';
 import { window } from '@kit.ArkUI';
 import { dlpAntiPeep } from '@kit.DeviceSecurityKit';
+import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 
 @CustomDialog
 struct PrivacyDialogContent {
@@ -144,6 +146,7 @@ struct Index {
     })
     this.hasShownMask = false;
     this.getLoginStatus();
+    void WindowPrivacyUtil.applyForCurrentState();
     if (this.isLogin) {
       const autoLockStatus = DataPreferences.getInstance().getSync<number>(AUTO_LOCK);
       if (autoLockStatus == 1) {
@@ -208,7 +211,11 @@ struct Index {
     if (!DataPreferences.getInstance().hasSync(AUTO_LOCK)) {
       DataPreferences.getInstance().putSync(AUTO_LOCK, 0);
     }
+    if (!DataPreferences.getInstance().hasSync(SCREEN_CAPTURE_PROTECTION)) {
+      DataPreferences.getInstance().putSync(SCREEN_CAPTURE_PROTECTION, 1);
+    }
     this.getLoginStatus();
+    void WindowPrivacyUtil.applyForCurrentState();
     this.getPrivacyStatus();
     if (this.showPrivacyDialog) {
       this.privacyDialogController.open();

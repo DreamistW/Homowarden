@@ -77,6 +77,8 @@ export const BACKGROUND_TIMESTAMP = 'background_timestamp';
 
 export const AUTO_LOCK = 'auto_lock';
 
+export const SCREEN_CAPTURE_PROTECTION = 'screen_capture_protection';
+
 export enum GrantType {
   PASSWORD = 'password',
   REFRESH = 'refresh_token'

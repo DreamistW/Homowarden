@@ -5,6 +5,7 @@ import { IBestInit } from '@ibestservices/ibest-ui';
 import { DataPreferences } from '@abner/datastore';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
 import { ShareDatabaseUtil } from '../utils/ShareDatabaseUtil';
+import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 
 const DOMAIN = 0x0000;
 
@@ -30,6 +31,7 @@ export default class EntryAbility extends UIAbility {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageCreate');
 
     AppStorage.setOrCreate('windowStage', windowStage);
+    void WindowPrivacyUtil.applyForCurrentState();
 
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {

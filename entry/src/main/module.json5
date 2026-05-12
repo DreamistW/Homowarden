@@ -57,6 +57,9 @@
       },
       {
         "name": "ohos.permission.DLP_GET_HIDE_STATUS"
+      },
+      {
+        "name": "ohos.permission.PRIVACY_WINDOW"
       }
     ],
     "routerMap": "$profile:router_map"

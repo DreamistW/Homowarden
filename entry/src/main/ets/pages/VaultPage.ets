@@ -21,6 +21,7 @@ import {
 } from '@hms.hds.hdsBaseComponent';
 import { hdsMaterial } from '@kit.UIDesignKit';
 import { HdsMiniBarButton } from 'hds_button';
+import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 
 @Builder
 export function VaultPageBuilder() {
@@ -279,6 +280,7 @@ export struct VaultPage {
             defaultBuilder: (): void => this.reLoginDialogContent(),
             onConfirm: () => {
               DataPreferences.getInstance().putSync(LOGIN_STATUS_KEY, 0);
+              void WindowPrivacyUtil.applyForCurrentState();
               this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
               return true;
             }
@@ -415,4 +417,4 @@ export struct VaultPage {
       return false;
     }
   }
-} 
+}

@@ -19,6 +19,7 @@ import { CryptoUtil } from '../utils/CryptoUtil';
 import { HdsNavDestination } from '@hms.hds.hdsBaseComponent';
 import { HdsMiniBarButton } from 'hds_button';
 import { hdsMaterial } from '@kit.UIDesignKit';
+import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 
 @Builder
 export function UnlockPageBuilder() {
@@ -109,6 +110,7 @@ export struct UnlockPage {
           HdsMiniBarButton({
             onButtonClick: () => {
               clearAssetAndPreferences();
+              void WindowPrivacyUtil.applyForCurrentState();
               // 跳转到登录页面
               this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
             },
