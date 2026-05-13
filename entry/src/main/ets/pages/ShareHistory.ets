@@ -301,4 +301,3 @@ struct History {
     .height('100%')
   }
 }
-

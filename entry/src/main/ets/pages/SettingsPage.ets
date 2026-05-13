@@ -228,7 +228,7 @@ export struct SettingsPage {
                 }) {
                   Text('立即锁定')
                     .fontSize(18)
-                    .fontColor(Color.White)
+                    .fontColor($r('app.color.button_text_color'))
                 }
 
                 Blank()
@@ -247,7 +247,7 @@ export struct SettingsPage {
                 }) {
                   Text('注销')
                     .fontSize(18)
-                    .fontColor(Color.White)
+                    .fontColor($r('app.color.button_text_color'))
                 }
               }
 

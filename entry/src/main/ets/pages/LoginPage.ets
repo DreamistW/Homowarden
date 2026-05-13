@@ -222,7 +222,7 @@ export struct LoginPage {
             }) {
               Text(this.isLoading ? '登录中...' : '登录')
                 .fontSize(18)
-                .fontColor(Color.White)
+                .fontColor($r('app.color.button_text_color'))
             }
           } else {
             Button('登录中...')

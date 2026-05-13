@@ -135,6 +135,7 @@ export struct Sure2SharePage {
               // 粘贴按钮
               PasteButton()
                 .backgroundColor(Color.Transparent)
+                .fontColor($r('app.color.button_text_color'))
                 .onClick((event: ClickEvent, result: PasteButtonOnClickResult) => {
                   if (PasteButtonOnClickResult.SUCCESS === result) {
                     pasteboard.getSystemPasteboard()
@@ -166,7 +167,7 @@ export struct Sure2SharePage {
             }) {
               Text('转换')
                 .fontSize(16)
-                .fontColor(Color.White)
+                .fontColor($r('app.color.button_text_color'))
             }
           }
 
@@ -210,6 +211,7 @@ export struct Sure2SharePage {
                   }
                 ])
                 .backgroundColor(Color.Transparent)
+                .fontColor($r('app.color.button_text_color'))
                 .width('100%')
                 .height('100%')
             }
@@ -237,6 +239,7 @@ export struct Sure2SharePage {
                   }
                 ])
                 .backgroundColor(Color.Transparent)
+                .fontColor($r('app.color.button_text_color'))
                 .width('100%')
                 .height('100%')
             }

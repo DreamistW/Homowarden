@@ -84,7 +84,7 @@ export struct UnlockPage {
           }) {
             Text('主密码解锁')
               .fontSize(18)
-              .fontColor(Color.White)
+              .fontColor($r('app.color.button_text_color'))
           }
 
           // 生物识别解锁
@@ -103,7 +103,7 @@ export struct UnlockPage {
           }) {
             Text('生物识别解锁')
               .fontSize(18)
-              .fontColor(Color.White)
+              .fontColor($r('app.color.button_text_color'))
           }
 
           // 注销
@@ -120,7 +120,7 @@ export struct UnlockPage {
           }) {
             Text('注销')
               .fontSize(18)
-              .fontColor(Color.White)
+              .fontColor($r('app.color.button_text_color'))
           }
         }
 

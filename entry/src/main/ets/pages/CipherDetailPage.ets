@@ -542,7 +542,7 @@ export struct CipherDetailPage {
           }) {
             Text('添加网站')
               .fontSize(18)
-              .fontColor(Color.White)
+              .fontColor($r('app.color.button_text_color'))
           }
         }
 
@@ -1050,4 +1050,4 @@ export struct CipherDetailPage {
     }
     return returnStr;
   }
-} 
+}
