@@ -9,7 +9,7 @@ import { Logger } from '@nzy/logger';
 import { IBestToast } from '@ibestservices/ibest-ui';
 import { ShareDatabaseUtil } from '../utils/ShareDatabaseUtil';
 import { hdsMaterial, HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
-import { HdsMiniBarButton } from 'hds_button';
+import { AdaptiveMenuTextButton, AdaptivePasteButton, AdaptiveTextButton } from '../component/AdaptiveButton';
 
 @Builder
 export function Sure2SharePageBuilder() {
@@ -126,32 +126,29 @@ export struct Sure2SharePage {
               this.inputText = value;
             })
 
-          Row() {
-            HdsMiniBarButton({
-              materialType: hdsMaterial.MaterialType.ADAPTIVE,
-              barWidth: 150,
-              barHeight: 50
-            }) {
-              // 粘贴按钮
-              PasteButton()
-                .backgroundColor(Color.Transparent)
-                .fontColor($r('app.color.button_text_color'))
-                .onClick((event: ClickEvent, result: PasteButtonOnClickResult) => {
-                  if (PasteButtonOnClickResult.SUCCESS === result) {
-                    pasteboard.getSystemPasteboard()
-                      .getData(async (err: BusinessError, pasteData: pasteboard.PasteData) => {
-                        if (err) {
-                          Logger.error(`Failed to get paste data. Code is ${err.code}, message is ${err.message}.`);
-                          return;
-                        }
-                        this.inputText = pasteData.getPrimaryText();
-                        this.convertLink();
-                      })
-                  }
-                })
-            }
+          Row({ space: 0 }) {
+            AdaptivePasteButton({
+              barWidth: 144,
+              barHeight: 50,
+              fontSize: 16,
+              contentPadding: 6,
+              barBottomMargin: 0,
+              onPaste: (text: string) => {
+                this.inputText = text;
+                this.convertLink();
+              },
+              onPasteError: (err: BusinessError) => {
+                Logger.error(`Failed to get paste data. Code is ${err.code}, message is ${err.message}.`);
+              }
+            })
 
-            HdsMiniBarButton({
+            AdaptiveTextButton({
+              text: '转换',
+              barWidth: 144,
+              barHeight: 50,
+              fontSize: 16,
+              contentPadding: 6,
+              barBottomMargin: 0,
               onButtonClick: () => {
                 try {
                   inputMethod.getController().stopInputSession();
@@ -160,16 +157,11 @@ export struct Sure2SharePage {
                   return;
                 }
                 this.convertLink();
-              },
-              materialType: hdsMaterial.MaterialType.ADAPTIVE,
-              barWidth: 150,
-              barHeight: 50
-            }) {
-              Text('转换')
-                .fontSize(16)
-                .fontColor($r('app.color.button_text_color'))
-            }
+              }
+            })
           }
+          .width('100%')
+          .justifyContent(FlexAlign.Center)
 
           // 输出标题
           Text('转换后的链接')
@@ -187,63 +179,57 @@ export struct Sure2SharePage {
             .margin({ top: 12 })
             .focusable(false)
 
-          Row() {
-            HdsMiniBarButton({
-              materialType: hdsMaterial.MaterialType.ADAPTIVE,
-              barWidth: 150,
-              barHeight: 50
-            }) {
-              // 复制按钮
-              Button('复制')
-                .bindMenu([
-                  {
-                    value: '复制完整内容',
-                    action: () => {
-                      this.copyLink(this.outputText);
-                    }
-                  },
-                  {
-                    value: '仅复制链接',
-                    action: async () => {
-                      const link: string = await getShareLink(this.outputText);
-                      this.copyLink(link);
-                    }
+          Row({ space: 0 }) {
+            AdaptiveMenuTextButton({
+              text: '复制',
+              barWidth: 144,
+              barHeight: 50,
+              fontSize: 16,
+              contentPadding: 6,
+              barBottomMargin: 0,
+              menuItems: [
+                {
+                  value: '复制完整内容',
+                  action: () => {
+                    this.copyLink(this.outputText);
                   }
-                ])
-                .backgroundColor(Color.Transparent)
-                .fontColor($r('app.color.button_text_color'))
-                .width('100%')
-                .height('100%')
-            }
+                },
+                {
+                  value: '仅复制链接',
+                  action: async () => {
+                    const link: string = await getShareLink(this.outputText);
+                    this.copyLink(link);
+                  }
+                }
+              ]
+            })
 
-            HdsMiniBarButton({
-              materialType: hdsMaterial.MaterialType.ADAPTIVE,
-              barWidth: 150,
-              barHeight: 50
-            }) {
-              // 分享按钮
-              Button('分享')
-                .bindMenu([
-                  {
-                    value: '分享完整内容',
-                    action: () => {
-                      this.shareLink(this.outputText, false);
-                    }
-                  },
-                  {
-                    value: '仅分享链接',
-                    action: async () => {
-                      const link: string = await getShareLink(this.outputText);
-                      this.shareLink(link, true);
-                    }
+            AdaptiveMenuTextButton({
+              text: '分享',
+              barWidth: 144,
+              barHeight: 50,
+              fontSize: 16,
+              contentPadding: 6,
+              barBottomMargin: 0,
+              menuItems: [
+                {
+                  value: '分享完整内容',
+                  action: () => {
+                    this.shareLink(this.outputText, false);
                   }
-                ])
-                .backgroundColor(Color.Transparent)
-                .fontColor($r('app.color.button_text_color'))
-                .width('100%')
-                .height('100%')
-            }
+                },
+                {
+                  value: '仅分享链接',
+                  action: async () => {
+                    const link: string = await getShareLink(this.outputText);
+                    this.shareLink(link, true);
+                  }
+                }
+              ]
+            })
           }
+          .width('100%')
+          .justifyContent(FlexAlign.Center)
         }
         .padding(20)
         .width('100%')

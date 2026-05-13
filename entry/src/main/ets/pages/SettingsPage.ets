@@ -11,8 +11,8 @@ import { clearAssetAndPreferences, queryAssetSync } from '../utils/AssetUtil';
 import { Logger } from '@nzy/logger';
 import { IBestDialogUtil, IBestToast } from '@ibestservices/ibest-ui';
 import { hdsMaterial, HdsNavDestination } from '@kit.UIDesignKit';
-import { HdsMiniBarButton } from 'hds_button';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
+import { AdaptiveTextButton } from '../component/AdaptiveButton';
 
 @Builder
 export function SettingsPageBuilder() {
@@ -218,18 +218,15 @@ export struct SettingsPage {
               .padding({ top: 12, bottom: 12 })
 
               Column() {
-                HdsMiniBarButton({
+                AdaptiveTextButton({
+                  text: '立即锁定',
+                  barWidth: 150,
+                  barHeight: 50,
+                  fontSize: 18,
                   onButtonClick: () => {
                     this.lockVault();
-                  },
-                  materialType: hdsMaterial.MaterialType.ADAPTIVE,
-                  barWidth: 150,
-                  barHeight: 50
-                }) {
-                  Text('立即锁定')
-                    .fontSize(18)
-                    .fontColor($r('app.color.button_text_color'))
-                }
+                  }
+                })
 
                 Blank()
 
@@ -237,18 +234,15 @@ export struct SettingsPage {
                   .fontSize(12)
                   .fontColor('#666666')
 
-                HdsMiniBarButton({
+                AdaptiveTextButton({
+                  text: '注销',
+                  barWidth: 150,
+                  barHeight: 50,
+                  fontSize: 18,
                   onButtonClick: () => {
                     this.logout();
-                  },
-                  materialType: hdsMaterial.MaterialType.ADAPTIVE,
-                  barWidth: 150,
-                  barHeight: 50
-                }) {
-                  Text('注销')
-                    .fontSize(18)
-                    .fontColor($r('app.color.button_text_color'))
-                }
+                  }
+                })
               }
 
               // Button() {

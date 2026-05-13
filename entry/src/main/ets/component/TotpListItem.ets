@@ -3,8 +3,7 @@ import { Cipher } from '../model/CipherModels';
 import { TOTPUtil } from '../utils/TOTPUtil';
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
 import { Logger } from '@nzy/logger';
-import { HdsMiniBarButton } from 'hds_button';
-import { hdsMaterial } from '@kit.UIDesignKit';
+import { AdaptiveIconButton } from './AdaptiveButton';
 
 /**
  * TOTP验证码列表项组件
@@ -149,18 +148,19 @@ export struct TotpListItem {
 
           // 复制按钮
           Column() {
-            HdsMiniBarButton({
+            AdaptiveIconButton({
+              icon: $r('app.media.icon_copy'),
               barWidth: 40,
               barHeight: 40,
+              iconWidth: 20,
+              iconHeight: 20,
+              contentPadding: 6,
+              barBottomMargin: 0,
+              darkOffsetY: -6,
               onButtonClick: () => {
                 this.copyCode();
-              },
-              materialType: hdsMaterial.MaterialType.ADAPTIVE
-            }) {
-              Image($r('app.media.icon_copy'))
-                .width(20)
-                .height(20)
-            }
+              }
+            })
           }
 
           // Button() {

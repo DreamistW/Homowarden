@@ -17,9 +17,8 @@ import { clearAssetAndPreferences, queryAssetSync } from '../utils/AssetUtil';
 import { PreloginResponse } from '../model/Prelogin';
 import { CryptoUtil } from '../utils/CryptoUtil';
 import { HdsNavDestination } from '@hms.hds.hdsBaseComponent';
-import { HdsMiniBarButton } from 'hds_button';
-import { hdsMaterial } from '@kit.UIDesignKit';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
+import { AdaptiveTextButton } from '../component/AdaptiveButton';
 
 @Builder
 export function UnlockPageBuilder() {
@@ -72,23 +71,26 @@ export struct UnlockPage {
           .type(InputType.Password)
 
         // 按钮
-        Column() {
+        Column({ space: 6 }) {
           // 密码解锁
-          HdsMiniBarButton({
+          AdaptiveTextButton({
+            text: '主密码解锁',
+            barWidth: 150,
+            barHeight: 50,
+            fontSize: 18,
+            contentPadding: 6,
             onButtonClick: () => {
               this.startPasswordAuth();
-            },
-            materialType: hdsMaterial.MaterialType.ADAPTIVE,
-            barWidth: 150,
-            barHeight: 50
-          }) {
-            Text('主密码解锁')
-              .fontSize(18)
-              .fontColor($r('app.color.button_text_color'))
-          }
+            }
+          })
 
           // 生物识别解锁
-          HdsMiniBarButton({
+          AdaptiveTextButton({
+            text: '生物识别解锁',
+            barWidth: 150,
+            barHeight: 50,
+            fontSize: 18,
+            contentPadding: 6,
             onButtonClick: () => {
               if (DataPreferences.getInstance().getSync<number>(BIOMETRIC_AUTH) == 1) {
                 // 点击解锁按钮拉起生物认证
@@ -96,32 +98,23 @@ export struct UnlockPage {
               } else {
                 IBestToast.show('未开启生物识别');
               }
-            },
-            materialType: hdsMaterial.MaterialType.ADAPTIVE,
-            barWidth: 150,
-            barHeight: 50
-          }) {
-            Text('生物识别解锁')
-              .fontSize(18)
-              .fontColor($r('app.color.button_text_color'))
-          }
+            }
+          })
 
           // 注销
-          HdsMiniBarButton({
+          AdaptiveTextButton({
+            text: '注销',
+            barWidth: 150,
+            barHeight: 50,
+            fontSize: 18,
+            contentPadding: 6,
             onButtonClick: () => {
               clearAssetAndPreferences();
               void WindowPrivacyUtil.applyForCurrentState();
               // 跳转到登录页面
               this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
-            },
-            materialType: hdsMaterial.MaterialType.ADAPTIVE,
-            barWidth: 150,
-            barHeight: 50
-          }) {
-            Text('注销')
-              .fontSize(18)
-              .fontColor($r('app.color.button_text_color'))
-          }
+            }
+          })
         }
 
         // Button() {

@@ -20,8 +20,8 @@ import {
   HdsNavDestination, HdsNavigationBadgeIconOptions
 } from '@hms.hds.hdsBaseComponent';
 import { hdsMaterial } from '@kit.UIDesignKit';
-import { HdsMiniBarButton } from 'hds_button';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
+import { AdaptiveIconButton } from '../component/AdaptiveButton';
 
 @Builder
 export function VaultPageBuilder() {
@@ -323,16 +323,19 @@ export struct VaultPage {
         .height('100%')
 
         if (this.showAddBtn) {
-          HdsMiniBarButton({
-            onButtonClick: () => {
-              this.pathInfos.pushPath({ name: EntryRouter.AddCipherPage, param: this.viewModel.symmetricKey });
-            },
-            materialType: hdsMaterial.MaterialType.ADAPTIVE,
-          }) {
-            Image($r('app.media.icon_add'))
-              .width(25)
-              .height(25)
+          Column() {
+            AdaptiveIconButton({
+              icon: $r('app.media.icon_add'),
+              iconWidth: 25,
+              iconHeight: 25,
+              contentPadding: 16,
+              barBottomMargin: 0,
+              onButtonClick: () => {
+                this.pathInfos.pushPath({ name: EntryRouter.AddCipherPage, param: this.viewModel.symmetricKey });
+              }
+            })
           }
+          .margin({ right: 0, bottom: 0 })
         }
       }
       .width('100%')

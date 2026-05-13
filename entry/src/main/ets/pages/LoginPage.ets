@@ -6,9 +6,8 @@ import { EntryRouter } from '../../../../EntryRouter';
 import { common } from '@kit.AbilityKit';
 import { DataPreferences } from '@abner/datastore';
 import { HdsNavDestination } from '@hms.hds.hdsBaseComponent';
-import { HdsMiniBarButton } from 'hds_button';
-import { hdsMaterial } from '@kit.UIDesignKit';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
+import { AdaptiveTextButton } from '../component/AdaptiveButton';
 
 @Builder
 export function LoginPageBuilder() {
@@ -212,18 +211,15 @@ export struct LoginPage {
         Column() {
           // 登录按钮
           if (!this.isLoading) {
-            HdsMiniBarButton({
+            AdaptiveTextButton({
+              text: this.isLoading ? '登录中...' : '登录',
+              barWidth: 150,
+              barHeight: 50,
+              fontSize: 18,
               onButtonClick: () => {
                 this.handleLogin();
-              },
-              materialType: hdsMaterial.MaterialType.ADAPTIVE,
-              barWidth: 150,
-              barHeight: 50
-            }) {
-              Text(this.isLoading ? '登录中...' : '登录')
-                .fontSize(18)
-                .fontColor($r('app.color.button_text_color'))
-            }
+              }
+            })
           } else {
             Button('登录中...')
               .margin(14)

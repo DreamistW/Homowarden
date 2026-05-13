@@ -2,8 +2,7 @@ import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
 import { IBestToast } from '@ibestservices/ibest-ui';
 import { Logger } from '@nzy/logger';
 import { common, Want } from '@kit.AbilityKit';
-import { HdsMiniBarButton } from 'hds_button';
-import { hdsMaterial } from '@kit.UIDesignKit';
+import { AdaptiveIconButton } from './AdaptiveButton';
 
 @Component
 export struct CipherDetailTextItem {
@@ -49,18 +48,18 @@ export struct CipherDetailTextItem {
             (this.isNumberOnly ? InputType.Number : InputType.Normal))
         if (this.isUri) {
           Column() {
-            HdsMiniBarButton({
+            AdaptiveIconButton({
+              icon: $r('app.media.icon_cancel'),
+              barWidth: 40,
+              barHeight: 40,
+              iconWidth: 20,
+              iconHeight: 20,
+              contentPadding: 6,
+              barBottomMargin: 0,
               onButtonClick: () => {
                 this.doClearUri();
-              },
-              materialType: hdsMaterial.MaterialType.ADAPTIVE,
-              barWidth: 40,
-              barHeight: 40
-            }) {
-              Image($r('app.media.icon_cancel'))
-                .width(20)
-                .height(20)
-            }
+              }
+            })
           }
 
           // Button() {

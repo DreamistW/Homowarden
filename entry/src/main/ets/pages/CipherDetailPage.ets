@@ -21,7 +21,7 @@ import {
 import { Logger } from '@nzy/logger';
 import { DataPreferences } from '@abner/datastore';
 import { hdsMaterial, HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
-import { HdsMiniBarButton } from 'hds_button';
+import { AdaptiveTextButton } from '../component/AdaptiveButton';
 
 @Builder
 export function CipherDetailPageBuilder() {
@@ -532,18 +532,15 @@ export struct CipherDetailPage {
         })
 
         Row() {
-          HdsMiniBarButton({
+          AdaptiveTextButton({
+            text: '添加网站',
+            barWidth: 150,
+            barHeight: 50,
+            fontSize: 18,
             onButtonClick: () => {
               this.addUriEdit();
-            },
-            materialType: hdsMaterial.MaterialType.ADAPTIVE,
-            barWidth: 150,
-            barHeight: 50
-          }) {
-            Text('添加网站')
-              .fontSize(18)
-              .fontColor($r('app.color.button_text_color'))
-          }
+            }
+          })
         }
 
         // Button() {

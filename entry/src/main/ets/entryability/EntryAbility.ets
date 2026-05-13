@@ -1,4 +1,4 @@
-import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
+import { AbilityConstant, Configuration, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { IBestInit } from '@ibestservices/ibest-ui';
@@ -8,10 +8,12 @@ import { ShareDatabaseUtil } from '../utils/ShareDatabaseUtil';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 
 const DOMAIN = 0x0000;
+const APP_COLOR_MODE_KEY = 'appColorMode';
 
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
+    this.updateAppColorMode();
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
     DataPreferences.getInstance().init(this.context);
     try {
@@ -48,6 +50,10 @@ export default class EntryAbility extends UIAbility {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageDestroy');
   }
 
+  onConfigurationUpdate(newConfig: Configuration): void {
+    this.updateAppColorMode(newConfig);
+  }
+
   onForeground(): void {
     // Ability has brought to foreground
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onForeground');
@@ -56,5 +62,10 @@ export default class EntryAbility extends UIAbility {
   onBackground(): void {
     // Ability has back to background
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onBackground');
+  }
+
+  private updateAppColorMode(configuration?: Configuration): void {
+    const colorMode = configuration?.colorMode ?? this.context.resourceManager.getConfigurationSync().colorMode;
+    AppStorage.setOrCreate(APP_COLOR_MODE_KEY, colorMode);
   }
 }
