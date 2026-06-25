@@ -63,13 +63,15 @@ export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
 // 从配置文件中读取服务器地址
 export async function getServerConfig(): Promise<ServerConfig> {
   let serverConfig: ServerConfig = { serverType: ServerType.US, serverAddress: '' };
-  await DataPreferences.getInstance().getPromise<ServerType>(SERVER_TYPE_KEY).then((data) => {
+  await DataPreferences.getInstance().getPromise<ServerType>(SERVER_TYPE_KEY, ServerType.US).then((data) => {
     // Logger.info(`Server Type preference: ${data}`);
-    serverConfig.serverType = data;
+    if (data === ServerType.US || data === ServerType.EU || data === ServerType.SELF_HOSTED) {
+      serverConfig.serverType = data;
+    }
   })
-  await DataPreferences.getInstance().getPromise<string>(SERVER_ADDRESS_KEY).then((data) => {
+  await DataPreferences.getInstance().getPromise<string>(SERVER_ADDRESS_KEY, '').then((data) => {
     // Logger.info(`Server Address preference: ${data}`);
-    serverConfig.serverAddress = data;
+    serverConfig.serverAddress = data ?? '';
   })
   return serverConfig;
 }

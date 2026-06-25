@@ -77,20 +77,19 @@ export class CryptoUtil {
    */
   static async deriveKeyArgon2id(password: string, salt: string, iterations: number, memory: number,
     parallelism: number, keyLen: number = 32): Promise<string> {
-    let passwordBuffer = new util.TextEncoder().encodeInto(password.toLowerCase());
+    let passwordBuffer = new util.TextEncoder().encodeInto(password);
     let saltBuffer = new util.TextEncoder().encodeInto(salt.toLowerCase());
 
     const option: HashOption = {
       timeCost: iterations,
-      memoryCost: memory,
+      memoryCost: memory * 1024,
       parallelism: parallelism,
       hashLength: keyLen,
       argon2Type: 2, // Argon2id
       argon2Version: 19
     };
     const result = argon2Hash(passwordBuffer, saltBuffer, option);
-    // result.encoded为base64字符串
-    return result.encoded;
+    return new util.Base64Helper().encodeToStringSync(new Uint8Array(result.hash));
   }
 
   /**

@@ -57,7 +57,7 @@ export const TOKEN_EXPIRE_TIME_KEY = 'token_expire_timestamp';
 
 export const KDF_PARAM_KEY = 'kdf_param';
 
-export const Header_Client_Name = 'web';
+export const Header_Client_Name = 'mobile';
 
 export const Header_Client_Version = '2025.12.1';
 

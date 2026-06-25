@@ -33,6 +33,28 @@ import { AccessTokenRequest, AccessTokenResponse } from '../model/AccessToken';
 import { PreloginRequest, PreloginResponse } from '../model/Prelogin';
 import { SendEmailLoginRequest } from '../model/SendEmailLogin';
 
+interface LoginErrorModel {
+  Message?: string;
+  Object?: string;
+}
+
+interface LoginErrorResponseData {
+  error?: string;
+  error_description?: string;
+  message?: string;
+  ErrorModel?: LoginErrorModel;
+  TwoFactorProviders?: string;
+}
+
+interface LoginErrorResponse {
+  data?: LoginErrorResponseData;
+}
+
+interface LoginRequestError {
+  message?: string;
+  response?: LoginErrorResponse;
+}
+
 /**
  * 登录界面ViewModel
  */
@@ -107,7 +129,7 @@ export class LoginViewModel {
       return false;
     }
 
-    if (this.serverType === ServerType.SELF_HOSTED && !this.serverAddress.trim()) {
+    if (this.serverType === ServerType.SELF_HOSTED && !this.getNormalizedServerAddress()) {
       this.errorMessage = '请输入自托管服务器地址';
       return false;
     }
@@ -224,21 +246,24 @@ export class LoginViewModel {
       Logger.info('Login successful, tokens received');
       return true;
     } catch (error) {
+      const loginError = error as LoginRequestError;
+      const errorData = loginError.response?.data;
       // 检查是否为2FA错误
-      if (error?.response?.data?.error === 'invalid_grant' &&
-        error?.response?.data?.error_description === 'Two factor required.') {
+      if (errorData?.error === 'invalid_grant' &&
+        errorData?.error_description === 'Two factor required.') {
         // 提取2FA方式字段
-        this.twoFactorProvider = error?.response?.data?.TwoFactorProviders.includes("0") ? 0 : 1;
+        this.twoFactorProvider = errorData?.TwoFactorProviders?.includes("0") ? 0 : 1;
         this.needTwoFactor = true;
         return false;
       }
       // 检查是否需要新设备验证
-      if (error?.response?.data?.error === 'device_error') {
+      if (errorData?.error === 'device_error') {
         this.needNewDevice = true;
         return false;
       }
-      Logger.error(`Login failed: ${error?.response?.data?.message}`);
-      this.errorMessage = `登录失败, 错误信息: ${error?.response?.data?.message}`;
+      const errorMessage = this.extractLoginErrorMessage(loginError);
+      Logger.error(`Login failed: ${errorMessage}`);
+      this.errorMessage = `登录失败，错误信息：${errorMessage}`;
       return false;
     }
   }
@@ -265,8 +290,9 @@ export class LoginViewModel {
       Logger.info('Login successful, tokens received');
       return true;
     } catch (error) {
-      Logger.error(`Login failed: ${error}`);
-      this.errorMessage = '登录失败，请重试';
+      const errorMessage = this.extractLoginErrorMessage(error as LoginRequestError);
+      Logger.error(`Login with 2FA failed: ${errorMessage}`);
+      this.errorMessage = `登录失败，错误信息：${errorMessage}`;
       return false;
     }
   }
@@ -291,8 +317,9 @@ export class LoginViewModel {
       Logger.info('Login successful, tokens received');
       return true;
     } catch (error) {
-      Logger.error(`Login failed: ${error}`);
-      this.errorMessage = '登录失败，请重试';
+      const errorMessage = this.extractLoginErrorMessage(error as LoginRequestError);
+      Logger.error(`Login with new device failed: ${errorMessage}`);
+      this.errorMessage = `登录失败，错误信息：${errorMessage}`;
       return false;
     }
   }
@@ -309,7 +336,7 @@ export class LoginViewModel {
     }
 
     // 保存服务器配置
-    this.saveServerConfig();
+    await this.saveServerConfig();
 
     try {
       // 执行预登录
@@ -406,6 +433,24 @@ export class LoginViewModel {
     }
   }
 
+  private extractLoginErrorMessage(error: LoginRequestError): string {
+    const errorData = error.response?.data;
+    if (errorData?.error_description === 'invalid_username_or_password') {
+      return '用户名或密码不正确，请重试';
+    }
+
+    const serverMessage = errorData?.ErrorModel?.Message || errorData?.message || errorData?.error_description;
+    if (serverMessage && serverMessage.length > 0) {
+      return serverMessage;
+    }
+
+    if (error.message && error.message.length > 0) {
+      return error.message;
+    }
+
+    return '请检查邮箱、密码和服务器连接后重试';
+  }
+
   // 清除错误信息
   clearError(): void {
     this.errorMessage = '';
@@ -468,17 +513,27 @@ export class LoginViewModel {
 
   // 保存服务器配置
   private async saveServerConfig(): Promise<void> {
-    DataPreferences.getInstance().put(SERVER_TYPE_KEY, this.serverType, (isSuccess: boolean, error) => {
-      if (!isSuccess) {
-        Logger.error("failed to save server config, error message: " + error?.message);
-      }
-    })
-    DataPreferences.getInstance()
-      .put(SERVER_ADDRESS_KEY, this.serverAddress, (isSuccess: boolean, error) => {
-        if (!isSuccess) {
-          Logger.error("failed to save server config, error message: " + error?.message);
-        }
-      })
+    try {
+      const serverType = this.getValidServerType();
+      DataPreferences.getInstance().putSync(SERVER_TYPE_KEY, serverType);
+      DataPreferences.getInstance().putSync(SERVER_ADDRESS_KEY, this.getNormalizedServerAddress());
+    } catch (error) {
+      Logger.error("failed to save server config, error message: " + error);
+    }
+  }
+
+  private getValidServerType(): ServerType {
+    if (this.serverType === ServerType.US ||
+      this.serverType === ServerType.EU ||
+      this.serverType === ServerType.SELF_HOSTED) {
+      return this.serverType;
+    }
+
+    return ServerType.US;
+  }
+
+  private getNormalizedServerAddress(): string {
+    return this.serverAddress ? this.serverAddress.trim() : '';
   }
 
   // 读取服务器配置

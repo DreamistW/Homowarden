@@ -1,4 +1,4 @@
-import { createHttpClient, getServerConfig } from './HttpClient';
+import { createHttpClient } from './HttpClient';
 import { Cipher } from '../model/CipherModels';
 import { Logger } from '@nzy/logger';
 import { BusinessError } from '@kit.BasicServicesKit';
@@ -9,15 +9,13 @@ import {
   GrantType,
   Header_Client_Name,
   REFRESH_TOKEN_KEY,
-  SERVER_BASE_URL_EU,
-  SERVER_BASE_URL_US,
-  ServerType,
   TOKEN_EXPIRE_TIME_KEY
 } from '../utils/Constants';
 import { refreshToken } from './AuthApi';
 import { AxiosResponse } from '@ohos/axios';
 import { RefreshTokenRequest } from '../model/RefreshToken';
 import { asset } from '@kit.AssetStoreKit';
+import { getServerEndpoints } from './ServerEndpointResolver';
 
 /**
  * 密码库列表响应结构
@@ -78,14 +76,7 @@ async function getAccessToken(): Promise<string> {
  * 获取基础URL
  */
 async function getApiBaseUrl(): Promise<string> {
-  const serverConfig = await getServerConfig();
-  if (serverConfig.serverType == ServerType.US) {
-    return `https://api.${SERVER_BASE_URL_US}`;
-  } else if (serverConfig.serverType == ServerType.EU) {
-    return `https://api.${SERVER_BASE_URL_EU}`;
-  } else {
-    return `https://${serverConfig.serverAddress}/api`;
-  }
+  return (await getServerEndpoints()).apiBaseUrl;
 }
 
 /**
