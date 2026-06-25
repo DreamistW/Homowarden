@@ -22,7 +22,7 @@ import {
 import { hdsMaterial } from '@kit.UIDesignKit';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 import { AdaptiveIconButton } from '../component/AdaptiveButton';
-import { VaultChangeNotifier } from '../utils/VaultChangeNotifier';
+import { VaultChangeNotifier, VaultLocalChange, VaultLocalChangeType } from '../utils/VaultChangeNotifier';
 
 @Builder
 export function VaultPageBuilder() {
@@ -120,7 +120,10 @@ export struct VaultPage {
   }
 
   private async doBackgroundSync() {
-    const result = await this.viewModel.syncCiphersInBackground();
+    const changeRevision = VaultChangeNotifier.getChangeRevision();
+    const result = await this.viewModel.syncCiphersInBackground(() => {
+      return changeRevision === VaultChangeNotifier.getChangeRevision();
+    });
 
     if (result) {
       // 后台同步完成后，重新应用当前筛选条件
@@ -141,6 +144,22 @@ export struct VaultPage {
       IBestToast.show(this.viewModel.errorMessage);
     }
     void this.doBackgroundSync();
+  }
+
+  private async handleLocalVaultChange(change: VaultLocalChange | null): Promise<void> {
+    if (change?.type === VaultLocalChangeType.UPSERT && change.cipher) {
+      this.viewModel.applyLocalCipherChange(change.cipher, this.selectedType, this.searchText);
+      void this.reloadCiphersAfterLocalChange();
+      return;
+    }
+
+    if (change?.type === VaultLocalChangeType.DELETE && change.cipherId) {
+      this.viewModel.applyLocalCipherDeletion(change.cipherId, this.selectedType, this.searchText);
+      void this.reloadCiphersAfterLocalChange();
+      return;
+    }
+
+    await this.reloadCiphersAfterLocalChange();
   }
 
   private async loadCiphers(forceSync: boolean = true) {
@@ -379,13 +398,7 @@ export struct VaultPage {
       const result = DataPreferences.getInstance().getSync<number>(NEED_RELOAD_CIPHERS);
       if (result == 1) {
         DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 0);
-        const updatedCipher = VaultChangeNotifier.consumeUpdatedCipher();
-        if (updatedCipher) {
-          this.viewModel.applyLocalCipherChange(updatedCipher, this.selectedType, this.searchText);
-          void this.reloadCiphersAfterLocalChange();
-        } else {
-          await this.loadCiphersWithBackgroundSync();
-        }
+        await this.handleLocalVaultChange(VaultChangeNotifier.consumeChange());
       }
     })
     .onBackPressed(() => {

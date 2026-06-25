@@ -18,6 +18,7 @@ import {
   updateCipher as updateCipherApi
 } from '../network/CipherApi';
 import { DeviceUtil } from '../utils/DeviceUtil';
+import { relationalStore } from '@kit.ArkData';
 
 export class CipherDetailViewModel {
   symmetricKey: string = '';
@@ -523,26 +524,37 @@ export class CipherDetailViewModel {
 
   /**
    * 删除密码项
-   * @param cipherId 要删除的密码项ID
+   * @param cipher 要删除的密码项
    */
-  async deleteCipher(cipherId: string, isRealDelete: boolean): Promise<void> {
+  async deleteCipher(cipher: Cipher, isRealDelete: boolean): Promise<Cipher | null> {
     try {
       // 确认是否彻底删除
       if (isRealDelete) {
-        await deleteCipher(cipherId);
-        Logger.info(`Cipher ${cipherId} deleted successfully from server`);
+        await deleteCipher(cipher.id);
+        Logger.info(`Cipher ${cipher.id} deleted successfully from server`);
 
         // 从本地数据库删除
-        await this.deleteFromLocalDatabase(cipherId);
-        Logger.info(`Cipher ${cipherId} deleted from local database`);
-      } else {
-
-        await moveCipherToRecycler(cipherId);
+        await this.deleteFromLocalDatabase(cipher.id);
+        Logger.info(`Cipher ${cipher.id} deleted from local database`);
+        return null;
       }
+
+      await moveCipherToRecycler(cipher.id);
+      const deletedDate = DeviceUtil.getISOTimestamp();
+      await this.updateSoftDeletedCipherInLocalDatabase(cipher.id, deletedDate);
+      cipher.deletedDate = this.formatDateTime(deletedDate);
+      return cipher;
     } catch (error) {
-      Logger.error(`Failed to delete cipher ${cipherId}: ${error}`);
+      Logger.error(`Failed to delete cipher ${cipher.id}: ${error}`);
       throw new Error(`Failed to delete cipher: ${error}`);
     }
+  }
+
+  private async updateSoftDeletedCipherInLocalDatabase(cipherId: string, deletedDate: string): Promise<void> {
+    const cipherData: relationalStore.ValuesBucket = {
+      deleted_date: deletedDate
+    };
+    await DatabaseUtil.getInstance().updateData(DBTableName.MAIN, cipherId, cipherData);
   }
 
   /**
@@ -611,10 +623,38 @@ export class CipherDetailViewModel {
       // 调用 API 还原
       const restoredCipher = await restoreCipher(cipher.id);
       Logger.info(`Cipher ${cipher.id} restored successfully`);
-      return restoredCipher;
+
+      await this.updateRestoredCipherInLocalDatabase(cipher.id, restoredCipher.revisionDate || null);
+      this.applyRestoredCipherMetadata(cipher, restoredCipher);
+      return cipher;
     } catch (error) {
       Logger.error(`Failed to restore cipher ${cipher.id}: ${error}`);
       throw new Error(`Failed to restore cipher: ${error}`);
     }
+  }
+
+  private async updateRestoredCipherInLocalDatabase(cipherId: string, revisionDate: string | null): Promise<void> {
+    const cipherData: relationalStore.ValuesBucket = {
+      deleted_date: null
+    };
+    if (revisionDate) {
+      cipherData.revision_date = revisionDate;
+    }
+    await DatabaseUtil.getInstance().updateData(DBTableName.MAIN, cipherId, cipherData);
+  }
+
+  private applyRestoredCipherMetadata(cipher: Cipher, restoredCipher: Cipher): void {
+    cipher.deletedDate = null;
+    if (restoredCipher.revisionDate) {
+      cipher.lastKnownRevisionDate = restoredCipher.revisionDate;
+      cipher.revisionDate = this.formatDateTime(restoredCipher.revisionDate);
+    }
+    if (restoredCipher.creationDate) {
+      cipher.creationDate = this.formatDateTime(restoredCipher.creationDate);
+    }
+    cipher.archivedDate = restoredCipher.archivedDate === undefined ? cipher.archivedDate || null : restoredCipher.archivedDate;
+    cipher.folderId = restoredCipher.folderId === undefined ? cipher.folderId : restoredCipher.folderId;
+    cipher.organizationId = restoredCipher.organizationId === undefined ? cipher.organizationId : restoredCipher.organizationId;
+    cipher.collectionIds = restoredCipher.collectionIds || cipher.collectionIds || [];
   }
 }

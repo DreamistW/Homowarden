@@ -67,11 +67,15 @@ export class VaultViewModel {
   /**
    * 从服务器同步密码项数据
    */
-  private async syncCiphersFromServer(): Promise<void> {
+  private async syncCiphersFromServer(shouldApplyResult?: () => boolean): Promise<boolean> {
     try {
       Logger.info('Starting to sync ciphers from server...');
 
       const response = await getAllCiphers();
+      if (shouldApplyResult && !shouldApplyResult()) {
+        Logger.info('Skip stale vault sync response');
+        return false;
+      }
 
       if (response && response.ciphers && Array.isArray(response.ciphers)) {
         Logger.info(`Received ${response.ciphers.length} ciphers from server`);
@@ -88,6 +92,7 @@ export class VaultViewModel {
           await DatabaseUtil.getInstance().saveCipherToDatabase(cipher);
         }
       }
+      return true;
     } catch (error) {
       const businessError = error as BusinessError;
       Logger.error(`Failed to sync ciphers from server: ${businessError.message}`);
@@ -98,6 +103,7 @@ export class VaultViewModel {
         this.errorMessage = '登录已过期，请重新登录';
         this.handleReLoginRequired();
       }
+      return false;
     }
   }
 
@@ -125,10 +131,21 @@ export class VaultViewModel {
   /**
    * 后台同步数据：不显示全屏 loading
    */
-  async syncCiphersInBackground(): Promise<boolean> {
+  async syncCiphersInBackground(shouldApplyResult?: () => boolean): Promise<boolean> {
     try {
       this.errorMessage = '';
-      await this.syncCiphersFromServer();
+      const didApplySync = await this.syncCiphersFromServer(shouldApplyResult);
+      if (!didApplySync) {
+        if (shouldApplyResult && !shouldApplyResult()) {
+          Logger.info('Background sync response was stale and ignored');
+          return true;
+        }
+        return false;
+      }
+      if (shouldApplyResult && !shouldApplyResult()) {
+        Logger.info('Skip stale vault reload after sync');
+        return true;
+      }
       await this.loadCiphersFromDatabase();
       Logger.info('Background sync completed');
       return true;
@@ -284,6 +301,17 @@ export class VaultViewModel {
     const ciphers = this.allCiphers.filter(item => item.id !== changedCipher.id);
     ciphers.push(changedCipher);
     this.allCiphers = this.sortCiphersByName(ciphers);
+    this.stats = this.getCipherTypeStatsFromCiphers(this.allCiphers);
+    this.buildFilterOptions();
+    this.filterCiphers(filterType, searchText);
+  }
+
+  applyLocalCipherDeletion(cipherId: string, filterType: FilterType | string, searchText: string): void {
+    if (!cipherId) {
+      return;
+    }
+
+    this.allCiphers = this.sortCiphersByName(this.allCiphers.filter(item => item.id !== cipherId));
     this.stats = this.getCipherTypeStatsFromCiphers(this.allCiphers);
     this.buildFilterOptions();
     this.filterCiphers(filterType, searchText);

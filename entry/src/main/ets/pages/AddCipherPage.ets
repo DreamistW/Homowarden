@@ -9,6 +9,7 @@ import {
 } from '../utils/Constants';
 import { AddCipherViewModel } from '../viewmodel/AddCipherViewModel';
 import { hdsMaterial, HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
+import { VaultChangeNotifier } from '../utils/VaultChangeNotifier';
 
 @Builder
 export function AddCipherPageBuilder() {
@@ -679,10 +680,12 @@ export struct AddCipherPage {
       return;
     }
     this.isSubmitting = true;
-    const ok = await this.viewModel.submitCreate();
+    VaultChangeNotifier.markLocalChangePending();
+    const createdCipher = await this.viewModel.submitCreate();
     this.isSubmitting = false;
-    if (ok) {
+    if (createdCipher) {
       IBestToast.show("创建成功");
+      VaultChangeNotifier.setUpdatedCipher(createdCipher);
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
       this.pathInfos.pop();
     }

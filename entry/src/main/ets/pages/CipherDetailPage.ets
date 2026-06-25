@@ -238,6 +238,7 @@ export struct CipherDetailPage {
       }
 
       // 调用 ViewModel 的 updateCipher 方法
+      VaultChangeNotifier.markLocalChangePending();
       this.cipher = await this.viewModel.updateCipher(this.cipher);
       VaultChangeNotifier.setUpdatedCipher(this.cipher);
       // 保存成功，退出编辑模式
@@ -284,8 +285,10 @@ export struct CipherDetailPage {
    */
   private async restoreCipher() {
     try {
-      await this.viewModel.restoreCipher(this.cipher);
-      this.cipher.deletedDate = null;
+      VaultChangeNotifier.markLocalChangePending();
+      this.cipher = await this.viewModel.restoreCipher(this.cipher);
+      VaultChangeNotifier.setUpdatedCipher(this.cipher);
+      DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
       // 显示成功提示
       IBestToast.show('还原成功');
     } catch (error) {
@@ -1051,13 +1054,19 @@ export struct CipherDetailPage {
    */
   private async doDeleteCipher(): Promise<boolean> {
     try {
-      await this.viewModel.deleteCipher(this.cipher.id, this.cipher.deletedDate ? true : false);
+      const isRealDelete = this.cipher.deletedDate ? true : false;
+      VaultChangeNotifier.markLocalChangePending();
+      const changedCipher = await this.viewModel.deleteCipher(this.cipher, isRealDelete);
       Logger.info(`Cipher ${this.cipher.id} deleted successfully`);
 
       // 显示成功提示
       IBestToast.show('删除成功');
 
-      VaultChangeNotifier.clearUpdatedCipher(this.cipher.id);
+      if (changedCipher) {
+        VaultChangeNotifier.setUpdatedCipher(changedCipher);
+      } else {
+        VaultChangeNotifier.setDeletedCipher(this.cipher.id);
+      }
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
 
       // 返回上一页
