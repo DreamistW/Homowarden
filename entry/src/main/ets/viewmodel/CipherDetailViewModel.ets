@@ -208,7 +208,8 @@ export class CipherDetailViewModel {
           fields.push({
             name: fieldName,
             value: fieldValue,
-            type: fieldData.type as CipherFieldType
+            type: fieldData.type as CipherFieldType,
+            linkedId: fieldData.linked_id == null ? null : fieldData.linked_id as number
           });
         }
       }
@@ -233,12 +234,85 @@ export class CipherDetailViewModel {
       const updatedCipher = await updateCipherApi(cipher.id, encryptedCipher);
       Logger.info(`Cipher ${cipher.id} updated successfully`);
       // 将更新的密码项写入数据库
-      await DatabaseUtil.getInstance().updateCipherToDatabase(encryptedCipher);
-      return updatedCipher;
+      const cipherForDatabase = this.buildUpdatedEncryptedCipher(encryptedCipher, updatedCipher);
+      await DatabaseUtil.getInstance().updateCipherToDatabase(cipherForDatabase);
+      this.applyUpdatedCipherMetadata(cipher, cipherForDatabase);
+      return cipher;
     } catch (error) {
       Logger.error(`Failed to update cipher ${cipher.id}: ${error}`);
       throw new Error(`Failed to update cipher: ${error}`);
     }
+  }
+
+  private buildUpdatedEncryptedCipher(encryptedCipher: Cipher, updatedCipher: Cipher): Cipher {
+    const revisionDate = updatedCipher.revisionDate || encryptedCipher.revisionDate;
+    const reprompt = updatedCipher.reprompt === undefined || updatedCipher.reprompt === null
+      ? encryptedCipher.reprompt
+      : updatedCipher.reprompt;
+
+    return {
+      id: updatedCipher.id || encryptedCipher.id,
+      type: updatedCipher.type || encryptedCipher.type,
+      name: updatedCipher.name || encryptedCipher.name,
+      favorite: updatedCipher.favorite === undefined ? encryptedCipher.favorite : updatedCipher.favorite,
+      edit: updatedCipher.edit === undefined ? encryptedCipher.edit : updatedCipher.edit,
+      folderId: updatedCipher.folderId === undefined ? encryptedCipher.folderId : updatedCipher.folderId,
+      organizationId: updatedCipher.organizationId === undefined ? encryptedCipher.organizationId : updatedCipher.organizationId,
+      creationDate: updatedCipher.creationDate || encryptedCipher.creationDate,
+      revisionDate: revisionDate,
+      lastKnownRevisionDate: revisionDate,
+      deletedDate: updatedCipher.deletedDate === undefined ? encryptedCipher.deletedDate : updatedCipher.deletedDate,
+      archivedDate: updatedCipher.archivedDate === undefined ? encryptedCipher.archivedDate || null : updatedCipher.archivedDate,
+      notes: updatedCipher.notes === undefined ? encryptedCipher.notes : updatedCipher.notes,
+      login: updatedCipher.login === undefined ? encryptedCipher.login : updatedCipher.login,
+      card: updatedCipher.card === undefined ? encryptedCipher.card : updatedCipher.card,
+      identity: updatedCipher.identity === undefined ? encryptedCipher.identity : updatedCipher.identity,
+      secureNote: updatedCipher.secureNote === undefined ? encryptedCipher.secureNote : updatedCipher.secureNote,
+      sshKey: updatedCipher.sshKey === undefined ? encryptedCipher.sshKey || null : updatedCipher.sshKey,
+      bankAccount: updatedCipher.bankAccount === undefined ? encryptedCipher.bankAccount || null : updatedCipher.bankAccount,
+      driversLicense: updatedCipher.driversLicense === undefined ? encryptedCipher.driversLicense || null :
+        updatedCipher.driversLicense,
+      passport: updatedCipher.passport === undefined ? encryptedCipher.passport || null : updatedCipher.passport,
+      fields: updatedCipher.fields === undefined ? encryptedCipher.fields || [] : updatedCipher.fields,
+      collectionIds: updatedCipher.collectionIds === undefined ? encryptedCipher.collectionIds || [] :
+        updatedCipher.collectionIds,
+      passwordHistory: updatedCipher.passwordHistory === undefined ? encryptedCipher.passwordHistory || null :
+        updatedCipher.passwordHistory,
+      attachments: updatedCipher.attachments === undefined ? encryptedCipher.attachments || null : updatedCipher.attachments,
+      attachments2: updatedCipher.attachments2 === undefined ? encryptedCipher.attachments2 || null :
+        updatedCipher.attachments2,
+      key: updatedCipher.key === undefined ? encryptedCipher.key || null : updatedCipher.key,
+      encryptedFor: updatedCipher.encryptedFor === undefined ? encryptedCipher.encryptedFor || null :
+        updatedCipher.encryptedFor,
+      reprompt: reprompt
+    };
+  }
+
+  private applyUpdatedCipherMetadata(cipher: Cipher, updatedCipher: Cipher): void {
+    cipher.lastKnownRevisionDate = updatedCipher.revisionDate;
+    cipher.revisionDate = this.formatDateTime(updatedCipher.revisionDate);
+    if (updatedCipher.creationDate) {
+      cipher.creationDate = this.formatDateTime(updatedCipher.creationDate);
+    }
+    cipher.deletedDate = updatedCipher.deletedDate ? this.formatDateTime(updatedCipher.deletedDate) : null;
+    cipher.archivedDate = updatedCipher.archivedDate || null;
+    cipher.folderId = updatedCipher.folderId;
+    cipher.organizationId = updatedCipher.organizationId;
+    cipher.collectionIds = updatedCipher.collectionIds || cipher.collectionIds || [];
+  }
+
+  private formatDateTime(dateStr: string): string {
+    if (!dateStr) {
+      return '---';
+    }
+    const date = new Date(dateStr);
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
   }
 
   /**
@@ -265,14 +339,25 @@ export class CipherDetailViewModel {
       organizationId: cipher.organizationId,
       creationDate: cipher.creationDate,
       revisionDate: timestamp,
+      lastKnownRevisionDate: cipher.lastKnownRevisionDate || cipher.revisionDate,
       deletedDate: cipher.deletedDate,
+      archivedDate: cipher.archivedDate || null,
       notes: encNotes,
       login: null,
       card: null,
       identity: null,
       secureNote: null,
+      sshKey: cipher.sshKey || null,
+      bankAccount: cipher.bankAccount || null,
+      driversLicense: cipher.driversLicense || null,
+      passport: cipher.passport || null,
       fields: cipher.fields || [],
       collectionIds: cipher.collectionIds || [],
+      passwordHistory: cipher.passwordHistory || null,
+      attachments: cipher.attachments || null,
+      attachments2: cipher.attachments2 || null,
+      key: cipher.key || null,
+      encryptedFor: cipher.encryptedFor || null,
       reprompt: cipher.reprompt
     };
 
@@ -315,11 +400,14 @@ export class CipherDetailViewModel {
     let encUris: CipherUri[] = [];
     if (login.uris && login.uris.length > 0) {
       encUris = await Promise.all(login.uris.map(async (uri) => {
-        const encUri = uri.uri ? await CryptoUtil.encryptField(uri.uri, this.symmetricKey) : '';
-        const encChecksum = uri.uriChecksum ? await CryptoUtil.encryptField(uri.uriChecksum, this.symmetricKey) : '';
+        const plainUri = uri.uri ? uri.uri.trim() : '';
+        const encUri = plainUri ? await CryptoUtil.encryptField(plainUri, this.symmetricKey) : '';
+        const sha256CheckSum = plainUri ? await CryptoUtil.doSha256(plainUri) : '';
+        const encChecksum = sha256CheckSum ? await CryptoUtil.encryptField(sha256CheckSum, this.symmetricKey) : '';
         const cipherUri: CipherUri = {
           uri: encUri,
-          uriChecksum: encChecksum
+          uriChecksum: encChecksum,
+          match: uri.match ?? null
         };
         return cipherUri;
       }));
@@ -330,7 +418,10 @@ export class CipherDetailViewModel {
       password: encPassword,
       passwordRevisionDate: login.passwordRevisionDate,
       totp: encTotp,
-      uris: encUris
+      uris: encUris,
+      uri: login.uri ? await CryptoUtil.encryptField(login.uri, this.symmetricKey) : null,
+      autofillOnPageLoad: login.autofillOnPageLoad ?? null,
+      fido2Credentials: login.fido2Credentials || null
     };
   }
 
@@ -423,7 +514,8 @@ export class CipherDetailViewModel {
       const cipherField: CipherField = {
         name: encName,
         value: encValue,
-        type: field.type
+        type: field.type,
+        linkedId: field.linkedId ?? null
       };
       return cipherField;
     }));
@@ -516,10 +608,8 @@ export class CipherDetailViewModel {
    */
   async restoreCipher(cipher: Cipher): Promise<Cipher> {
     try {
-      // 构建加密的密码项
-      const encryptedCipher = await this.buildEncryptedCipher(cipher);
       // 调用 API 还原
-      const restoredCipher = await restoreCipher(cipher.id, encryptedCipher);
+      const restoredCipher = await restoreCipher(cipher.id);
       Logger.info(`Cipher ${cipher.id} restored successfully`);
       return restoredCipher;
     } catch (error) {

@@ -22,6 +22,7 @@ import { Logger } from '@nzy/logger';
 import { DataPreferences } from '@abner/datastore';
 import { hdsMaterial, HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
 import { AdaptiveTextButton } from '../component/AdaptiveButton';
+import { VaultChangeNotifier } from '../utils/VaultChangeNotifier';
 
 @Builder
 export function CipherDetailPageBuilder() {
@@ -143,6 +144,9 @@ export struct CipherDetailPage {
       label: '确认',
       icon: $r('app.media.icon_confirm'),
       action: async () => {
+        if (this.isSaving) {
+          return;
+        }
         await this.saveCipher();
       }
     }
@@ -152,6 +156,9 @@ export struct CipherDetailPage {
       label: '取消',
       icon: $r('app.media.icon_cancel'),
       action: () => {
+        if (this.isSaving) {
+          return;
+        }
         this.isEditable = false;
         this.loadCipherDetail();
       }
@@ -219,6 +226,9 @@ export struct CipherDetailPage {
    * 保存密码项
    */
   private async saveCipher() {
+    if (this.isSaving) {
+      return;
+    }
     this.isSaving = true;
     try {
       if (this.cipher.type === CipherItemType.LOGIN && this.cipher.login) {
@@ -228,7 +238,8 @@ export struct CipherDetailPage {
       }
 
       // 调用 ViewModel 的 updateCipher 方法
-      await this.viewModel.updateCipher(this.cipher);
+      this.cipher = await this.viewModel.updateCipher(this.cipher);
+      VaultChangeNotifier.setUpdatedCipher(this.cipher);
       // 保存成功，退出编辑模式
       this.isEditable = false;
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
@@ -241,6 +252,31 @@ export struct CipherDetailPage {
     } finally {
       this.isSaving = false;
     }
+  }
+
+  private getConfirmEditBtn(): HdsNavigationBadgeIconOptions {
+    return {
+      content: {
+        label: this.isSaving ? '保存中' : '确认',
+        icon: $r('app.media.icon_confirm'),
+        action: async () => {
+          if (this.isSaving) {
+            return;
+          }
+          await this.saveCipher();
+        }
+      }
+    };
+  }
+
+  private getTitleMenu(): HdsNavigationBadgeIconOptions[] {
+    if (this.isEditable) {
+      return [this.CancelEditBtn, this.getConfirmEditBtn()];
+    }
+    if (this.cipher.deletedDate) {
+      return [this.RestoreItemBtn, this.DeleteItemBtn];
+    }
+    return [this.EditItemBtn, this.DeleteItemBtn];
   }
 
   /**
@@ -446,8 +482,7 @@ export struct CipherDetailPage {
           mainTitle: '详情'
         },
         menu: {
-          value: this.isEditable ? [this.CancelEditBtn, this.ConfirmEditBtn] :
-            this.cipher.deletedDate ? [this.RestoreItemBtn, this.DeleteItemBtn] : [this.EditItemBtn, this.DeleteItemBtn]
+          value: this.getTitleMenu()
         }
       },
       enableComponentSafeArea: true,
@@ -1022,6 +1057,7 @@ export struct CipherDetailPage {
       // 显示成功提示
       IBestToast.show('删除成功');
 
+      VaultChangeNotifier.clearUpdatedCipher(this.cipher.id);
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
 
       // 返回上一页

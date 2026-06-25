@@ -1,5 +1,10 @@
 import { createHttpClient } from './HttpClient';
-import { Cipher } from '../model/CipherModels';
+import {
+  Cipher,
+  CipherJsonRequest,
+  CreateCipherInOrganizationRequest,
+  VaultSyncResponse
+} from '../model/CipherModels';
 import { Logger } from '@nzy/logger';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { deleteAsset, queryAssetSync, updateAsset } from '../utils/AssetUtil';
@@ -16,15 +21,6 @@ import { AxiosResponse } from '@ohos/axios';
 import { RefreshTokenRequest } from '../model/RefreshToken';
 import { asset } from '@kit.AssetStoreKit';
 import { getServerEndpoints } from './ServerEndpointResolver';
-
-/**
- * 密码库列表响应结构
- */
-export interface CipherListResponse {
-  continuationToken: string | null; // 分页用token，通常为null
-  data: Cipher[]; // 密码项数组
-  object: string; // 类型标识，通常为"list"
-}
 
 /**
  * 获取access_token，支持分段拼接和过期自动刷新
@@ -80,21 +76,21 @@ async function getApiBaseUrl(): Promise<string> {
 }
 
 /**
- * 获取所有密码项
- * @returns CipherListResponse 结构
+ * 同步密码库数据
+ * @returns 官方 /sync 响应结构
  */
-export async function getAllCiphers(): Promise<CipherListResponse> {
+export async function getAllCiphers(): Promise<VaultSyncResponse> {
   const baseURL = await getApiBaseUrl();
   const client = createHttpClient(baseURL);
   const token = await getAccessToken();
-  return client.get('/ciphers', {
+  return client.get('/sync', {
     headers: {
       'Authorization': `Bearer ${token}`
     }
-  }).then((response: AxiosResponse<CipherListResponse>) => {
+  }).then((response: AxiosResponse<VaultSyncResponse>) => {
     return response.data;
   }).catch((error: BusinessError) => {
-    Logger.error('Failed to fetch ciphers: ' + error.message);
+    Logger.error('Failed to sync vault: ' + error.message);
     return Promise.reject(error);
   });
 }
@@ -129,7 +125,13 @@ export async function createCipher(cipher: Cipher): Promise<Cipher> {
   const baseURL = await getApiBaseUrl();
   const client = createHttpClient(baseURL);
   const token = await getAccessToken();
-  return client.post('/ciphers', cipher, {
+  const request = buildCipherJsonRequest(cipher, false);
+  const endpoint = cipher.organizationId ? '/ciphers/create' : '/ciphers';
+  const body: CipherJsonRequest | CreateCipherInOrganizationRequest = cipher.organizationId ? {
+    Cipher: request,
+    CollectionIds: cipher.collectionIds || []
+  } : request;
+  return client.post(endpoint, body, {
     headers: {
       'Authorization': `Bearer ${token}`
     }
@@ -151,7 +153,8 @@ export async function updateCipher(id: string, cipher: Cipher): Promise<Cipher> 
   const baseURL = await getApiBaseUrl();
   const client = createHttpClient(baseURL);
   const token = await getAccessToken();
-  return client.put(`/ciphers/${id}`, cipher, {
+  const request = buildCipherJsonRequest(cipher, true);
+  return client.put(`/ciphers/${id}`, request, {
     headers: {
       'Authorization': `Bearer ${token}`
     }
@@ -171,7 +174,7 @@ export async function moveCipherToRecycler(id: string): Promise<void> {
   const baseURL = await getApiBaseUrl();
   const client = createHttpClient(baseURL);
   const token = await getAccessToken();
-  return client.put(`/ciphers/${id}/delete`, id, {
+  return client.put(`/ciphers/${id}/delete`, undefined, {
     headers: {
       'Authorization': `Bearer ${token}`
     }
@@ -207,14 +210,13 @@ export async function deleteCipher(id: string): Promise<void> {
 /**
  * 还原密码项
  * @param id 密码项ID
- * @param cipher 密码项对象
  * @returns
  */
-export async function restoreCipher(id: string, cipher: Cipher): Promise<Cipher> {
+export async function restoreCipher(id: string): Promise<Cipher> {
   const baseURL = await getApiBaseUrl();
   const client = createHttpClient(baseURL);
   const token = await getAccessToken();
-  return client.put(`/ciphers/${id}/restore`, cipher, {
+  return client.put(`/ciphers/${id}/restore`, undefined, {
     headers: {
       'Authorization': `Bearer ${token}`
     }
@@ -224,4 +226,31 @@ export async function restoreCipher(id: string, cipher: Cipher): Promise<Cipher>
     Logger.error('Failed to update cipher item: ' + error.message);
     return Promise.reject(error);
   });
+}
+
+function buildCipherJsonRequest(cipher: Cipher, includeLastKnownRevisionDate: boolean): CipherJsonRequest {
+  return {
+    notes: cipher.notes,
+    attachments2: cipher.attachments2 || null,
+    reprompt: cipher.reprompt,
+    passwordHistory: cipher.passwordHistory || null,
+    lastKnownRevisionDate: includeLastKnownRevisionDate ? (cipher.lastKnownRevisionDate || cipher.revisionDate) : null,
+    type: cipher.type,
+    login: cipher.login,
+    secureNote: cipher.secureNote,
+    sshKey: cipher.sshKey || null,
+    bankAccount: cipher.bankAccount || null,
+    driversLicense: cipher.driversLicense || null,
+    passport: cipher.passport || null,
+    folderId: cipher.folderId,
+    organizationId: cipher.organizationId,
+    identity: cipher.identity,
+    name: cipher.name,
+    fields: cipher.fields || null,
+    favorite: cipher.favorite,
+    card: cipher.card,
+    key: cipher.key || null,
+    archivedDate: cipher.archivedDate || null,
+    encryptedFor: cipher.encryptedFor || null
+  };
 }

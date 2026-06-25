@@ -73,8 +73,8 @@ export class VaultViewModel {
 
       const response = await getAllCiphers();
 
-      if (response && response.data && Array.isArray(response.data)) {
-        Logger.info(`Received ${response.data.length} ciphers from server`);
+      if (response && response.ciphers && Array.isArray(response.ciphers)) {
+        Logger.info(`Received ${response.ciphers.length} ciphers from server`);
 
         // 启用数据库外键
         const enableForeignKeys = `PRAGMA foreign_keys = ON`;
@@ -84,7 +84,7 @@ export class VaultViewModel {
         await DatabaseUtil.getInstance().deleteAllData(DBTableName.MAIN);
 
         // 将服务器数据保存到数据库
-        for (const cipher of response.data) {
+        for (const cipher of response.ciphers) {
           await DatabaseUtil.getInstance().saveCipherToDatabase(cipher);
         }
       }
@@ -145,6 +145,7 @@ export class VaultViewModel {
     const ciphers: Cipher[] = [];
 
     for (const cipherData of ciphersData) {
+      const rawRevisionDate = cipherData.revision_date as string;
       const cipher: Cipher = {
         id: cipherData.id as string,
         type: cipherData.type as CipherItemType,
@@ -154,7 +155,8 @@ export class VaultViewModel {
         folderId: cipherData.folder_id as string || null,
         organizationId: cipherData.organization_id as string || null,
         creationDate: cipherData.creation_date as string,
-        revisionDate: cipherData.revision_date as string,
+        revisionDate: rawRevisionDate,
+        lastKnownRevisionDate: rawRevisionDate,
         deletedDate: cipherData.deleted_date as string || null,
         notes: cipherData.notes as string || null,
         reprompt: cipherData.reprompt as number,
@@ -273,6 +275,20 @@ export class VaultViewModel {
     this.filteredCiphers = filtered;
   }
 
+  applyLocalCipherChange(cipher: Cipher, filterType: FilterType | string, searchText: string): void {
+    if (!cipher || !cipher.id) {
+      return;
+    }
+
+    const changedCipher = this.buildListCipherFromPlainCipher(cipher);
+    const ciphers = this.allCiphers.filter(item => item.id !== changedCipher.id);
+    ciphers.push(changedCipher);
+    this.allCiphers = this.sortCiphersByName(ciphers);
+    this.stats = this.getCipherTypeStatsFromCiphers(this.allCiphers);
+    this.buildFilterOptions();
+    this.filterCiphers(filterType, searchText);
+  }
+
   /**
    * 刷新数据
    */
@@ -327,6 +343,113 @@ export class VaultViewModel {
       Promise.reject(error);
     }
     return stats;
+  }
+
+  private getCipherTypeStatsFromCiphers(ciphers: Cipher[]): CipherStats {
+    let stats: CipherStats = {
+      total: 0,
+      login: 0,
+      note: 0,
+      card: 0,
+      identity: 0,
+      favorite: 0,
+      deleted: 0
+    };
+
+    for (const cipher of ciphers) {
+      if (cipher.favorite) {
+        stats.favorite++;
+      }
+      if (cipher.deletedDate != null) {
+        stats.deleted++;
+        continue;
+      }
+      stats.total++;
+      switch (cipher.type) {
+        case CipherItemType.LOGIN:
+          stats.login++;
+          break;
+        case CipherItemType.NOTE:
+          stats.note++;
+          break;
+        case CipherItemType.CARD:
+          stats.card++;
+          break;
+        case CipherItemType.IDENTITY:
+          stats.identity++;
+          break;
+      }
+    }
+
+    return stats;
+  }
+
+  private buildListCipherFromPlainCipher(cipher: Cipher): Cipher {
+    return {
+      id: cipher.id,
+      type: cipher.type,
+      name: cipher.name,
+      favorite: cipher.favorite,
+      edit: cipher.edit,
+      viewPassword: cipher.viewPassword,
+      folderId: cipher.folderId,
+      organizationId: cipher.organizationId,
+      creationDate: cipher.creationDate,
+      revisionDate: cipher.revisionDate,
+      lastKnownRevisionDate: cipher.lastKnownRevisionDate,
+      deletedDate: cipher.deletedDate,
+      archivedDate: cipher.archivedDate || null,
+      notes: cipher.notes,
+      login: null,
+      card: null,
+      identity: null,
+      secureNote: null,
+      sshKey: null,
+      bankAccount: null,
+      driversLicense: null,
+      passport: null,
+      fields: [],
+      collectionIds: cipher.collectionIds || [],
+      passwordHistory: null,
+      attachments: null,
+      attachments2: null,
+      key: null,
+      encryptedFor: cipher.encryptedFor || null,
+      reprompt: cipher.reprompt,
+      subtitle: this.getPlainSubtitle(cipher)
+    };
+  }
+
+  private getPlainSubtitle(cipher: Cipher): string {
+    if (cipher.type == CipherItemType.LOGIN && cipher.login?.username) {
+      return cipher.login.username;
+    }
+    if (cipher.type == CipherItemType.CARD && cipher.card?.number) {
+      return cipher.card.number.length > 4 ? '*' + cipher.card.number.slice(-4) : cipher.card.number;
+    }
+    if (cipher.type == CipherItemType.IDENTITY) {
+      const firstName = cipher.identity?.firstName || '';
+      const lastName = cipher.identity?.lastName || '';
+      const fullName = `${firstName} ${lastName}`.trim();
+      return fullName || this.getTypeName(cipher);
+    }
+    return this.getTypeName(cipher);
+  }
+
+  private sortCiphersByName(ciphers: Cipher[]): Cipher[] {
+    ciphers.sort((a: Cipher, b: Cipher) => {
+      if (!a.name && !b.name) {
+        return 0;
+      }
+      if (!a.name) {
+        return 1;
+      }
+      if (!b.name) {
+        return -1;
+      }
+      return a.name.localeCompare(b.name, 'zh-CN');
+    });
+    return ciphers;
   }
 
   // 构建筛选选项

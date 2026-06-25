@@ -22,6 +22,7 @@ import {
 import { hdsMaterial } from '@kit.UIDesignKit';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 import { AdaptiveIconButton } from '../component/AdaptiveButton';
+import { VaultChangeNotifier } from '../utils/VaultChangeNotifier';
 
 @Builder
 export function VaultPageBuilder() {
@@ -130,6 +131,16 @@ export struct VaultPage {
         IBestToast.show('已显示本地数据，后台同步失败');
       }
     }
+  }
+
+  private async reloadCiphersAfterLocalChange() {
+    const localResult = await this.viewModel.loadCiphers(false);
+    if (localResult) {
+      this.viewModel.filterCiphers(this.selectedType, this.searchText);
+    } else {
+      IBestToast.show(this.viewModel.errorMessage);
+    }
+    void this.doBackgroundSync();
   }
 
   private async loadCiphers(forceSync: boolean = true) {
@@ -367,8 +378,14 @@ export struct VaultPage {
       this.showAddBtn = true;
       const result = DataPreferences.getInstance().getSync<number>(NEED_RELOAD_CIPHERS);
       if (result == 1) {
-        await this.loadCiphersWithBackgroundSync();
         DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 0);
+        const updatedCipher = VaultChangeNotifier.consumeUpdatedCipher();
+        if (updatedCipher) {
+          this.viewModel.applyLocalCipherChange(updatedCipher, this.selectedType, this.searchText);
+          void this.reloadCiphersAfterLocalChange();
+        } else {
+          await this.loadCiphersWithBackgroundSync();
+        }
       }
     })
     .onBackPressed(() => {
