@@ -688,6 +688,8 @@ export struct AddCipherPage {
       VaultChangeNotifier.setUpdatedCipher(createdCipher);
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
       this.pathInfos.pop();
+    } else if (this.viewModel.errorMessage && this.viewModel.errorMessage.length > 0) {
+      IBestToast.show(this.viewModel.errorMessage);
     }
   }
 }

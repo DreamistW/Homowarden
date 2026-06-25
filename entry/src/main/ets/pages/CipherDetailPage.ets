@@ -23,6 +23,7 @@ import { DataPreferences } from '@abner/datastore';
 import { hdsMaterial, HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
 import { AdaptiveTextButton } from '../component/AdaptiveButton';
 import { VaultChangeNotifier } from '../utils/VaultChangeNotifier';
+import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
 
 @Builder
 export function CipherDetailPageBuilder() {
@@ -249,7 +250,7 @@ export struct CipherDetailPage {
       await this.loadCipherDetail();
     } catch (error) {
       Logger.error('Failed to save cipher:', error);
-      IBestToast.show(`编辑失败, 错误信息: ${JSON.stringify(error)}`);
+      IBestToast.show(`编辑失败, 错误信息: ${ErrorMessageUtil.getMessage(error as Object)}`);
     } finally {
       this.isSaving = false;
     }
@@ -293,7 +294,7 @@ export struct CipherDetailPage {
       IBestToast.show('还原成功');
     } catch (error) {
       Logger.error('Failed to restore cipher:', error);
-      IBestToast.show(`还原失败, 错误信息: ${JSON.stringify(error)}`);
+      IBestToast.show(`还原失败, 错误信息: ${ErrorMessageUtil.getMessage(error as Object)}`);
     }
   }
 
@@ -1076,7 +1077,7 @@ export struct CipherDetailPage {
       Logger.error('Failed to delete cipher:', error);
 
       // 显示失败提示
-      IBestToast.show(`删除失败, 错误信息: ${JSON.stringify(error)}`);
+      IBestToast.show(`删除失败, 错误信息: ${ErrorMessageUtil.getMessage(error as Object)}`);
 
       this.showDeleteDialog = false;
       return false;

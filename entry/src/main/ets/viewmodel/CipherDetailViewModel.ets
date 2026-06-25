@@ -19,6 +19,7 @@ import {
 } from '../network/CipherApi';
 import { DeviceUtil } from '../utils/DeviceUtil';
 import { relationalStore } from '@kit.ArkData';
+import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
 
 export class CipherDetailViewModel {
   symmetricKey: string = '';
@@ -240,8 +241,9 @@ export class CipherDetailViewModel {
       this.applyUpdatedCipherMetadata(cipher, cipherForDatabase);
       return cipher;
     } catch (error) {
-      Logger.error(`Failed to update cipher ${cipher.id}: ${error}`);
-      throw new Error(`Failed to update cipher: ${error}`);
+      const errorMessage = ErrorMessageUtil.getMessage(error as Object);
+      Logger.error(`Failed to update cipher ${cipher.id}: ${errorMessage}`);
+      throw new Error(errorMessage);
     }
   }
 
@@ -545,8 +547,9 @@ export class CipherDetailViewModel {
       cipher.deletedDate = this.formatDateTime(deletedDate);
       return cipher;
     } catch (error) {
-      Logger.error(`Failed to delete cipher ${cipher.id}: ${error}`);
-      throw new Error(`Failed to delete cipher: ${error}`);
+      const errorMessage = ErrorMessageUtil.getMessage(error as Object);
+      Logger.error(`Failed to delete cipher ${cipher.id}: ${errorMessage}`);
+      throw new Error(errorMessage);
     }
   }
 
@@ -608,8 +611,9 @@ export class CipherDetailViewModel {
 
       Logger.info(`Local database cleanup completed for cipher ${cipherId}`);
     } catch (error) {
-      Logger.error(`Failed to delete from local database: ${error}`);
-      throw new Error(`Failed to delete cipher from local database: ${error}`);
+      const errorMessage = ErrorMessageUtil.getMessage(error as Object);
+      Logger.error(`Failed to delete from local database: ${errorMessage}`);
+      throw new Error(errorMessage);
     }
   }
 
@@ -628,8 +632,9 @@ export class CipherDetailViewModel {
       this.applyRestoredCipherMetadata(cipher, restoredCipher);
       return cipher;
     } catch (error) {
-      Logger.error(`Failed to restore cipher ${cipher.id}: ${error}`);
-      throw new Error(`Failed to restore cipher: ${error}`);
+      const errorMessage = ErrorMessageUtil.getMessage(error as Object);
+      Logger.error(`Failed to restore cipher ${cipher.id}: ${errorMessage}`);
+      throw new Error(errorMessage);
     }
   }
 

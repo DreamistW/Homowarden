@@ -5,6 +5,7 @@ import { createCipher } from '../network/CipherApi';
 import { DeviceUtil } from '../utils/DeviceUtil';
 import { IBestDropdownMenuOption } from '@ibestservices/ibest-ui';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
+import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
 
 export class AddCipherViewModel {
   type: CipherItemType = CipherItemType.LOGIN;
@@ -361,7 +362,7 @@ export class AddCipherViewModel {
       await DatabaseUtil.getInstance().saveCipherToDatabase(createdCipher);
       return this.buildCreatedPlainCipher(createdCipher);
     } catch (err) {
-      this.errorMessage = `创建失败, 错误信息: ${JSON.stringify(err)}`;
+      this.errorMessage = `创建失败, 错误信息: ${ErrorMessageUtil.getMessage(err as Object)}`;
       return null;
     } finally {
       this.submitting = false;
