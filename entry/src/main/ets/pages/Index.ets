@@ -15,8 +15,8 @@ import { Logger } from '@nzy/logger';
 import { IBestToast } from '@ibestservices/ibest-ui';
 import { HdsNavigation } from '@kit.UIDesignKit';
 import { window } from '@kit.ArkUI';
-import { dlpAntiPeep } from '@kit.DeviceSecurityKit';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
+import { AntiPeepUtil } from '../utils/AntiPeepUtil';
 
 @CustomDialog
 struct PrivacyDialogContent {
@@ -77,61 +77,17 @@ struct Index {
   @State private showPrivacyDialog: boolean = true;
   @State private showPrivacyMask: boolean = false;
   @State private hasInitializedRoute: boolean = false;
-  private hasShownMask: boolean = false;
   private isLogin: boolean = false;
-  // 防窥状态变化回调
-  private onStatusChange = async (status: dlpAntiPeep.DlpAntiPeepStatus): Promise<void> => {
-    if (status === dlpAntiPeep.DlpAntiPeepStatus.PASS) { // 表示当前状态为无人窥视
-      Logger.info('DlpAntiPeepStatus is PASS.');
-    } else if (status === dlpAntiPeep.DlpAntiPeepStatus.HIDE) { // 表示有人在窥屏，应用可以进行隐私保护操作。
-      Logger.info('DlpAntiPeepStatus is HIDE.');
-      if (!this.hasShownMask) {
-        await this.setMaskLayer(); // 拉起系统蒙层
-      }
-    }
-  }
 
   // 检查防窥保护开关并订阅通知
   async aboutToAppear() {
-    try {
-      const isOpen = await dlpAntiPeep.isDlpAntiPeepSwitchOn();
-      if (isOpen) {
-        dlpAntiPeep.on('dlpAntiPeep', this.onStatusChange);
-      } else {
-        // 开关未开启，引导用户设置
-        const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
-        const result = await dlpAntiPeep.requestAntiPeepOptions(context);
-        if (result === dlpAntiPeep.AntiPeepOptionsResult.SUCCESS ||
-          result === dlpAntiPeep.AntiPeepOptionsResult.ALREADY_ON) { // 表示防窥保护开关开启成功或已开启
-          dlpAntiPeep.on('dlpAntiPeep', this.onStatusChange);
-        }
-      }
-    } catch (error) {
-      Logger.error(`Failed to init DlpAntiPeep. Code: ${error.code}, message: ${error.message}`);
-    }
-  }
-
-  // 拉起系统蒙层
-  private async setMaskLayer(): Promise<void> {
-    try {
-      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
-      const windowClass = await window.getLastWindow(context);
-      const windowId = windowClass.getWindowProperties().id;
-      await dlpAntiPeep.setAntiPeepMaskLayer(windowId);
-      this.hasShownMask = true; // 避免窥视状态时频繁拉起蒙层
-    } catch (error) {
-      Logger.error(`Failed to set AntiPeep MaskLayer. Code: ${error.code}, message: ${error.message}`);
-    }
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    await AntiPeepUtil.initializeFromStartup(context);
   }
 
   aboutToDisappear(): void {
     this.privacyDialogController.close();
-    // 取消订阅防窥保护
-    try {
-      dlpAntiPeep.off('dlpAntiPeep', this.onStatusChange);
-    } catch (error) {
-      Logger.error(`Failed to off DlpAntiPeep. Code: ${error.code}, message: ${error.message}`);
-    }
+    AntiPeepUtil.dispose();
   }
 
   onPageShow(): void {
@@ -144,7 +100,7 @@ struct Index {
         this.showPrivacyMask = false;
       }
     })
-    this.hasShownMask = false;
+    AntiPeepUtil.resetMaskState();
     this.getLoginStatus();
     void WindowPrivacyUtil.applyForCurrentState();
     if (this.isLogin) {
@@ -214,6 +170,7 @@ struct Index {
     if (!DataPreferences.getInstance().hasSync(SCREEN_CAPTURE_PROTECTION)) {
       DataPreferences.getInstance().putSync(SCREEN_CAPTURE_PROTECTION, 1);
     }
+    AntiPeepUtil.ensureDefaults();
     this.getLoginStatus();
     void WindowPrivacyUtil.applyForCurrentState();
     this.getPrivacyStatus();

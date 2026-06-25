@@ -1,7 +1,14 @@
 import { DataPreferences } from '@abner/datastore/src/main/ets/preferences/DataPreferences';
 import { EntryRouter } from '../../../../EntryRouter';
 import {
-  AUTO_LOCK, BIOMETRIC_AUTH, EMAIL_KEY
+  AUTO_LOCK,
+  BIOMETRIC_AUTH,
+  EMAIL_KEY,
+  SERVER_ADDRESS_KEY,
+  SERVER_BASE_URL_EU,
+  SERVER_BASE_URL_US,
+  SERVER_TYPE_KEY,
+  ServerType
 } from '../utils/Constants';
 import { bundleManager, common, Want } from '@kit.AbilityKit';
 import { userAuth } from '@kit.UserAuthenticationKit';
@@ -13,6 +20,7 @@ import { IBestDialogUtil, IBestToast } from '@ibestservices/ibest-ui';
 import { hdsMaterial, HdsNavDestination } from '@kit.UIDesignKit';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 import { AdaptiveTextButton } from '../component/AdaptiveButton';
+import { AntiPeepUtil } from '../utils/AntiPeepUtil';
 
 @Builder
 export function SettingsPageBuilder() {
@@ -24,9 +32,11 @@ export struct SettingsPage {
   @State autoLockEnabled: boolean = true;
   @State biometricEnabled: boolean = false;
   @State screenCaptureProtectionEnabled: boolean = true;
+  @State antiPeepProtectionEnabled: boolean = false;
   @State syncEnabled: boolean = true;
   pathInfos: NavPathStack = new NavPathStack();
   @State versionName: string = '1.0.0';
+  @State serverAddressText: string = '';
   email: string = '';
 
   aboutToAppear() {
@@ -34,6 +44,8 @@ export struct SettingsPage {
     this.loadBiometricAuthStatus();
     this.loadAutoLockStatus();
     this.loadScreenCaptureProtectionStatus();
+    void this.loadAntiPeepProtectionStatus();
+    this.loadServerAddress();
     this.getEmail();
   }
 
@@ -143,6 +155,36 @@ export struct SettingsPage {
               Text('开启后, 登录态下所有页面会禁止截图和录屏')
                 .fontSize(12)
                 .fontColor('#666666')
+
+              Row() {
+                Text('防窥保护')
+                  .fontSize(16)
+
+                Blank()
+
+                Toggle({ type: ToggleType.Switch, isOn: this.antiPeepProtectionEnabled })
+                  .onChange(async (isOn: boolean) => {
+                    this.antiPeepProtectionEnabled = isOn;
+                    if (!isOn) {
+                      await AntiPeepUtil.setProtectionEnabled(false);
+                      this.antiPeepProtectionEnabled = false;
+                      return;
+                    }
+
+                    const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+                    const enabled = await AntiPeepUtil.setProtectionEnabled(true, context);
+                    this.antiPeepProtectionEnabled = enabled;
+                    if (!enabled) {
+                      IBestToast.show('防窥保护设置失败');
+                    }
+                  })
+              }
+              .width('100%')
+              .padding({ top: 12, bottom: 12 })
+
+              Text('开启后, 检测到窥屏风险时会拉起系统防窥蒙层')
+                .fontSize(12)
+                .fontColor('#666666')
             }
             .width('100%')
             .padding(16)
@@ -217,6 +259,21 @@ export struct SettingsPage {
               .width('100%')
               .padding({ top: 12, bottom: 12 })
 
+              Row() {
+                Text('服务器: ')
+                  .fontSize(16)
+
+                Blank()
+
+                Text(this.serverAddressText)
+                  .fontSize(16)
+                  .fontColor('#666666')
+                  .maxLines(1)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
+              }
+              .width('100%')
+              .padding({ top: 4, bottom: 12 })
+
               Column() {
                 AdaptiveTextButton({
                   text: '立即锁定',
@@ -244,6 +301,7 @@ export struct SettingsPage {
                   }
                 })
               }
+              .margin({ top: 20 })
 
               // Button() {
               //   Text('注销')
@@ -405,6 +463,41 @@ export struct SettingsPage {
 
   loadScreenCaptureProtectionStatus() {
     this.screenCaptureProtectionEnabled = WindowPrivacyUtil.isScreenCaptureProtectionEnabled();
+  }
+
+  async loadAntiPeepProtectionStatus() {
+    this.antiPeepProtectionEnabled = await AntiPeepUtil.isProtectionActive();
+  }
+
+  loadServerAddress() {
+    try {
+      const serverType = DataPreferences.getInstance().getSync<ServerType>(SERVER_TYPE_KEY);
+      const serverAddress = DataPreferences.getInstance().getSync<string>(SERVER_ADDRESS_KEY);
+      this.serverAddressText = this.getServerAddressText(serverType, serverAddress);
+    } catch (err) {
+      Logger.error(`Failed to load server address. Error: ${JSON.stringify(err)}`);
+      this.serverAddressText = SERVER_BASE_URL_US;
+    }
+  }
+
+  private getServerAddressText(serverType: ServerType, serverAddress: string): string {
+    if (serverType === ServerType.EU) {
+      return SERVER_BASE_URL_EU;
+    }
+
+    if (serverType === ServerType.SELF_HOSTED) {
+      const normalizedAddress = this.normalizeSelfHostedAddress(serverAddress);
+      return normalizedAddress.length > 0 ? normalizedAddress : '自托管服务器';
+    }
+
+    return SERVER_BASE_URL_US;
+  }
+
+  private normalizeSelfHostedAddress(serverAddress: string): string {
+    let value = serverAddress ? serverAddress.trim() : '';
+    value = value.replace(/^https?:\/\//i, '');
+    value = value.replace(/\/+$/g, '');
+    return value;
   }
 
   // 发起生物识别认证

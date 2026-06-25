@@ -36,6 +36,7 @@ export struct VaultPage {
   @State searchText: string = '';
   @State needReLogin: boolean = false;
   @State selectedType: FilterType | string = 0;
+  @State isInitialLoading: boolean = true;
   @State isLoading: boolean = false;
   @State showPasswordDialog: boolean = false;
   @State passwordInput: string = '';
@@ -95,28 +96,31 @@ export struct VaultPage {
       this.needReLogin = true;
     };
 
-    // 第一步：先加载本地数据库
-    const localResult = await this.viewModel.loadCiphers(false);
-    if (!localResult) {
-      IBestToast.show(this.viewModel.errorMessage);
-    }
-
-    this.viewModel.filterCiphers(this.selectedType, this.searchText);
-
-    // 第二步：如果本地没数据，则直接强制同步
-    if (this.viewModel.allCiphers.length === 0) {
-      this.isLoading = true;
-      const syncResult = await this.viewModel.loadCiphers(true);
-      this.isLoading = false;
-      if (!syncResult && !this.needReLogin) {
+    this.isInitialLoading = true;
+    try {
+      // 第一步：先加载本地数据库
+      const localResult = await this.viewModel.loadCiphers(false);
+      if (!localResult) {
         IBestToast.show(this.viewModel.errorMessage);
       }
-      this.viewModel.filterCiphers(this.selectedType, this.searchText);
-      return;
-    }
 
-    // 第三步：本地已有数据，则后台静默同步
-    void this.doBackgroundSync();
+      this.viewModel.filterCiphers(this.selectedType, this.searchText);
+
+      // 第二步：如果本地没数据，则直接强制同步，避免先显示空态再跳变为列表
+      if (this.viewModel.allCiphers.length === 0) {
+        const syncResult = await this.viewModel.loadCiphers(true);
+        if (!syncResult && !this.needReLogin) {
+          IBestToast.show(this.viewModel.errorMessage);
+        }
+        this.viewModel.filterCiphers(this.selectedType, this.searchText);
+        return;
+      }
+
+      // 第三步：本地已有数据，则后台静默同步
+      void this.doBackgroundSync();
+    } finally {
+      this.isInitialLoading = false;
+    }
   }
 
   private async doBackgroundSync() {
@@ -209,31 +213,41 @@ export struct VaultPage {
   }
 
   @Builder
+  loadingContent() {
+    Column() {
+      LoadingProgress()
+        .width(40)
+        .height(40)
+      Text('加载中...')
+        .fontSize(14)
+        .fontColor(Color.Gray)
+        .margin({ top: 8 })
+    }
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+  }
+
+  @Builder
+  emptyContent() {
+    Column() {
+      Text('无项目')
+        .fontSize(16)
+        .fontColor(Color.Gray)
+    }
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+  }
+
+  @Builder
   listContent() {
     Scroll(this.listScroller) {
       // 密码项列表
       if (this.viewModel.isLoading) {
-        Column() {
-          LoadingProgress()
-            .width(40)
-            .height(40)
-          Text('加载中...')
-            .fontSize(14)
-            .fontColor(Color.Gray)
-            .margin({ top: 8 })
-        }
-        .width('100%')
-        .height('100%')
-        .justifyContent(FlexAlign.Center)
+        this.loadingContent()
       } else if (this.viewModel.filteredCiphers.length === 0) {
-        Column() {
-          Text('暂无密码项')
-            .fontSize(16)
-            .fontColor(Color.Gray)
-        }
-        .width('100%')
-        .height('100%')
-        .justifyContent(FlexAlign.Center)
+        this.emptyContent()
       } else {
         List({ scroller: this.listScroller }) {
           ForEach(this.viewModel.filteredCiphers, (cipher: Cipher) => {
@@ -260,46 +274,50 @@ export struct VaultPage {
     HdsNavDestination() {
       Stack({ alignContent: Alignment.BottomEnd }) {
         Column() {
-          // 搜索栏
-          Row() {
-            Column() {
-              IBestDropdownMenu({ groupId: this.groupId }) {
-                IBestDropdownItem({
-                  groupId: this.groupId,
-                  options: this.viewModel.filterOptions,
-                  value: this.selectedType,
-                  onChange: value => {
-                    this.viewModel.filterCiphers(value, this.searchText);
-                    this.selectedType = value;
-                  }
-                })
-              }
-            }.width('30%')
+          if (this.isInitialLoading) {
+            this.loadingContent()
+          } else {
+            // 搜索栏
+            Row() {
+              Column() {
+                IBestDropdownMenu({ groupId: this.groupId }) {
+                  IBestDropdownItem({
+                    groupId: this.groupId,
+                    options: this.viewModel.filterOptions,
+                    value: this.selectedType,
+                    onChange: value => {
+                      this.viewModel.filterCiphers(value, this.searchText);
+                      this.selectedType = value;
+                    }
+                  })
+                }
+              }.width('30%')
 
-            IBestField({
-              value: this.searchText,
-              placeholder: "搜索密码项...",
-              showLabel: false,
-              hasBorder: false,
-              clearable: true,
-              onChange: (value: IBestFieldValueType) => {
-                this.searchText = value as string;
-                this.viewModel.filterCiphers('all', this.searchText);
-              }
-            }).width('70%')
-              .borderRadius(0)
-              .layoutWeight(1)
+              IBestField({
+                value: this.searchText,
+                placeholder: "搜索密码项...",
+                showLabel: false,
+                hasBorder: false,
+                clearable: true,
+                onChange: (value: IBestFieldValueType) => {
+                  this.searchText = value as string;
+                  this.viewModel.filterCiphers('all', this.searchText);
+                }
+              }).width('70%')
+                .borderRadius(0)
+                .layoutWeight(1)
+            }
+            .width('100%')
+            .padding({ left: 16, right: 16, bottom: 8 })
+
+            IBestPullRefresh({
+              loading: $isLoading,
+              scroller: this.listScroller,
+              defaultContent: () => this.listContent(),
+              onRefresh: () => this.loadCiphers(true),
+              isEnableSlideUp: false
+            })
           }
-          .width('100%')
-          .padding({ left: 16, right: 16, bottom: 8 })
-
-          IBestPullRefresh({
-            loading: $isLoading,
-            scroller: this.listScroller,
-            defaultContent: () => this.listContent(),
-            onRefresh: () => this.loadCiphers(true),
-            isEnableSlideUp: false
-          })
 
           // 重新登录弹框
           IBestDialog({
@@ -352,7 +370,7 @@ export struct VaultPage {
         .width('100%')
         .height('100%')
 
-        if (this.showAddBtn) {
+        if (this.showAddBtn && !this.isInitialLoading) {
           Column() {
             AdaptiveIconButton({
               icon: $r('app.media.icon_add'),

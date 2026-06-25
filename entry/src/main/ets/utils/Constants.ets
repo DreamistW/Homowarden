@@ -79,6 +79,10 @@ export const AUTO_LOCK = 'auto_lock';
 
 export const SCREEN_CAPTURE_PROTECTION = 'screen_capture_protection';
 
+export const ANTI_PEEP_PROTECTION = 'anti_peep_protection';
+
+export const ANTI_PEEP_GUIDE_SHOWN = 'anti_peep_guide_shown';
+
 export enum GrantType {
   PASSWORD = 'password',
   REFRESH = 'refresh_token'
