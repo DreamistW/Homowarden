@@ -5,7 +5,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { PreloginRequest, PreloginResponse } from '../model/Prelogin';
 import { AccessTokenRequest, AccessTokenResponse } from '../model/AccessToken';
 import { RefreshTokenRequest, RefreshTokenResponse } from '../model/RefreshToken';
-import { SendEmailLoginRequest } from '../model/SendEmailLogin';
+import { ResendNewDeviceOtpRequest, SendEmailLoginRequest } from '../model/SendEmailLogin';
 import { getServerEndpoints } from './ServerEndpointResolver';
 
 
@@ -123,6 +123,23 @@ export async function sendEmailLogin(request: SendEmailLoginRequest): Promise<bo
     }
   }).catch((error: BusinessError) => {
     Logger.error("Failed to send email request, error message: " + error.message);
+    return false;
+  })
+}
+
+export async function resendNewDeviceOtp(request: ResendNewDeviceOtpRequest): Promise<boolean> {
+  const endpoints = await getServerEndpoints();
+  const baseURL = endpoints.apiBaseUrl;
+  const client = createHttpClient(baseURL);
+  return client.post('/accounts/resend-new-device-otp', request, {
+    headers: {
+      'origin': endpoints.vaultBaseUrl,
+      'Content-Type': 'application/json',
+    }
+  }).then((response: AxiosResponse) => {
+    return response.status === 200;
+  }).catch((error: BusinessError) => {
+    Logger.error("Failed to resend new device OTP, error message: " + error.message);
     return false;
   })
 }

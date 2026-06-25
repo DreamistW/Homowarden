@@ -1,8 +1,11 @@
 export interface SendEmailLoginRequest {
-  authRequestAccessCode: string,
-  authRequestId: string,
-  deviceIdentifier: string,
-  email: string,
-  masterPasswordHash: string,
-  ssoEmail2FaSessionToken: string
+  DeviceIdentifier: string;
+  Email: string;
+  MasterPasswordHash: string;
+  SsoEmail2FaSessionToken?: string;
+}
+
+export interface ResendNewDeviceOtpRequest {
+  Email: string;
+  MasterPasswordHash: string;
 }
