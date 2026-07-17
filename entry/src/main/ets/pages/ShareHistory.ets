@@ -5,9 +5,7 @@ import { systemShare } from '@kit.ShareKit';
 import { uniformTypeDescriptor } from '@kit.ArkData';
 import { common } from '@kit.AbilityKit';
 import { getShareLink } from '../utils/ParseLinkUtil';
-import { DataPreferences } from '@abner/datastore';
-import { AUTO_LOCK, BACKGROUND_TIMESTAMP } from '../utils/Constants';
-import { EntryRouter } from '../../../../EntryRouter';
+import { hdsMaterial, HdsNavDestination } from '@kit.UIDesignKit';
 
 @Builder
 export function HistoryPageBuilder() {
@@ -142,7 +140,7 @@ struct History {
   }
 
   build() {
-    NavDestination() {
+    HdsNavDestination() {
       Column() {
         // 搜索栏
         Search({
@@ -191,22 +189,22 @@ struct History {
       .width('100%')
       .height('100%')
     }
-    .title('历史记录')
-    .onReady((ctx: NavDestinationContext) => {
-      this.pathInfos = ctx.pathStack;
-    })
-    .onHidden(() => {
-      DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
-    })
-    .onShown(() => {
-      const autoLockStatus = DataPreferences.getInstance().getSync<number>(AUTO_LOCK);
-      if (autoLockStatus == 1) {
-        const currentTime = Math.floor(Date.now() / 1000);
-        const backgroundTime = DataPreferences.getInstance().getSync<number>(BACKGROUND_TIMESTAMP);
-        if (currentTime - backgroundTime > 120) {
-          this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
+    .titleBar({
+      content: {
+        title: {
+          mainTitle: '分享历史'
+        }
+      },
+      enableComponentSafeArea: true,
+      style: {
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
         }
       }
+    })
+    .onReady((ctx: NavDestinationContext) => {
+      this.pathInfos = ctx.pathStack;
     })
   }
 
@@ -303,4 +301,3 @@ struct History {
     .height('100%')
   }
 }
-

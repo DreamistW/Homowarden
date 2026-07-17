@@ -3,6 +3,7 @@ import { Cipher } from '../model/CipherModels';
 import { TOTPUtil } from '../utils/TOTPUtil';
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
 import { Logger } from '@nzy/logger';
+import { AdaptiveIconButton } from './AdaptiveButton';
 
 /**
  * TOTP验证码列表项组件
@@ -146,13 +147,29 @@ export struct TotpListItem {
             .margin({ left: 4, right: 8 })
 
           // 复制按钮
-          Button() {
-            Image($r('app.media.icon_copy'))
-              .width(18)
+          Column() {
+            AdaptiveIconButton({
+              icon: $r('app.media.icon_copy'),
+              barWidth: 40,
+              barHeight: 40,
+              iconWidth: 20,
+              iconHeight: 20,
+              contentPadding: 6,
+              barBottomMargin: 0,
+              darkOffsetY: -6,
+              onButtonClick: () => {
+                this.copyCode();
+              }
+            })
           }
-          .backgroundColor(Color.Transparent)
-          .onClick(() => this.copyCode())
-          .margin({ right: 8 })
+
+          // Button() {
+          //   Image($r('app.media.icon_copy'))
+          //     .width(18)
+          // }
+          // .backgroundColor(Color.Transparent)
+          // .onClick(() => this.copyCode())
+          // .margin({ right: 8 })
         }
       }
       .width('100%')

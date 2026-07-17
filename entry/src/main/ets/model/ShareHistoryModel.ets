@@ -1,4 +1,4 @@
-// 历史记录数据模型
+/** 分享文本转换历史；时间戳单位为毫秒。 */
 export interface HistoryItem {
   id: string;
   content: string;

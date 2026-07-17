@@ -6,7 +6,9 @@ import { CipherItemType, DBTableName, EMAIL_KEY, KDF_PARAM_KEY, MASTER_KEY } fro
 import { CryptoUtil } from '../utils/CryptoUtil';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
 
+/** 从本地登录项解密 TOTP 秘钥，并提供查看详情前的主密码复验。 */
 export class TotpListViewModel {
+  /** 明文列表、过滤结果、解密密钥及页面错误状态。 */
   allCiphers: Cipher[] = [];
   // 筛选后的密码项
   filteredCiphers: Cipher[] = [];
@@ -15,6 +17,7 @@ export class TotpListViewModel {
   // 错误信息
   errorMessage: string = '';
 
+  /** 为登录类型加载并解密用户名/TOTP，仅保留存在 TOTP 的条目。 */
   async loadLogins() {
     // 遍历所有密码项
     for (const cipher of this.allCiphers) {
@@ -26,6 +29,10 @@ export class TotpListViewModel {
     this.filteredCiphers = this.allCiphers.filter(cipher => cipher.type == CipherItemType.LOGIN && cipher.login?.totp)
   }
 
+  /**
+   * 按登录时 KDF 参数重新派生并比较主密钥。
+   * @returns 匹配时为 `true`；所有输入、资产、KDF 和解析失败均转换为错误消息与 `false`。
+   */
   async verifyMasterPassword(passwordInput: string): Promise<boolean> {
     if (!passwordInput || passwordInput.length === 0) {
       this.errorMessage = '请输入主密码';

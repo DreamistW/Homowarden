@@ -20,14 +20,14 @@ import { CryptoUtil } from '../utils/CryptoUtil';
 import { PreloginResponse } from '../model/Prelogin';
 
 /**
- * 密码库ViewModel
+ * 提供本地优先的密码库列表、后台同步、解密筛选与增量页面更新。
  */
 export class VaultViewModel {
-  // 所有密码项
+  /** 已从本地密文数据库解密并用于列表展示的完整集合与当前筛选结果。 */
   allCiphers: Cipher[] = [];
   // 筛选后的密码项
   filteredCiphers: Cipher[] = [];
-  // 加载状态
+  /** 加载、错误、重新登录回调及派生出的统计/菜单状态。 */
   isLoading: boolean = false;
   // 错误信息
   errorMessage: string = '';
@@ -37,18 +37,25 @@ export class VaultViewModel {
   stats: CipherStats = {} as CipherStats;
   // 筛选菜单
   filterOptions: IBestDropdownMenuOption[] = [];
-  // 对称密钥
+  /** 从主密钥和受保护用户密钥解出的 Base64 对称密钥。 */
   symmetricKey: string = '';
 
   /**
-   * 加载所有密码项
+   * 可选先同步服务端，再从本地数据库解密并构建列表。
+   * @param forceSync 是否在本地加载前执行前台同步。
+   * @returns 全流程成功时为 `true`；异常被转换为错误状态与 `false`。
    */
-  async loadCiphers(): Promise<boolean> {
+  async loadCiphers(forceSync: boolean = false): Promise<boolean> {
     try {
-      this.isLoading = true;
       this.errorMessage = '';
-      // 从服务器同步数据
-      await this.syncCiphersFromServer();
+
+      if (forceSync) {
+        this.isLoading = true;
+        // 从服务器同步数据
+        await this.syncCiphersFromServer();
+      }
+
+      await this.loadCiphersFromDatabase();
       return true;
     } catch (error) {
       Logger.error(`Failed to load ciphers: ${error}`);
@@ -60,16 +67,22 @@ export class VaultViewModel {
   }
 
   /**
-   * 从服务器同步密码项数据
+   * 从服务器同步密文密码项，以清空主表后逐项保存的方式替换本地缓存。
+   * @param shouldApplyResult 可选版本守卫；返回 `false` 时丢弃过期异步响应，不改数据库。
+   * @returns 同步已应用时为 `true`；过期、认证或数据库错误时为 `false`。
    */
-  private async syncCiphersFromServer(): Promise<void> {
+  private async syncCiphersFromServer(shouldApplyResult?: () => boolean): Promise<boolean> {
     try {
       Logger.info('Starting to sync ciphers from server...');
 
       const response = await getAllCiphers();
+      if (shouldApplyResult && !shouldApplyResult()) {
+        Logger.info('Skip stale vault sync response');
+        return false;
+      }
 
-      if (response && response.data && Array.isArray(response.data)) {
-        Logger.info(`Received ${response.data.length} ciphers from server`);
+      if (response && response.ciphers && Array.isArray(response.ciphers)) {
+        Logger.info(`Received ${response.ciphers.length} ciphers from server`);
 
         // 启用数据库外键
         const enableForeignKeys = `PRAGMA foreign_keys = ON`;
@@ -79,10 +92,11 @@ export class VaultViewModel {
         await DatabaseUtil.getInstance().deleteAllData(DBTableName.MAIN);
 
         // 将服务器数据保存到数据库
-        for (const cipher of response.data) {
+        for (const cipher of response.ciphers) {
           await DatabaseUtil.getInstance().saveCipherToDatabase(cipher);
         }
       }
+      return true;
     } catch (error) {
       const businessError = error as BusinessError;
       Logger.error(`Failed to sync ciphers from server: ${businessError.message}`);
@@ -93,17 +107,20 @@ export class VaultViewModel {
         this.errorMessage = '登录已过期，请重新登录';
         this.handleReLoginRequired();
       }
-    } finally {
-      // 从数据库加载并显示
-      this.symmetricKey = await this.getSymmetricKey();
-      const ciphersData = await DatabaseUtil.getInstance().queryAllData(DBTableName.MAIN);
-      this.allCiphers = await this.buildCiphersFromData(ciphersData);
-      this.filteredCiphers = this.allCiphers.filter(cipher => cipher.deletedDate == null);
-      this.stats = await this.getCipherTypeStats(ciphersData);
-      this.buildFilterOptions();
-
-      Logger.info(`Successfully synced ${this.allCiphers.length} ciphers from server`);
+      return false;
     }
+  }
+
+  /** 从本地库派生解密密钥，重建明文列表、统计和筛选菜单。 */
+  private async loadCiphersFromDatabase() {
+    this.symmetricKey = await this.getSymmetricKey();
+    const ciphersData = await DatabaseUtil.getInstance().queryAllData(DBTableName.MAIN);
+    this.allCiphers = await this.buildCiphersFromData(ciphersData);
+    this.filteredCiphers = this.allCiphers.filter(cipher => cipher.deletedDate == null);
+    this.stats = await this.getCipherTypeStats(ciphersData);
+    this.buildFilterOptions();
+
+    Logger.info(`Loaded ${this.allCiphers.length} ciphers from database`);
   }
 
   /**
@@ -117,12 +134,41 @@ export class VaultViewModel {
   }
 
   /**
+   * 后台同步数据，不切换全屏 loading。
+   * 过期结果视为已安全忽略并返回 `true`，实际同步失败返回 `false`。
+   */
+  async syncCiphersInBackground(shouldApplyResult?: () => boolean): Promise<boolean> {
+    try {
+      this.errorMessage = '';
+      const didApplySync = await this.syncCiphersFromServer(shouldApplyResult);
+      if (!didApplySync) {
+        if (shouldApplyResult && !shouldApplyResult()) {
+          Logger.info('Background sync response was stale and ignored');
+          return true;
+        }
+        return false;
+      }
+      if (shouldApplyResult && !shouldApplyResult()) {
+        Logger.info('Skip stale vault reload after sync');
+        return true;
+      }
+      await this.loadCiphersFromDatabase();
+      Logger.info('Background sync completed');
+      return true;
+    } catch (error) {
+      Logger.error(`Background sync failed: ${error}`);
+      return false;
+    }
+  }
+
+  /**
    * 从数据库数据构建密码项对象
    */
   private async buildCiphersFromData(ciphersData: relationalStore.ValuesBucket[]): Promise<Cipher[]> {
     const ciphers: Cipher[] = [];
 
     for (const cipherData of ciphersData) {
+      const rawRevisionDate = cipherData.revision_date as string;
       const cipher: Cipher = {
         id: cipherData.id as string,
         type: cipherData.type as CipherItemType,
@@ -132,7 +178,8 @@ export class VaultViewModel {
         folderId: cipherData.folder_id as string || null,
         organizationId: cipherData.organization_id as string || null,
         creationDate: cipherData.creation_date as string,
-        revisionDate: cipherData.revision_date as string,
+        revisionDate: rawRevisionDate,
+        lastKnownRevisionDate: rawRevisionDate,
         deletedDate: cipherData.deleted_date as string || null,
         notes: cipherData.notes as string || null,
         reprompt: cipherData.reprompt as number,
@@ -170,7 +217,10 @@ export class VaultViewModel {
     return ciphers;
   }
 
-  // 获得对称密钥
+  /**
+   * 由主密钥派生 enc/mac 子密钥，校验用户密钥 HMAC 后解出对称密钥。
+   * @throws Base64、KDF、HMAC 或解密失败时传播异常；校验不通过时显式抛错。
+   */
   private async getSymmetricKey(): Promise<string> {
     const masterKey = queryAssetSync(MASTER_KEY);
     const masterKeyBytes = new util.Base64Helper().decodeSync(masterKey);
@@ -235,7 +285,7 @@ export class VaultViewModel {
 
         // 搜索用户名（如果是登录类型）
         if (cipher.login && cipher.login.username &&
-        cipher.login.username.toLowerCase().includes(searchLower)) {
+          cipher.login.username.toLowerCase().includes(searchLower)) {
           return true;
         }
 
@@ -251,11 +301,38 @@ export class VaultViewModel {
     this.filteredCiphers = filtered;
   }
 
+  /** 用页面保存后的明文密码项替换列表项，并重新计算统计和当前筛选。 */
+  applyLocalCipherChange(cipher: Cipher, filterType: FilterType | string, searchText: string): void {
+    if (!cipher || !cipher.id) {
+      return;
+    }
+
+    const changedCipher = this.buildListCipherFromPlainCipher(cipher);
+    const ciphers = this.allCiphers.filter(item => item.id !== changedCipher.id);
+    ciphers.push(changedCipher);
+    this.allCiphers = this.sortCiphersByName(ciphers);
+    this.stats = this.getCipherTypeStatsFromCiphers(this.allCiphers);
+    this.buildFilterOptions();
+    this.filterCiphers(filterType, searchText);
+  }
+
+  /** 从内存列表移除已彻底删除项，并重新计算统计和筛选。 */
+  applyLocalCipherDeletion(cipherId: string, filterType: FilterType | string, searchText: string): void {
+    if (!cipherId) {
+      return;
+    }
+
+    this.allCiphers = this.sortCiphersByName(this.allCiphers.filter(item => item.id !== cipherId));
+    this.stats = this.getCipherTypeStatsFromCiphers(this.allCiphers);
+    this.buildFilterOptions();
+    this.filterCiphers(filterType, searchText);
+  }
+
   /**
    * 刷新数据
    */
   async refresh(): Promise<void> {
-    await this.loadCiphers();
+    await this.loadCiphers(true);
   }
 
   /**
@@ -305,6 +382,113 @@ export class VaultViewModel {
       Promise.reject(error);
     }
     return stats;
+  }
+
+  private getCipherTypeStatsFromCiphers(ciphers: Cipher[]): CipherStats {
+    let stats: CipherStats = {
+      total: 0,
+      login: 0,
+      note: 0,
+      card: 0,
+      identity: 0,
+      favorite: 0,
+      deleted: 0
+    };
+
+    for (const cipher of ciphers) {
+      if (cipher.favorite) {
+        stats.favorite++;
+      }
+      if (cipher.deletedDate != null) {
+        stats.deleted++;
+        continue;
+      }
+      stats.total++;
+      switch (cipher.type) {
+        case CipherItemType.LOGIN:
+          stats.login++;
+          break;
+        case CipherItemType.NOTE:
+          stats.note++;
+          break;
+        case CipherItemType.CARD:
+          stats.card++;
+          break;
+        case CipherItemType.IDENTITY:
+          stats.identity++;
+          break;
+      }
+    }
+
+    return stats;
+  }
+
+  private buildListCipherFromPlainCipher(cipher: Cipher): Cipher {
+    return {
+      id: cipher.id,
+      type: cipher.type,
+      name: cipher.name,
+      favorite: cipher.favorite,
+      edit: cipher.edit,
+      viewPassword: cipher.viewPassword,
+      folderId: cipher.folderId,
+      organizationId: cipher.organizationId,
+      creationDate: cipher.creationDate,
+      revisionDate: cipher.revisionDate,
+      lastKnownRevisionDate: cipher.lastKnownRevisionDate,
+      deletedDate: cipher.deletedDate,
+      archivedDate: cipher.archivedDate || null,
+      notes: cipher.notes,
+      login: null,
+      card: null,
+      identity: null,
+      secureNote: null,
+      sshKey: null,
+      bankAccount: null,
+      driversLicense: null,
+      passport: null,
+      fields: [],
+      collectionIds: cipher.collectionIds || [],
+      passwordHistory: null,
+      attachments: null,
+      attachments2: null,
+      key: null,
+      encryptedFor: cipher.encryptedFor || null,
+      reprompt: cipher.reprompt,
+      subtitle: this.getPlainSubtitle(cipher)
+    };
+  }
+
+  private getPlainSubtitle(cipher: Cipher): string {
+    if (cipher.type == CipherItemType.LOGIN && cipher.login?.username) {
+      return cipher.login.username;
+    }
+    if (cipher.type == CipherItemType.CARD && cipher.card?.number) {
+      return cipher.card.number.length > 4 ? '*' + cipher.card.number.slice(-4) : cipher.card.number;
+    }
+    if (cipher.type == CipherItemType.IDENTITY) {
+      const firstName = cipher.identity?.firstName || '';
+      const lastName = cipher.identity?.lastName || '';
+      const fullName = `${firstName} ${lastName}`.trim();
+      return fullName || this.getTypeName(cipher);
+    }
+    return this.getTypeName(cipher);
+  }
+
+  private sortCiphersByName(ciphers: Cipher[]): Cipher[] {
+    ciphers.sort((a: Cipher, b: Cipher) => {
+      if (!a.name && !b.name) {
+        return 0;
+      }
+      if (!a.name) {
+        return 1;
+      }
+      if (!b.name) {
+        return -1;
+      }
+      return a.name.localeCompare(b.name, 'zh-CN');
+    });
+    return ciphers;
   }
 
   // 构建筛选选项
@@ -383,6 +567,10 @@ export class VaultViewModel {
     }
   }
 
+  /**
+   * 用存储的 KDF 参数重新派生主密钥并与关键资产中的值比较。
+   * @returns 匹配时为 `true`；缺失参数、不支持 KDF、密码不匹配或异常均返回 `false` 并设置错误消息。
+   */
   async verifyMasterPassword(passwordInput: string): Promise<boolean> {
     if (!passwordInput || passwordInput.length === 0) {
       this.errorMessage = '请输入主密码';
@@ -448,6 +636,7 @@ export class VaultViewModel {
   }
 }
 
+/** 当前明文密码库按类型、收藏及回收站计算的数量。 */
 export interface CipherStats {
   total: number,
   login: number,

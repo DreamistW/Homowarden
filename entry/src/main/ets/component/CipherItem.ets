@@ -1,4 +1,4 @@
-import { Cipher } from '../model/CipherModels.ets';
+import { Cipher } from '../model/CipherModels';
 import { IBestIcon } from "@ibestservices/ibest-ui";
 import { CipherItemType } from '../utils/Constants';
 

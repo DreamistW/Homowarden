@@ -3,6 +3,7 @@ import { EntryRouter } from '../../../../EntryRouter';
 import { TotpListItem } from '../component/TotpListItem';
 import { TotpListViewModel } from '../viewmodel/TotpListViewModel';
 import { IBestDialog } from '@ibestservices/ibest-ui';
+import { hdsMaterial, HdsNavDestination } from '@kit.UIDesignKit';
 
 @Builder
 export function TotpListPageBuilder() {
@@ -21,6 +22,7 @@ export struct TotpListPage {
   private timerId: number = -1;
   pathInfos: NavPathStack = new NavPathStack();
 
+  /** 离开页面时清理每秒刷新计时器，避免后台继续触发状态更新。 */
   aboutToDisappear() {
     this.stopTimer();
   }
@@ -45,7 +47,7 @@ export struct TotpListPage {
   }
 
   /**
-   * 跳转到密码项详情
+   * 跳转到密码项详情；reprompt 为 1 时先保存待导航条目并要求主密码复验。
    */
   private navigateToDetail(cipher: Cipher) {
     // 检查是否需要验证主密码
@@ -67,7 +69,7 @@ export struct TotpListPage {
   }
 
   build() {
-    NavDestination() {
+    HdsNavDestination() {
       Column() {
         // 内容区
         if (this.isLoading) {
@@ -82,7 +84,7 @@ export struct TotpListPage {
           .justifyContent(FlexAlign.Center)
         } else if (this.viewModel.filteredCiphers.length === 0) {
           Column() {
-            Image($r('app.media.icon_time'))
+            Image($r('app.media.icon_key'))
               .width(80)
               .height(80)
               .fillColor('#CCCCCC')
@@ -144,7 +146,18 @@ export struct TotpListPage {
       .width('100%')
       .height('100%')
     }
-    .title('验证码')
+    .titleBar({
+      content: {
+        title: { mainTitle: '验证码' }
+      },
+      enableComponentSafeArea: true,
+      style: {
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
+        }
+      }
+    })
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
       const param = ctx.pathInfo.param as TotpListParams;

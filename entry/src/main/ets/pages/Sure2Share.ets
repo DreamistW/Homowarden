@@ -4,12 +4,12 @@ import { relationalStore, uniformTypeDescriptor } from '@kit.ArkData';
 import { common } from '@kit.AbilityKit';
 import { inputMethod } from '@kit.IMEKit';
 import { getFullLink, getShareLink, replaceOutputText } from '../utils/ParseLinkUtil';
-import { DataPreferences } from '@abner/datastore';
-import { AUTO_LOCK, BACKGROUND_TIMESTAMP } from '../utils/Constants';
 import { EntryRouter } from '../../../../EntryRouter';
 import { Logger } from '@nzy/logger';
 import { IBestToast } from '@ibestservices/ibest-ui';
 import { ShareDatabaseUtil } from '../utils/ShareDatabaseUtil';
+import { hdsMaterial, HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
+import { AdaptiveMenuTextButton, AdaptivePasteButton, AdaptiveTextButton } from '../component/AdaptiveButton';
 
 @Builder
 export function Sure2SharePageBuilder() {
@@ -23,11 +23,13 @@ export struct Sure2SharePage {
   @State inputText: string = '';
   @State outputText: string = '';
   pathInfos: NavPathStack = new NavPathStack();
-  historyBtn: NavigationMenuItem = {
-    'value': 'History',
-    'icon': 'resources/base/media/icon_history.svg',
-    'action': () => {
-      this.pathInfos.pushPath({ name: EntryRouter.ShareHistoryPage });
+  historyBtn: HdsNavigationBadgeIconOptions = {
+    content: {
+      label: 'History',
+      icon: $r('app.media.icon_history'),
+      action: () => {
+        this.pathInfos.pushPath({ name: EntryRouter.ShareHistoryPage });
+      }
     }
   }
 
@@ -95,146 +97,165 @@ export struct Sure2SharePage {
   }
 
   build() {
-    NavDestination() {
-      Column() {
-        Text(this.hint)
-          .alignRules({
-            middle: { anchor: '__container__', align: HorizontalAlign.Center }
-          })
-          .margin({
-            left: "5%",
-            right: "5%",
-            bottom: "10%"
-          })
-        // 输入标题
-        Text('粘贴分享链接')
-          .fontSize(24)
-          .fontWeight(FontWeight.Bold)
-          .align(Alignment.Start)
-          .width('90%')
+    HdsNavDestination() {
+      Scroll() {
+        Column() {
+          Text(this.hint)
+            .alignRules({
+              middle: { anchor: '__container__', align: HorizontalAlign.Center }
+            })
+            .margin({
+              left: "5%",
+              right: "5%",
+              bottom: "10%"
+            })
+          // 输入标题
+          Text('粘贴分享链接')
+            .fontSize(24)
+            .fontWeight(FontWeight.Bold)
+            .align(Alignment.Start)
+            .width('90%')
 
-        // 输入文本框
-        TextArea({ text: this.inputText })
-          .id('beforeLink')
-          .height('20%')
-          .width('90%')
-          .margin({ top: 12, bottom: 12 })
-          .onChange((value: string) => {
-            this.inputText = value;
-          })
+          // 输入文本框
+          TextArea({ text: this.inputText })
+            .id('beforeLink')
+            .height('20%')
+            .width('90%')
+            .margin({ top: 12, bottom: 12 })
+            .onChange((value: string) => {
+              this.inputText = value;
+            })
 
-        Row() {
-          // 粘贴按钮
-          PasteButton()
-            .width('30%')
-            .height('6%')
-            .onClick((event: ClickEvent, result: PasteButtonOnClickResult) => {
-              if (PasteButtonOnClickResult.SUCCESS === result) {
-                pasteboard.getSystemPasteboard()
-                  .getData(async (err: BusinessError, pasteData: pasteboard.PasteData) => {
-                    if (err) {
-                      Logger.error(`Failed to get paste data. Code is ${err.code}, message is ${err.message}.`);
-                      return;
-                    }
-                    this.inputText = pasteData.getPrimaryText();
-                    this.convertLink();
-                  })
+          Row({ space: 0 }) {
+            AdaptivePasteButton({
+              barWidth: 144,
+              barHeight: 50,
+              fontSize: 16,
+              contentPadding: 6,
+              barBottomMargin: 0,
+              onPaste: (text: string) => {
+                this.inputText = text;
+                this.convertLink();
+              },
+              onPasteError: (err: BusinessError) => {
+                Logger.error(`Failed to get paste data. Code is ${err.code}, message is ${err.message}.`);
               }
             })
-          Button('转换')
-            .margin({ left: '7%' })
-            .width('30%')
-            .height('6%')
-            .onClick(() => {
-              try {
-                inputMethod.getController().stopInputSession();
-              } catch (err) {
-                Logger.error(`Failed to stop input session. Code is ${err.code}, message is ${err.message}.`);
-                return;
+
+            AdaptiveTextButton({
+              text: '转换',
+              barWidth: 144,
+              barHeight: 50,
+              fontSize: 16,
+              contentPadding: 6,
+              barBottomMargin: 0,
+              onButtonClick: () => {
+                try {
+                  inputMethod.getController().stopInputSession();
+                } catch (err) {
+                  Logger.error(`Failed to stop input session. Code is ${err.code}, message is ${err.message}.`);
+                  return;
+                }
+                this.convertLink();
               }
-              this.convertLink();
             })
+          }
+          .width('100%')
+          .justifyContent(FlexAlign.Center)
+
+          // 输出标题
+          Text('转换后的链接')
+            .id('afterLink')
+            .fontSize(24)
+            .fontWeight(FontWeight.Bold)
+            .align(Alignment.Start)
+            .width('90%')
+            .margin({ top: 40 })
+
+          // 输出文本框
+          TextArea({ text: this.outputText })
+            .height('20%')
+            .width('90%')
+            .margin({ top: 12 })
+            .focusable(false)
+
+          Row({ space: 0 }) {
+            AdaptiveMenuTextButton({
+              text: '复制',
+              barWidth: 144,
+              barHeight: 50,
+              fontSize: 16,
+              contentPadding: 6,
+              barBottomMargin: 0,
+              menuItems: [
+                {
+                  value: '复制完整内容',
+                  action: () => {
+                    this.copyLink(this.outputText);
+                  }
+                },
+                {
+                  value: '仅复制链接',
+                  action: async () => {
+                    const link: string = await getShareLink(this.outputText);
+                    this.copyLink(link);
+                  }
+                }
+              ]
+            })
+
+            AdaptiveMenuTextButton({
+              text: '分享',
+              barWidth: 144,
+              barHeight: 50,
+              fontSize: 16,
+              contentPadding: 6,
+              barBottomMargin: 0,
+              menuItems: [
+                {
+                  value: '分享完整内容',
+                  action: () => {
+                    this.shareLink(this.outputText, false);
+                  }
+                },
+                {
+                  value: '仅分享链接',
+                  action: async () => {
+                    const link: string = await getShareLink(this.outputText);
+                    this.shareLink(link, true);
+                  }
+                }
+              ]
+            })
+          }
+          .width('100%')
+          .justifyContent(FlexAlign.Center)
         }
-
-        // 输出标题
-        Text('转换后的链接')
-          .id('afterLink')
-          .fontSize(24)
-          .fontWeight(FontWeight.Bold)
-          .align(Alignment.Start)
-          .width('90%')
-          .margin({ top: 40 })
-
-        // 输出文本框
-        TextArea({ text: this.outputText })
-          .height('20%')
-          .width('90%')
-          .margin({ top: 12 })
-          .focusable(false)
-
-        Row() {
-          // 复制按钮
-          Button('复制')
-            .margin(12)
-            .width('30%')
-            .bindMenu([
-              {
-                value: '复制完整内容',
-                action: () => {
-                  this.copyLink(this.outputText);
-                }
-              },
-              {
-                value: '仅复制链接',
-                action: async () => {
-                  const link: string = await getShareLink(this.outputText);
-                  this.copyLink(link);
-                }
-              }
-            ])
-
-          // 分享按钮
-          Button('分享')
-            .margin(12)
-            .width('30%')
-            .bindMenu([
-              {
-                value: '分享完整内容',
-                action: () => {
-                  this.shareLink(this.outputText, false);
-                }
-              },
-              {
-                value: '仅分享链接',
-                action: async () => {
-                  const link: string = await getShareLink(this.outputText);
-                  this.shareLink(link, true);
-                }
-              }
-            ])
+        .padding(20)
+        .width('100%')
+      }
+      .scrollBar(BarState.Auto)
+      .scrollable(ScrollDirection.Vertical)
+      .width('100%')
+      .height('100%')
+    }
+    .titleBar({
+      content: {
+        title: {
+          mainTitle: '安心分享'
+        },
+        menu: { value: [this.historyBtn] }
+      },
+      enableComponentSafeArea: true,
+      style: {
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
         }
       }
-      .padding(20)
-      .height('100%')
-      .width('100%')
-    }
-    .title('安心分享')
+    })
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
     })
-    .onHidden(() => {
-      DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
-    })
-    .onShown(() => {
-      const autoLockStatus = DataPreferences.getInstance().getSync<number>(AUTO_LOCK);
-      if (autoLockStatus == 1) {
-        const currentTime = Math.floor(Date.now() / 1000);
-        const backgroundTime = DataPreferences.getInstance().getSync<number>(BACKGROUND_TIMESTAMP);
-        if (currentTime - backgroundTime > 120) {
-          this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
-        }
-      }
-    })
-    .menus([this.historyBtn])
   }
 }

@@ -1,7 +1,9 @@
 import { CipherFieldType, CipherItemType } from '../utils/Constants';
 
 /**
- * 密码项（Cipher）数据模型
+ * 密码项协议与页面共用模型。
+ *
+ * 网络/数据库边界中的敏感字符串为协议密文；详情 ViewModel 加载后同一结构会承载明文。
  */
 export interface Cipher {
   id: string; // 密码项ID
@@ -9,24 +11,36 @@ export interface Cipher {
   name: string; // 名称
   favorite: boolean; // 是否收藏
   edit: boolean; // 是否可编辑
+  viewPassword?: boolean; // 是否可查看密码
   folderId: string | null; // 文件夹ID
   organizationId: string | null; // 组织ID
-  creationDate: string; // 创建时间
-  revisionDate: string; // 最后修改时间
+  creationDate: string; // 服务端 ISO 时间；列表加载后可能格式化为本地展示文本
+  revisionDate: string; // 服务端修订时间；列表加载后可能格式化为本地展示文本
+  lastKnownRevisionDate?: string | null; // 官方更新请求使用的并发版本
   deletedDate: string | null; // 删除时间
-  notes: string | null; // 备注
+  archivedDate?: string | null; // 归档时间
+  notes: string | null; // 协议层为密文，详情/表单层为明文
   login: CipherLogin | null; // 登录信息（type=1时）
   card: CipherCard | null; // 卡片信息（type=3时）
   identity: CipherIdentity | null; // 身份信息（type=4时）
   secureNote: CipherSecureNote | null; // 安全笔记（type=2时）
+  sshKey?: CipherSshKey | null; // SSH Key（新版官方类型）
+  bankAccount?: CipherBankAccount | null; // 银行账户（新版官方类型）
+  driversLicense?: CipherDriversLicense | null; // 驾照（新版官方类型）
+  passport?: CipherPassport | null; // 护照（新版官方类型）
   fields?: CipherField[]; // 自定义字段
   collectionIds?: string[]; // 所属集合ID
-  reprompt: number; // 是否需要验证主密码才能查看
+  passwordHistory?: CipherPasswordHistory[] | null; // 密码历史
+  attachments?: CipherAttachment[] | null; // 响应中的附件
+  attachments2?: Record<string, CipherAttachmentRequest> | null; // 官方请求中的附件映射
+  key?: string | null; // 组织/条目加密 key
+  encryptedFor?: string | null; // 被加密目标用户
+  reprompt: number; // 1 表示查看详情前需要重新验证主密码
   subtitle?: string; // 副标题，显示在密码库界面
 }
 
 /**
- * 登录信息结构
+ * 登录类型密码项的敏感字段；是否为明文取决于所在边界。
  */
 export interface CipherLogin {
   username: string | null; // 用户名
@@ -34,6 +48,9 @@ export interface CipherLogin {
   passwordRevisionDate: string | null; // 密码更新时间
   totp: string | null; // TOTP密钥
   uris: CipherUri[]; // 关联网址
+  uri?: string | null; // 旧版单 URI 字段
+  autofillOnPageLoad?: boolean | null; // 页面加载时自动填充
+  fido2Credentials?: CipherFido2Credential[] | null; // FIDO2 凭据
 }
 
 /**
@@ -86,6 +103,7 @@ export interface CipherField {
   name: string; // 字段名
   value: string; // 字段值
   type: CipherFieldType; // 字段类型（0为文本，1为隐藏，2为复选框）
+  linkedId?: number | null; // 官方字段联动 ID
 }
 
 /**
@@ -94,15 +112,146 @@ export interface CipherField {
 export interface CipherUri {
   uri: string;
   match?: number | null;
-  uriChecksum: string;
+  uriChecksum: string; // URI 明文的 SHA-256 摘要再经条目密钥加密
 }
 
-/*
+/** 密码历史协议项；password 在协议边界为密文。 */
+export interface CipherPasswordHistory {
+  password: string;
+  lastUsedDate: string;
+}
+
+export interface CipherAttachment {
+  id?: string | null;
+  fileName?: string | null;
+  size?: number | null;
+  sizeName?: string | null;
+  url?: string | null;
+  key?: string | null;
+}
+
+export interface CipherAttachmentRequest {
+  id?: string | null;
+  fileName?: string | null;
+  key?: string | null;
+}
+
+export interface CipherSshKey {
+  publicKey: string | null;
+  privateKey: string | null;
+  keyFingerprint: string | null;
+}
+
+export interface CipherBankAccount {
+  bankName: string | null;
+  nameOnAccount: string | null;
+  accountType: string | null;
+  accountNumber: string | null;
+  routingNumber: string | null;
+  branchNumber: string | null;
+  pin: string | null;
+  swiftCode: string | null;
+  iban: string | null;
+  bankContactPhone: string | null;
+}
+
+export interface CipherDriversLicense {
+  firstName: string | null;
+  middleName: string | null;
+  lastName: string | null;
+  licenseNumber: string | null;
+  dateOfBirth: string | null;
+  issuingCountry: string | null;
+  issuingAuthority: string | null;
+  issuingState: string | null;
+  issueDate: string | null;
+  expirationDate: string | null;
+  licenseClass: string | null;
+}
+
+export interface CipherPassport {
+  surname: string | null;
+  givenName: string | null;
+  dateOfBirth: string | null;
+  birthPlace: string | null;
+  sex: string | null;
+  nationality: string | null;
+  passportNumber: string | null;
+  passportType: string | null;
+  issuingCountry: string | null;
+  issuingAuthority: string | null;
+  issueDate: string | null;
+  expirationDate: string | null;
+  nationalIdentificationNumber: string | null;
+}
+
+export interface CipherFido2Credential {
+  credentialId: string;
+  keyType?: string;
+  keyAlgorithm?: string;
+  keyCurve?: string;
+  keyValue: string;
+  rpId: string;
+  rpName?: string | null;
+  userHandle?: string | null;
+  userName?: string | null;
+  userDisplayName?: string | null;
+  counter: string;
+  discoverable: string;
+  creationDate: string;
+}
+
+export interface CipherJsonRequest {
+  notes: string | null;
+  attachments2: Record<string, CipherAttachmentRequest> | null;
+  reprompt: number;
+  passwordHistory: CipherPasswordHistory[] | null;
+  lastKnownRevisionDate: string | null;
+  type: CipherItemType;
+  login: CipherLogin | null;
+  secureNote: CipherSecureNote | null;
+  sshKey: CipherSshKey | null;
+  bankAccount: CipherBankAccount | null;
+  driversLicense: CipherDriversLicense | null;
+  passport: CipherPassport | null;
+  folderId: string | null;
+  organizationId: string | null;
+  identity: CipherIdentity | null;
+  name: string | null;
+  fields: CipherField[] | null;
+  favorite: boolean;
+  card: CipherCard | null;
+  key: string | null;
+  archivedDate: string | null;
+  encryptedFor: string | null;
+}
+
+export interface CreateCipherInOrganizationRequest {
+  Cipher: CipherJsonRequest;
+  CollectionIds: string[];
+}
+
+/** `/sync` 返回的密码库快照；当前客户端主要消费 ciphers。 */
+export interface VaultSyncResponse {
+  folders?: Object[] | null;
+  collections?: Object[] | null;
+  profile?: Object | null;
+  Profile?: Object | null;
+  ciphers?: Cipher[] | null;
+  policies?: Object[] | null;
+  policiesNew?: Object[] | null;
+  domains?: Object | null;
+  Domains?: Object | null;
+  sends?: Object[] | null;
+  userDecryption?: Object | null;
+}
+
+/**
  * 从密码库跳转到详情页的参数
  */
 export interface CipherDetailParams {
   cipher: Cipher;
-  symmetricKey: string;
+  symmetricKey: string; // Base64 条目对称密钥
 }
 
 /**

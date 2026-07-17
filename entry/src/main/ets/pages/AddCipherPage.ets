@@ -1,16 +1,15 @@
 import { DataPreferences } from '@abner/datastore';
 import { IBestDropdownItem, IBestDropdownMenu, IBestRadio, IBestRadioGroup, IBestToast } from '@ibestservices/ibest-ui';
-import { EntryRouter } from '../../../../EntryRouter';
 import { TotpEditItem } from '../component/TotpEditItem';
 import {
-  AUTO_LOCK,
-  BACKGROUND_TIMESTAMP,
   CardBrandType,
   CipherItemType,
   IdentityTitleType,
   NEED_RELOAD_CIPHERS
 } from '../utils/Constants';
 import { AddCipherViewModel } from '../viewmodel/AddCipherViewModel';
+import { hdsMaterial, HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
+import { VaultChangeNotifier } from '../utils/VaultChangeNotifier';
 
 @Builder
 export function AddCipherPageBuilder() {
@@ -27,12 +26,14 @@ export struct AddCipherPage {
   @State totpSecret: string = '';
   allowSave: boolean = false;
   pathInfos: NavPathStack = new NavPathStack();
-  ConfirmBtn: NavigationMenuItem = {
-    'value': '',
-    'icon': 'resources/base/media/icon_confirm.svg',
-    isEnabled: true,
-    'action': () => {
-      this.saveCipher();
+  ConfirmBtn: HdsNavigationBadgeIconOptions = {
+    content: {
+      label: '确认',
+      icon: $r('app.media.icon_confirm'),
+      isEnabled: true,
+      action: () => {
+        this.saveCipher();
+      }
     }
   }
   itemTypeGroup: string = 'itemTypeSelector';
@@ -40,7 +41,7 @@ export struct AddCipherPage {
   cardBrandGroup: string = 'cardBrandSelector';
 
   build() {
-    NavDestination() {
+    HdsNavDestination() {
       Scroll() {
         Column() {
           Column() {
@@ -97,7 +98,7 @@ export struct AddCipherPage {
           }
 
           // 名称
-          Text('名称')
+          Text('项目名称')
             .fontSize(14)
             .fontColor('#666666')
             .margin({
@@ -643,26 +644,28 @@ export struct AddCipherPage {
       }
       .scrollable(ScrollDirection.Vertical)
     }
-    .title('添加项目')
+    .titleBar({
+      content: {
+        title: {
+          mainTitle: '添加密码项'
+        },
+        menu: {
+          value: [this.ConfirmBtn]
+        }
+      },
+      enableComponentSafeArea: true,
+      style: {
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
+        }
+      }
+    })
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
       const param = ctx.pathInfo.param as string;
       if (param) {
         this.viewModel.symmetricKey = param;
-      }
-    })
-    .menus([this.ConfirmBtn])
-    .onHidden(() => {
-      DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
-    })
-    .onShown(() => {
-      const autoLockStatus = DataPreferences.getInstance().getSync<number>(AUTO_LOCK);
-      if (autoLockStatus == 1) {
-        const currentTime = Math.floor(Date.now() / 1000);
-        const backgroundTime = DataPreferences.getInstance().getSync<number>(BACKGROUND_TIMESTAMP);
-        if (currentTime - backgroundTime > 120) {
-          this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
-        }
       }
     })
   }
@@ -671,18 +674,26 @@ export struct AddCipherPage {
     this.allowSave = this.viewModel.canSave();
   }
 
+  /**
+   * 防止空名称提交，发布本地修订后执行远端创建与本地缓存；成功时通知密码库增量更新并返回。
+   * 创建失败由 ViewModel 转换为错误消息并保留当前页面。
+   */
   private async saveCipher() {
     if (!this.allowSave) {
       IBestToast.show('请先输入名称');
       return;
     }
     this.isSubmitting = true;
-    const ok = await this.viewModel.submitCreate();
+    VaultChangeNotifier.markLocalChangePending();
+    const createdCipher = await this.viewModel.submitCreate();
     this.isSubmitting = false;
-    if (ok) {
+    if (createdCipher) {
       IBestToast.show("创建成功");
+      VaultChangeNotifier.setUpdatedCipher(createdCipher);
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
       this.pathInfos.pop();
+    } else if (this.viewModel.errorMessage && this.viewModel.errorMessage.length > 0) {
+      IBestToast.show(this.viewModel.errorMessage);
     }
   }
 }

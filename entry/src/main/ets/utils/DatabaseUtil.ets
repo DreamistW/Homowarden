@@ -5,12 +5,17 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { Cipher, CipherField } from '../model/CipherModels';
 import { CipherItemType, DBTableName } from './Constants';
 
-// 关系型数据库操作类
+/**
+ * 管理加密的本地密码库及主表、类型子表之间的持久化映射。
+ *
+ * 初始化 Promise 在进程内复用；底层通用操作通常传播异常，但整项保存和更新会记录后吸收异常。
+ */
 export class DatabaseUtil {
   private static instance: DatabaseUtil;
   private static store: relationalStore.RdbStore | null = null;
   private static initPromise: Promise<void> | null = null;
 
+  /** @returns 已创建的单例；调用方必须先等待 {@link init} 完成。 */
   public static getInstance(): DatabaseUtil {
     if (DatabaseUtil.instance == null) {
       Logger.info(`DatabaseUtil is not initialized`);
@@ -18,6 +23,10 @@ export class DatabaseUtil {
     return DatabaseUtil.instance;
   }
 
+  /**
+   * 异步打开安全级别 S4 的加密关系数据库，同一进程只发起一次初始化。
+   * @throws 数据库打开失败时拒绝共享的初始化 Promise。
+   */
   public static async init(context: Context): Promise<void> {
     const STORE_CONFIG: relationalStore.StoreConfig = {
       name: "homowarden.sql",
@@ -41,6 +50,11 @@ export class DatabaseUtil {
     return DatabaseUtil.initPromise;
   }
 
+  /**
+   * 执行不返回结果集的 SQL。
+   * @returns 数据库执行成功时为 `true`。
+   * @throws 初始化、SQL 执行失败或存储尚不可用时传播异常。
+   */
   async executeSql(sql: string): Promise<boolean> {
     await DatabaseUtil.initPromise;
     return new Promise((resolve, reject) => {
@@ -60,6 +74,7 @@ export class DatabaseUtil {
     })
   }
 
+  /** @returns 新插入行的 rowId；初始化、插入或存储不可用时传播异常。 */
   async insertData(table: string, data: relationalStore.ValuesBucket): Promise<number> {
     await DatabaseUtil.initPromise;
     return new Promise((resolve, reject) => {
@@ -81,6 +96,7 @@ export class DatabaseUtil {
     });
   }
 
+  /** 按 `id` 更新行；初始化、更新或存储不可用时传播异常。 */
   async updateData(table: string, id: string, data: relationalStore.ValuesBucket): Promise<void> {
     await DatabaseUtil.initPromise;
     return new Promise((resolve, reject) => {
@@ -104,6 +120,10 @@ export class DatabaseUtil {
     })
   }
 
+  /**
+   * 按 `id` 删除行。
+   * 删除回调报告错误时当前实现仅记录并正常完成；存储不可用仍会拒绝 Promise。
+   */
   async deleteData(table: string, id: string): Promise<void> {
     await DatabaseUtil.initPromise;
     return new Promise((resolve, reject) => {
@@ -127,6 +147,7 @@ export class DatabaseUtil {
 
   }
 
+  /** 删除表中全部行；删除回调错误被记录并转换为正常完成。 */
   async deleteAllData(table: string): Promise<void> {
     await DatabaseUtil.initPromise;
     return new Promise((resolve, reject) => {
@@ -148,6 +169,10 @@ export class DatabaseUtil {
     })
   }
 
+  /**
+   * 查询表中全部行并在读取后关闭结果集。
+   * @throws 初始化、查询或存储不可用时传播异常。
+   */
   async queryAllData(table: string): Promise<relationalStore.ValuesBucket[]> {
     await DatabaseUtil.initPromise;
     return new Promise((resolve, reject) => {
@@ -174,6 +199,7 @@ export class DatabaseUtil {
     })
   }
 
+  /** @returns 匹配 `id` 的第一行；无匹配时返回空 ValuesBucket。 */
   async querySingleRow(table: string, id: string): Promise<relationalStore.ValuesBucket> {
     await DatabaseUtil.initPromise;
     return new Promise((resolve, reject) => {
@@ -201,6 +227,10 @@ export class DatabaseUtil {
     })
   }
 
+  /**
+   * 同步查询单列值。
+   * @returns 第一条匹配记录的目标列；无记录、数据库未初始化或查询异常时返回空字符串。
+   */
   querySingleData(table: string, whereColumn: string, whereValue: string,
     needColumn: string): relationalStore.ValueType {
     let result: relationalStore.ValueType = '';
@@ -222,6 +252,7 @@ export class DatabaseUtil {
     return result;
   }
 
+  /** 发起各密码项表的幂等建表操作；调用不等待各 SQL 完成。 */
   createTable() {
     // 创建密码项主表
     const createCiphersTable = `
@@ -329,8 +360,9 @@ export class DatabaseUtil {
   }
 
   /**
-   * 保存密码项到数据库
-   * @param cipher 密码项对象
+   * 将服务端密文密码项拆分写入主表及对应类型子表。
+   * @param cipher 字段仍为协议密文的密码项。
+   * @returns 所有适用写入结束后完成；写入异常会记录并被吸收。
    */
   async saveCipherToDatabase(cipher: Cipher) {
     try {
@@ -434,6 +466,135 @@ export class DatabaseUtil {
     } catch (err) {
       const error = err as BusinessError;
       Logger.error(`Failed to save cipher to database, error message: ${error.message}`);
+    }
+  }
+
+  /**
+   * 更新密文主表，清空全部类型子表后按当前类型重建关联数据。
+   * @param cipher 字段仍为协议密文且包含服务端最新修订信息的密码项。
+   * @returns 重建流程结束后完成；中途异常会记录并被吸收，操作不具备显式事务原子性。
+   */
+  async updateCipherToDatabase(cipher: Cipher) {
+    try {
+      // 1. 更新主表数据
+      const cipherData: relationalStore.ValuesBucket = {
+        type: cipher.type,
+        name: cipher.name,
+        favorite: cipher.favorite ? 1 : 0,
+        edit: cipher.edit ? 1 : 0,
+        folder_id: cipher.folderId || null,
+        organization_id: cipher.organizationId || null,
+        creation_date: cipher.creationDate,
+        revision_date: cipher.revisionDate,
+        deleted_date: cipher.deletedDate || null,
+        notes: cipher.notes || null,
+        reprompt: cipher.reprompt
+      };
+      await DatabaseUtil.getInstance().updateData(DBTableName.MAIN, cipher.id, cipherData);
+
+      // 2. 清理旧的子表数据
+      const cipherId = cipher.id.replace(/'/g, "''");
+      await DatabaseUtil.getInstance().executeSql(
+        `DELETE FROM ${DBTableName.LOGINS} WHERE cipher_id = '${cipherId}'`
+      );
+      await DatabaseUtil.getInstance().executeSql(
+        `DELETE FROM ${DBTableName.CARDS} WHERE cipher_id = '${cipherId}'`
+      );
+      await DatabaseUtil.getInstance().executeSql(
+        `DELETE FROM ${DBTableName.IDENTITIES} WHERE cipher_id = '${cipherId}'`
+      );
+      await DatabaseUtil.getInstance().executeSql(
+        `DELETE FROM ${DBTableName.NOTES} WHERE cipher_id = '${cipherId}'`
+      );
+      await DatabaseUtil.getInstance().executeSql(
+        `DELETE FROM ${DBTableName.FIELDS} WHERE cipher_id = '${cipherId}'`
+      );
+
+      // 3. 重新保存登录信息
+      if (cipher.login && cipher.type == CipherItemType.LOGIN) {
+        const loginData: relationalStore.ValuesBucket = {
+          id: `${cipher.id}_login`,
+          cipher_id: cipher.id,
+          username: cipher.login.username || '',
+          password: cipher.login.password || '',
+          password_revision_date: cipher.login.passwordRevisionDate || null,
+          totp: cipher.login.totp || null,
+          uris: cipher.login.uris ? JSON.stringify(cipher.login.uris) : null
+        };
+        await DatabaseUtil.getInstance().insertData(DBTableName.LOGINS, loginData);
+      }
+
+      // 4. 重新保存卡片信息
+      if (cipher.card && cipher.type == CipherItemType.CARD) {
+        const cardData: relationalStore.ValuesBucket = {
+          id: `${cipher.id}_card`,
+          cipher_id: cipher.id,
+          cardholder_name: cipher.card.cardholderName || '',
+          brand: cipher.card.brand || '',
+          number: cipher.card.number || '',
+          exp_month: cipher.card.expMonth || '',
+          exp_year: cipher.card.expYear || '',
+          code: cipher.card.code || ''
+        };
+        await DatabaseUtil.getInstance().insertData(DBTableName.CARDS, cardData);
+      }
+
+      // 5. 重新保存身份信息
+      if (cipher.identity && cipher.type == CipherItemType.IDENTITY) {
+        const identityData: relationalStore.ValuesBucket = {
+          id: `${cipher.id}_identity`,
+          cipher_id: cipher.id,
+          title: cipher.identity.title || null,
+          first_name: cipher.identity.firstName || null,
+          middle_name: cipher.identity.middleName || null,
+          last_name: cipher.identity.lastName || null,
+          address1: cipher.identity.address1 || null,
+          address2: cipher.identity.address2 || null,
+          address3: cipher.identity.address3 || null,
+          city: cipher.identity.city || null,
+          state: cipher.identity.state || null,
+          postal_code: cipher.identity.postalCode || null,
+          country: cipher.identity.country || null,
+          company: cipher.identity.company || null,
+          email: cipher.identity.email || null,
+          phone: cipher.identity.phone || null,
+          ssn: cipher.identity.ssn || null,
+          username: cipher.identity.username || null,
+          passport_number: cipher.identity.passportNumber || null,
+          license_number: cipher.identity.licenseNumber || null
+        };
+        await DatabaseUtil.getInstance().insertData(DBTableName.IDENTITIES, identityData);
+      }
+
+      // 6. 重新保存安全笔记
+      if (cipher.secureNote && cipher.type == CipherItemType.NOTE) {
+        const noteData: relationalStore.ValuesBucket = {
+          id: `${cipher.id}_note`,
+          cipher_id: cipher.id,
+          type: cipher.secureNote.type || 0
+        };
+        await DatabaseUtil.getInstance().insertData(DBTableName.NOTES, noteData);
+      }
+
+      // 7. 重新保存自定义字段
+      if (cipher.fields && Array.isArray(cipher.fields)) {
+        for (let i = 0; i < cipher.fields.length; i++) {
+          const field = cipher.fields[i] as CipherField;
+          const fieldData: relationalStore.ValuesBucket = {
+            id: `${cipher.id}_field_${i}`,
+            cipher_id: cipher.id,
+            name: field.name || '',
+            value: field.value || '',
+            type: field.type || 0
+          };
+          await DatabaseUtil.getInstance().insertData(DBTableName.FIELDS, fieldData);
+        }
+      }
+
+      Logger.info(`Cipher updated successfully, cipherId = ${cipher.id}`);
+    } catch (err) {
+      const error = err as BusinessError;
+      Logger.error(`Failed to update cipher to database, error message: ${error.message}`);
     }
   }
 }

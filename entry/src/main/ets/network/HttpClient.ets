@@ -14,6 +14,12 @@ import { DataPreferences } from '@abner/datastore';
 import { util } from '@kit.ArkTS';
 import { ServerConfig } from '../model/ServerConfig';
 
+/**
+ * 创建带统一客户端、设备和语言请求头的 Axios 实例，并记录请求及响应错误。
+ * @param baseURL 此实例发送相对路径请求时使用的服务基址。
+ * @param config 保留的调用方配置参数；当前实现未将其合并到实例配置中。
+ * @returns 配置了 10 秒超时及请求/响应拦截器的 Axios 实例。
+ */
 export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
   const instance = axios.create({
     baseURL,
@@ -60,21 +66,32 @@ export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
   return instance;
 }
 
-// 从配置文件中读取服务器地址
+/**
+ * 从偏好存储顺序读取服务器类型与自托管地址。
+ * @returns 无效服务器类型回退为 US，缺失地址回退为空字符串的配置。
+ * @throws 偏好存储读取失败时传播异常。
+ */
 export async function getServerConfig(): Promise<ServerConfig> {
   let serverConfig: ServerConfig = { serverType: ServerType.US, serverAddress: '' };
-  await DataPreferences.getInstance().getPromise<ServerType>(SERVER_TYPE_KEY).then((data) => {
+  await DataPreferences.getInstance().getPromise<ServerType>(SERVER_TYPE_KEY, ServerType.US).then((data) => {
     // Logger.info(`Server Type preference: ${data}`);
-    serverConfig.serverType = data;
+    if (data === ServerType.US || data === ServerType.EU || data === ServerType.SELF_HOSTED) {
+      serverConfig.serverType = data;
+    }
   })
-  await DataPreferences.getInstance().getPromise<string>(SERVER_ADDRESS_KEY).then((data) => {
+  await DataPreferences.getInstance().getPromise<string>(SERVER_ADDRESS_KEY, '').then((data) => {
     // Logger.info(`Server Address preference: ${data}`);
-    serverConfig.serverAddress = data;
+    serverConfig.serverAddress = data ?? '';
   })
   return serverConfig;
 }
 
-// 处理表单内容
+/**
+ * 按给定字段顺序生成 application/x-www-form-urlencoded 请求体。
+ * @param data 表单值来源；空值按空字符串编码。
+ * @param keys 允许写入表单且决定输出顺序的字段列表。
+ * @returns 使用 `&` 拼接、值经 URI 编码的表单文本。
+ */
 export function toFormUrlEncoded<T extends object>(data: T, keys: (keyof T)[]): string {
   return keys
     .map(key => {
@@ -102,6 +119,11 @@ function encodeFormValue(value: string): string {
   });
 }
 
+/**
+ * 将 UTF-8 字符串编码为标准 Base64 文本。
+ * @param str 待编码的明文字符串。
+ * @returns 包含标准 Base64 字母表及填充的文本。
+ */
 export function encodeStringToBase64(str: string): string {
   const encoder = new util.TextEncoder();
   const data: Uint8Array = encoder.encodeInto(str);

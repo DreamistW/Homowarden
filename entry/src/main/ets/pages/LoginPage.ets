@@ -5,6 +5,10 @@ import { LoginViewModel } from '../viewmodel/LoginViewModel';
 import { EntryRouter } from '../../../../EntryRouter';
 import { common } from '@kit.AbilityKit';
 import { DataPreferences } from '@abner/datastore';
+import { HdsNavDestination } from '@hms.hds.hdsBaseComponent';
+import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
+import { AdaptiveTextButton } from '../component/AdaptiveButton';
+import { TwoFactorProvider } from '../model/AccessToken';
 
 @Builder
 export function LoginPageBuilder() {
@@ -26,6 +30,7 @@ export struct LoginPage {
   private exitTime: number = 0;
   pathInfos: NavPathStack = new NavPathStack();
 
+  /** 恢复服务器配置和用户选择保存的邮箱；异步服务器读取由 ViewModel 自行完成。 */
   aboutToAppear() {
     this.viewModel.loadServerConfig();
     const queryResult = DataPreferences.getInstance().getSync<number>(SAVE_EMAIL);
@@ -45,14 +50,34 @@ export struct LoginPage {
   @Builder
   twoFactorInputContent() {
     Column({ space: 20 }) {
-      Text('请输入两步验证码')
+      Text(this.viewModel.twoFactorProvider === TwoFactorProvider.WEB_AUTHN ? '请使用系统通行密钥完成验证' : '请输入两步验证码')
         .margin(12)
-      TextInput({ placeholder: '请输入' })
-        .onChange(value => {
-          this.viewModel.twoFactorToken = value;
-          this.twoFactorInputError = false;
-        })
-        .type(InputType.Number)
+
+      if (this.getVisibleTwoFactorProviders().length > 1) {
+        Column({ space: 8 }) {
+          ForEach(this.getVisibleTwoFactorProviders(), (provider: number) => {
+            Button(this.getTwoFactorProviderText(provider))
+              .width('100%')
+              .stateEffect(provider !== this.viewModel.twoFactorProvider)
+              .enabled(provider !== this.viewModel.twoFactorProvider)
+              .onClick(() => {
+                this.viewModel.setTwoFactorProvider(provider);
+                this.twoFactorInputError = false;
+                this.updateUI();
+              })
+          })
+        }
+      }
+
+      if (this.viewModel.twoFactorProvider !== TwoFactorProvider.WEB_AUTHN) {
+        TextInput({ placeholder: '请输入' })
+          .onChange(value => {
+            this.viewModel.twoFactorToken = value;
+            this.twoFactorInputError = false;
+          })
+          .type(InputType.Number)
+      }
+
       Row() {
         IBestSwitch({
           value: $twoFactorRemember,
@@ -72,7 +97,7 @@ export struct LoginPage {
           .fontSize(16)
       }
 
-      if (this.viewModel.twoFactorProvider == 1) {
+      if (this.viewModel.twoFactorProvider == TwoFactorProvider.EMAIL) {
         Button('发送验证码到邮箱')
           .onClick(async () => {
             this.pendingEmailLogin = true;
@@ -112,8 +137,9 @@ export struct LoginPage {
       }
 
       Button('发送验证码到邮箱')
-        .onClick(() => {
-          const result = this.viewModel.doSendEmailLogin();
+        .onClick(async () => {
+          this.pendingEmailLogin = true;
+          const result = await this.viewModel.doResendNewDeviceOtp();
           if (!result) {
             this.twoFactorInputError = true;
             this.twoFactorInputHint = '发送验证码失败';
@@ -121,12 +147,14 @@ export struct LoginPage {
             this.twoFactorInputError = true;
             this.twoFactorInputHint = '已发送验证码';
           }
+          this.pendingEmailLogin = false;
         })
+        .enabled(!this.pendingEmailLogin)
     }.padding(20)
   }
 
   build() {
-    NavDestination() {
+    HdsNavDestination() {
       Column() {
         // 邮箱输入框
         TextInput({
@@ -205,16 +233,28 @@ export struct LoginPage {
           .margin(12)
         }
 
-        // 登录按钮
-        Button(this.isLoading ? '登录中...' : '登录')
-          .onClick(() => {
-            if (!this.isLoading) {
-              this.handleLogin();
-            }
-          })
-          .margin(12)
-          .stateEffect(!this.isLoading)
-          .enabled(!this.isLoading)
+        Column() {
+          // 登录按钮
+          if (!this.isLoading) {
+            AdaptiveTextButton({
+              text: this.isLoading ? '登录中...' : '登录',
+              barWidth: 150,
+              barHeight: 50,
+              fontSize: 18,
+              onButtonClick: () => {
+                this.handleLogin();
+              }
+            })
+          } else {
+            Button('登录中...')
+              .margin(14)
+              .stateEffect(!this.isLoading)
+              .enabled(false)
+              .width(150)
+              .height(50)
+              .borderRadius(75)
+          }
+        }
 
         // 显示错误信息
         if (this.viewModel.errorMessage) {
@@ -243,21 +283,33 @@ export struct LoginPage {
             if (action === 'cancel') {
               return true;
             }
-            const valueLength = this.viewModel.twoFactorToken.trim().length;
-            this.twoFactorInputError = !valueLength;
-            if (this.twoFactorInputError) {
-              this.twoFactorInputHint = '验证码不能为空';
-              return false;
+            if (this.viewModel.twoFactorProvider === TwoFactorProvider.WEB_AUTHN) {
+              const context = this.getUIContext().getHostContext() as common.Context;
+              const passkeyResult = await this.viewModel.performPasskeyTwoFactor(context);
+              if (!passkeyResult) {
+                this.twoFactorInputError = true;
+                this.twoFactorInputHint = this.viewModel.errorMessage || '通行密钥验证失败';
+                return false;
+              }
+            } else {
+              const valueLength = this.viewModel.twoFactorToken.trim().length;
+              this.twoFactorInputError = !valueLength;
+              if (this.twoFactorInputError) {
+                this.twoFactorInputHint = '验证码不能为空';
+                return false;
+              }
             }
             const result = await this.viewModel.login();
             if (!result) {
               this.twoFactorInputError = true;
-              this.twoFactorInputHint = '无效的验证码';
+              this.twoFactorInputHint = this.viewModel.twoFactorProvider === TwoFactorProvider.WEB_AUTHN ?
+                (this.viewModel.errorMessage || '通行密钥验证失败') :
+                '无效的验证码';
               return false;
             }
             this.isNeed2FA = false;
             this.updateUI();
-            this.navigateToVault();
+            await this.navigateToVault();
             return true;
           }
         })
@@ -287,7 +339,7 @@ export struct LoginPage {
             }
             this.isNeedNewDevice = false;
             this.updateUI();
-            this.navigateToVault();
+            await this.navigateToVault();
             return true;
           }
         })
@@ -304,7 +356,14 @@ export struct LoginPage {
       .height('100%')
       .padding(24)
     }
-    .title('登录')
+    .titleBar({
+      content: {
+        title: {
+          mainTitle: '登录'
+        }
+      },
+      enableComponentSafeArea: true
+    })
     .hideBackButton(true)
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
@@ -323,7 +382,10 @@ export struct LoginPage {
     })
   }
 
-  // 处理登录逻辑
+  /**
+   * 校验页面输入并执行 ViewModel 登录状态机；根据结果展示 2FA/新设备弹窗或进入密码库。
+   * ViewModel 已将认证与网络异常转换为状态，本方法始终在结束时刷新 UI 并清除焦点。
+   */
   private async handleLogin(): Promise<void> {
     if (this.viewModel.email.length == 0 || this.viewModel.password.length == 0) {
       IBestToast.show('邮箱和密码不能为空');
@@ -340,20 +402,36 @@ export struct LoginPage {
     this.viewModel.needNewDevice = false;
     const loginSuccess = await this.viewModel.login();
     if (this.viewModel.needTwoFactor) {
-      this.isNeed2FA = true;
+      this.isNeed2FA = this.prepareTwoFactorDialog();
     } else if (this.viewModel.needNewDevice) {
       this.isNeedNewDevice = true;
     } else if (loginSuccess) {
       // 登录成功，跳转到密码库页面
-      this.navigateToVault();
+      await this.navigateToVault();
     }
     this.updateUI();
     this.isLoading = false;
     this.getUIContext().getFocusController().clearFocus();
   }
 
-  // 跳转到密码库页面
-  private navigateToVault(): void {
+  private prepareTwoFactorDialog(): boolean {
+    const visibleProviders = this.getVisibleTwoFactorProviders();
+    if (visibleProviders.length === 0) {
+      this.viewModel.errorMessage = '当前账号启用了不受支持的两步验证方式';
+      this.viewModel.needTwoFactor = false;
+      return false;
+    }
+
+    if (!visibleProviders.includes(this.viewModel.twoFactorProvider)) {
+      this.viewModel.setTwoFactorProvider(visibleProviders[0]);
+    }
+
+    return true;
+  }
+
+  /** 登录成功后先按已登录状态启用窗口截屏保护，再替换为密码库路由。 */
+  private async navigateToVault(): Promise<void> {
+    await WindowPrivacyUtil.applyForCurrentState();
     this.pathInfos.replacePath({ name: EntryRouter.VaultPage });
   }
 
@@ -361,6 +439,25 @@ export struct LoginPage {
   private updateUI(): void {
     // 使用clone方法创建新的ViewModel实例来触发UI更新
     this.viewModel = this.viewModel.clone();
+  }
+
+  private getTwoFactorProviderText(provider: number): string {
+    switch (provider) {
+      case TwoFactorProvider.WEB_AUTHN:
+        return '通行密钥';
+      case TwoFactorProvider.EMAIL:
+        return '电子邮箱';
+      default:
+        return '验证器';
+    }
+  }
+
+  private getVisibleTwoFactorProviders(): number[] {
+    // 暂时隐藏通行密钥入口
+    return this.viewModel.availableTwoFactorProviders.filter((provider: number) => {
+      return provider !== TwoFactorProvider.WEB_AUTHN;
+    });
+    // return this.viewModel.availableTwoFactorProviders
   }
 
   // 获取服务器类型按钮文本

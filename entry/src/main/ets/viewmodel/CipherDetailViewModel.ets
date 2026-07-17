@@ -18,12 +18,17 @@ import {
   updateCipher as updateCipherApi
 } from '../network/CipherApi';
 import { DeviceUtil } from '../utils/DeviceUtil';
+import { relationalStore } from '@kit.ArkData';
+import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
 
+/** 负责密码项详情解密、协议加密以及更新、删除、回收和还原的远端/本地协调。 */
 export class CipherDetailViewModel {
+  /** 页面注入的 Base64 对称密钥；传入和返回的详情对象包含明文业务字段。 */
   symmetricKey: string = '';
 
   /**
-   * 获取完整的密码项详情
+   * 从类型子表读取并解密详情，同时附加自定义字段。
+   * @throws 对应类型记录缺失、数据库查询或字段解密失败时传播异常；自定义字段失败单独降级为空数组。
    */
   async getCipherDetail(cipher: Cipher): Promise<Cipher> {
     // 根据类型获取详细信息
@@ -78,7 +83,7 @@ export class CipherDetailViewModel {
     })
   }
 
-  // 解析URI数组
+  /** 原地解密 URI 与校验和数组；任一字段解密失败时传播异常。 */
   async parseUris(uris: CipherUri[]): Promise<CipherUri[]> {
     return await Promise.all(
       uris.map(async (item: CipherUri) => {
@@ -208,7 +213,8 @@ export class CipherDetailViewModel {
           fields.push({
             name: fieldName,
             value: fieldValue,
-            type: fieldData.type as CipherFieldType
+            type: fieldData.type as CipherFieldType,
+            linkedId: fieldData.linked_id == null ? null : fieldData.linked_id as number
           });
         }
       }
@@ -223,7 +229,8 @@ export class CipherDetailViewModel {
   /**
    * 更新密码项
    * @param cipher 要更新的密码项（包含明文数据）
-   * @returns 更新后的密码项
+   * @returns 原明文对象，其服务端修订及归属元数据已原地更新。
+   * @throws 加密、网络或本地缓存异常会转换为只含可展示消息的新 Error。
    */
   async updateCipher(cipher: Cipher): Promise<Cipher> {
     try {
@@ -232,17 +239,95 @@ export class CipherDetailViewModel {
       // 调用 API 更新
       const updatedCipher = await updateCipherApi(cipher.id, encryptedCipher);
       Logger.info(`Cipher ${cipher.id} updated successfully`);
-      return updatedCipher;
+      // 将更新的密码项写入数据库
+      const cipherForDatabase = this.buildUpdatedEncryptedCipher(encryptedCipher, updatedCipher);
+      await DatabaseUtil.getInstance().updateCipherToDatabase(cipherForDatabase);
+      this.applyUpdatedCipherMetadata(cipher, cipherForDatabase);
+      return cipher;
     } catch (error) {
-      Logger.error(`Failed to update cipher ${cipher.id}: ${error}`);
-      throw new Error(`Failed to update cipher: ${error}`);
+      const errorMessage = ErrorMessageUtil.getMessage(error as Object);
+      Logger.error(`Failed to update cipher ${cipher.id}: ${errorMessage}`);
+      throw new Error(errorMessage);
     }
+  }
+
+  /** 合并服务端部分响应与已提交密文，形成可完整写入本地缓存的对象。 */
+  private buildUpdatedEncryptedCipher(encryptedCipher: Cipher, updatedCipher: Cipher): Cipher {
+    const revisionDate = updatedCipher.revisionDate || encryptedCipher.revisionDate;
+    const reprompt = updatedCipher.reprompt === undefined || updatedCipher.reprompt === null
+      ? encryptedCipher.reprompt
+      : updatedCipher.reprompt;
+
+    return {
+      id: updatedCipher.id || encryptedCipher.id,
+      type: updatedCipher.type || encryptedCipher.type,
+      name: updatedCipher.name || encryptedCipher.name,
+      favorite: updatedCipher.favorite === undefined ? encryptedCipher.favorite : updatedCipher.favorite,
+      edit: updatedCipher.edit === undefined ? encryptedCipher.edit : updatedCipher.edit,
+      folderId: updatedCipher.folderId === undefined ? encryptedCipher.folderId : updatedCipher.folderId,
+      organizationId: updatedCipher.organizationId === undefined ? encryptedCipher.organizationId : updatedCipher.organizationId,
+      creationDate: updatedCipher.creationDate || encryptedCipher.creationDate,
+      revisionDate: revisionDate,
+      lastKnownRevisionDate: revisionDate,
+      deletedDate: updatedCipher.deletedDate === undefined ? encryptedCipher.deletedDate : updatedCipher.deletedDate,
+      archivedDate: updatedCipher.archivedDate === undefined ? encryptedCipher.archivedDate || null : updatedCipher.archivedDate,
+      notes: updatedCipher.notes === undefined ? encryptedCipher.notes : updatedCipher.notes,
+      login: updatedCipher.login === undefined ? encryptedCipher.login : updatedCipher.login,
+      card: updatedCipher.card === undefined ? encryptedCipher.card : updatedCipher.card,
+      identity: updatedCipher.identity === undefined ? encryptedCipher.identity : updatedCipher.identity,
+      secureNote: updatedCipher.secureNote === undefined ? encryptedCipher.secureNote : updatedCipher.secureNote,
+      sshKey: updatedCipher.sshKey === undefined ? encryptedCipher.sshKey || null : updatedCipher.sshKey,
+      bankAccount: updatedCipher.bankAccount === undefined ? encryptedCipher.bankAccount || null : updatedCipher.bankAccount,
+      driversLicense: updatedCipher.driversLicense === undefined ? encryptedCipher.driversLicense || null :
+        updatedCipher.driversLicense,
+      passport: updatedCipher.passport === undefined ? encryptedCipher.passport || null : updatedCipher.passport,
+      fields: updatedCipher.fields === undefined ? encryptedCipher.fields || [] : updatedCipher.fields,
+      collectionIds: updatedCipher.collectionIds === undefined ? encryptedCipher.collectionIds || [] :
+        updatedCipher.collectionIds,
+      passwordHistory: updatedCipher.passwordHistory === undefined ? encryptedCipher.passwordHistory || null :
+        updatedCipher.passwordHistory,
+      attachments: updatedCipher.attachments === undefined ? encryptedCipher.attachments || null : updatedCipher.attachments,
+      attachments2: updatedCipher.attachments2 === undefined ? encryptedCipher.attachments2 || null :
+        updatedCipher.attachments2,
+      key: updatedCipher.key === undefined ? encryptedCipher.key || null : updatedCipher.key,
+      encryptedFor: updatedCipher.encryptedFor === undefined ? encryptedCipher.encryptedFor || null :
+        updatedCipher.encryptedFor,
+      reprompt: reprompt
+    };
+  }
+
+  private applyUpdatedCipherMetadata(cipher: Cipher, updatedCipher: Cipher): void {
+    cipher.lastKnownRevisionDate = updatedCipher.revisionDate;
+    cipher.revisionDate = this.formatDateTime(updatedCipher.revisionDate);
+    if (updatedCipher.creationDate) {
+      cipher.creationDate = this.formatDateTime(updatedCipher.creationDate);
+    }
+    cipher.deletedDate = updatedCipher.deletedDate ? this.formatDateTime(updatedCipher.deletedDate) : null;
+    cipher.archivedDate = updatedCipher.archivedDate || null;
+    cipher.folderId = updatedCipher.folderId;
+    cipher.organizationId = updatedCipher.organizationId;
+    cipher.collectionIds = updatedCipher.collectionIds || cipher.collectionIds || [];
+  }
+
+  private formatDateTime(dateStr: string): string {
+    if (!dateStr) {
+      return '---';
+    }
+    const date = new Date(dateStr);
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
   }
 
   /**
    * 构建加密的密码项
    * @param cipher 明文密码项
-   * @returns 加密后的密码项
+   * @returns 保留协议元数据、敏感业务字段已加密的密码项。
+   * @throws 任一字段加密或校验和计算失败时传播异常。
    */
   private async buildEncryptedCipher(cipher: Cipher): Promise<Cipher> {
     // 加密名称和备注
@@ -263,14 +348,25 @@ export class CipherDetailViewModel {
       organizationId: cipher.organizationId,
       creationDate: cipher.creationDate,
       revisionDate: timestamp,
+      lastKnownRevisionDate: cipher.lastKnownRevisionDate || cipher.revisionDate,
       deletedDate: cipher.deletedDate,
+      archivedDate: cipher.archivedDate || null,
       notes: encNotes,
       login: null,
       card: null,
       identity: null,
       secureNote: null,
+      sshKey: cipher.sshKey || null,
+      bankAccount: cipher.bankAccount || null,
+      driversLicense: cipher.driversLicense || null,
+      passport: cipher.passport || null,
       fields: cipher.fields || [],
       collectionIds: cipher.collectionIds || [],
+      passwordHistory: cipher.passwordHistory || null,
+      attachments: cipher.attachments || null,
+      attachments2: cipher.attachments2 || null,
+      key: cipher.key || null,
+      encryptedFor: cipher.encryptedFor || null,
       reprompt: cipher.reprompt
     };
 
@@ -313,11 +409,14 @@ export class CipherDetailViewModel {
     let encUris: CipherUri[] = [];
     if (login.uris && login.uris.length > 0) {
       encUris = await Promise.all(login.uris.map(async (uri) => {
-        const encUri = uri.uri ? await CryptoUtil.encryptField(uri.uri, this.symmetricKey) : '';
-        const encChecksum = uri.uriChecksum ? await CryptoUtil.encryptField(uri.uriChecksum, this.symmetricKey) : '';
+        const plainUri = uri.uri ? uri.uri.trim() : '';
+        const encUri = plainUri ? await CryptoUtil.encryptField(plainUri, this.symmetricKey) : '';
+        const sha256CheckSum = plainUri ? await CryptoUtil.doSha256(plainUri) : '';
+        const encChecksum = sha256CheckSum ? await CryptoUtil.encryptField(sha256CheckSum, this.symmetricKey) : '';
         const cipherUri: CipherUri = {
           uri: encUri,
-          uriChecksum: encChecksum
+          uriChecksum: encChecksum,
+          match: uri.match ?? null
         };
         return cipherUri;
       }));
@@ -328,7 +427,10 @@ export class CipherDetailViewModel {
       password: encPassword,
       passwordRevisionDate: login.passwordRevisionDate,
       totp: encTotp,
-      uris: encUris
+      uris: encUris,
+      uri: login.uri ? await CryptoUtil.encryptField(login.uri, this.symmetricKey) : null,
+      autofillOnPageLoad: login.autofillOnPageLoad ?? null,
+      fido2Credentials: login.fido2Credentials || null
     };
   }
 
@@ -421,7 +523,8 @@ export class CipherDetailViewModel {
       const cipherField: CipherField = {
         name: encName,
         value: encValue,
-        type: field.type
+        type: field.type,
+        linkedId: field.linkedId ?? null
       };
       return cipherField;
     }));
@@ -429,25 +532,41 @@ export class CipherDetailViewModel {
 
   /**
    * 删除密码项
-   * @param cipherId 要删除的密码项ID
+   * @param cipher 当前明文密码项，软删除时会原地更新删除时间。
+   * @param isRealDelete `true` 时远端及本地彻底删除；否则移入回收站。
+   * @returns 软删除后的原对象；彻底删除成功时返回 `null`。
+   * @throws 网络或关键本地数据库操作失败时转换为可展示消息 Error。
    */
-  async deleteCipher(cipherId: string, isRealDelete: boolean): Promise<void> {
+  async deleteCipher(cipher: Cipher, isRealDelete: boolean): Promise<Cipher | null> {
     try {
       // 确认是否彻底删除
       if (isRealDelete) {
-        await deleteCipher(cipherId);
-        Logger.info(`Cipher ${cipherId} deleted successfully from server`);
+        await deleteCipher(cipher.id);
+        Logger.info(`Cipher ${cipher.id} deleted successfully from server`);
 
         // 从本地数据库删除
-        await this.deleteFromLocalDatabase(cipherId);
-        Logger.info(`Cipher ${cipherId} deleted from local database`);
-      } else {
-        await moveCipherToRecycler(cipherId);
+        await this.deleteFromLocalDatabase(cipher.id);
+        Logger.info(`Cipher ${cipher.id} deleted from local database`);
+        return null;
       }
+
+      await moveCipherToRecycler(cipher.id);
+      const deletedDate = DeviceUtil.getISOTimestamp();
+      await this.updateSoftDeletedCipherInLocalDatabase(cipher.id, deletedDate);
+      cipher.deletedDate = this.formatDateTime(deletedDate);
+      return cipher;
     } catch (error) {
-      Logger.error(`Failed to delete cipher ${cipherId}: ${error}`);
-      throw new Error(`Failed to delete cipher: ${error}`);
+      const errorMessage = ErrorMessageUtil.getMessage(error as Object);
+      Logger.error(`Failed to delete cipher ${cipher.id}: ${errorMessage}`);
+      throw new Error(errorMessage);
     }
+  }
+
+  private async updateSoftDeletedCipherInLocalDatabase(cipherId: string, deletedDate: string): Promise<void> {
+    const cipherData: relationalStore.ValuesBucket = {
+      deleted_date: deletedDate
+    };
+    await DatabaseUtil.getInstance().updateData(DBTableName.MAIN, cipherId, cipherData);
   }
 
   /**
@@ -501,27 +620,56 @@ export class CipherDetailViewModel {
 
       Logger.info(`Local database cleanup completed for cipher ${cipherId}`);
     } catch (error) {
-      Logger.error(`Failed to delete from local database: ${error}`);
-      throw new Error(`Failed to delete cipher from local database: ${error}`);
+      const errorMessage = ErrorMessageUtil.getMessage(error as Object);
+      Logger.error(`Failed to delete from local database: ${errorMessage}`);
+      throw new Error(errorMessage);
     }
   }
 
   /**
    * 还原密码项
    * @param cipher 要还原的密码项（包含明文数据）
-   * @returns 更新后的密码项
+   * @returns 原明文对象，其删除时间及服务端元数据已原地更新。
+   * @throws 网络或本地缓存失败时转换为可展示消息 Error。
    */
   async restoreCipher(cipher: Cipher): Promise<Cipher> {
     try {
-      // 构建加密的密码项
-      const encryptedCipher = await this.buildEncryptedCipher(cipher);
       // 调用 API 还原
-      const restoredCipher = await restoreCipher(cipher.id, encryptedCipher);
+      const restoredCipher = await restoreCipher(cipher.id);
       Logger.info(`Cipher ${cipher.id} restored successfully`);
-      return restoredCipher;
+
+      await this.updateRestoredCipherInLocalDatabase(cipher.id, restoredCipher.revisionDate || null);
+      this.applyRestoredCipherMetadata(cipher, restoredCipher);
+      return cipher;
     } catch (error) {
-      Logger.error(`Failed to restore cipher ${cipher.id}: ${error}`);
-      throw new Error(`Failed to restore cipher: ${error}`);
+      const errorMessage = ErrorMessageUtil.getMessage(error as Object);
+      Logger.error(`Failed to restore cipher ${cipher.id}: ${errorMessage}`);
+      throw new Error(errorMessage);
     }
+  }
+
+  private async updateRestoredCipherInLocalDatabase(cipherId: string, revisionDate: string | null): Promise<void> {
+    const cipherData: relationalStore.ValuesBucket = {
+      deleted_date: null
+    };
+    if (revisionDate) {
+      cipherData.revision_date = revisionDate;
+    }
+    await DatabaseUtil.getInstance().updateData(DBTableName.MAIN, cipherId, cipherData);
+  }
+
+  private applyRestoredCipherMetadata(cipher: Cipher, restoredCipher: Cipher): void {
+    cipher.deletedDate = null;
+    if (restoredCipher.revisionDate) {
+      cipher.lastKnownRevisionDate = restoredCipher.revisionDate;
+      cipher.revisionDate = this.formatDateTime(restoredCipher.revisionDate);
+    }
+    if (restoredCipher.creationDate) {
+      cipher.creationDate = this.formatDateTime(restoredCipher.creationDate);
+    }
+    cipher.archivedDate = restoredCipher.archivedDate === undefined ? cipher.archivedDate || null : restoredCipher.archivedDate;
+    cipher.folderId = restoredCipher.folderId === undefined ? cipher.folderId : restoredCipher.folderId;
+    cipher.organizationId = restoredCipher.organizationId === undefined ? cipher.organizationId : restoredCipher.organizationId;
+    cipher.collectionIds = restoredCipher.collectionIds || cipher.collectionIds || [];
   }
 }

@@ -16,6 +16,9 @@ import { Logger } from '@nzy/logger';
 import { clearAssetAndPreferences, queryAssetSync } from '../utils/AssetUtil';
 import { PreloginResponse } from '../model/Prelogin';
 import { CryptoUtil } from '../utils/CryptoUtil';
+import { HdsNavDestination } from '@hms.hds.hdsBaseComponent';
+import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
+import { AdaptiveTextButton } from '../component/AdaptiveButton';
 
 @Builder
 export function UnlockPageBuilder() {
@@ -28,6 +31,7 @@ export struct UnlockPage {
   private exitTime: number = 0;
   private masterPassword: string = "";
 
+  /** 若用户已开启生物识别，进入锁定页后自动调起系统认证。 */
   aboutToAppear() {
     if (DataPreferences.getInstance().getSync<number>(BIOMETRIC_AUTH) == 1) {
       // 自动拉起生物认证
@@ -36,7 +40,7 @@ export struct UnlockPage {
   }
 
   build() {
-    NavDestination() {
+    HdsNavDestination() {
       Column() {
         // 应用图标
         Image($r('app.media.app_small_icon'))
@@ -45,10 +49,10 @@ export struct UnlockPage {
           .margin({ top: 100, bottom: 40 })
 
         // 应用名称
-        Text($r('app.string.app_name'))
-          .fontSize(24)
-          .fontWeight(FontWeight.Medium)
-          .margin({ bottom: 80 })
+        // Text($r('app.string.app_name'))
+        //   .fontSize(24)
+        //   .fontWeight(FontWeight.Medium)
+        //   .margin({ bottom: 80 })
 
         Text('密码库已锁定, 请输入主密码')
           .fontSize(14)
@@ -57,8 +61,9 @@ export struct UnlockPage {
             left: 16,
             right: 16,
             top: 12,
-            bottom: 4
+            bottom: 12
           })
+
         TextInput({ text: this.masterPassword })
           .onChange((v: string) => {
             this.masterPassword = v;
@@ -66,59 +71,103 @@ export struct UnlockPage {
           .margin({ left: 16, right: 16, bottom: 24 })
           .type(InputType.Password)
 
-        // 密码解锁按钮
-        Button() {
-          Text('主密码解锁')
-            .fontSize(18)
-            .fontColor(Color.White)
+        // 按钮
+        Column({ space: 6 }) {
+          // 密码解锁
+          AdaptiveTextButton({
+            text: '主密码解锁',
+            barWidth: 150,
+            barHeight: 50,
+            fontSize: 18,
+            contentPadding: 6,
+            onButtonClick: () => {
+              this.startPasswordAuth();
+            }
+          })
+
+          // 生物识别解锁
+          AdaptiveTextButton({
+            text: '生物识别解锁',
+            barWidth: 150,
+            barHeight: 50,
+            fontSize: 18,
+            contentPadding: 6,
+            onButtonClick: () => {
+              if (DataPreferences.getInstance().getSync<number>(BIOMETRIC_AUTH) == 1) {
+                // 点击解锁按钮拉起生物认证
+                this.startBiometricAuth();
+              } else {
+                IBestToast.show('未开启生物识别');
+              }
+            }
+          })
+
+          // 注销
+          AdaptiveTextButton({
+            text: '注销',
+            barWidth: 150,
+            barHeight: 50,
+            fontSize: 18,
+            contentPadding: 6,
+            onButtonClick: () => {
+              clearAssetAndPreferences();
+              void WindowPrivacyUtil.applyForCurrentState();
+              // 跳转到登录页面
+              this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
+            }
+          })
         }
-        .width(200)
-        .height(50)
-        .backgroundColor('#007DFF')
-        .borderRadius(25)
-        .onClick(() => {
-          // 主密码解锁
-          this.startPasswordAuth();
-        })
-        .margin({ bottom: 24 })
+
+        // Button() {
+        //   Text('主密码解锁')
+        //     .fontSize(18)
+        //     .fontColor(Color.White)
+        // }
+        // .width(200)
+        // .height(50)
+        // .backgroundColor('#007DFF')
+        // .borderRadius(25)
+        // .onClick(() => {
+        //   // 主密码解锁
+        //   this.startPasswordAuth();
+        // })
+        // .margin({ bottom: 24 })
 
         // 生物解锁按钮
-        Button() {
-          Text('生物识别解锁')
-            .fontSize(18)
-            .fontColor(Color.White)
-        }
-        .width(200)
-        .height(50)
-        .backgroundColor('#007DFF')
-        .borderRadius(25)
-        .onClick(() => {
-          if (DataPreferences.getInstance().getSync<number>(BIOMETRIC_AUTH) == 1) {
-            // 点击解锁按钮拉起生物认证
-            this.startBiometricAuth();
-          } else {
-            IBestToast.show('未开启生物识别');
-          }
-        })
-        .margin({ bottom: 24 })
+        // Button() {
+        //   Text('生物识别解锁')
+        //     .fontSize(18)
+        //     .fontColor(Color.White)
+        // }
+        // .width(200)
+        // .height(50)
+        // .backgroundColor('#007DFF')
+        // .borderRadius(25)
+        // .onClick(() => {
+        //   if (DataPreferences.getInstance().getSync<number>(BIOMETRIC_AUTH) == 1) {
+        //     // 点击解锁按钮拉起生物认证
+        //     this.startBiometricAuth();
+        //   } else {
+        //     IBestToast.show('未开启生物识别');
+        //   }
+        // })
+        // .margin({ bottom: 24 })
 
         // 注销按钮
-        Button() {
-          Text('注销')
-            .fontSize(18)
-            .fontColor(Color.White)
-        }
-        .width(200)
-        .height(50)
-        .backgroundColor('#007DFF')
-        .borderRadius(25)
-        .onClick(() => {
-          clearAssetAndPreferences();
-          // 跳转到登录页面
-          this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
-        })
-
-        Blank()
+        // Button() {
+        //   Text('注销')
+        //     .fontSize(18)
+        //     .fontColor(Color.White)
+        // }
+        // .width(200)
+        // .height(50)
+        // .backgroundColor('#007DFF')
+        // .borderRadius(25)
+        // .onClick(() => {
+        //   clearAssetAndPreferences();
+        //   // 跳转到登录页面
+        //   this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
+        // })
       }
       .width('100%')
       .height('100%')
@@ -142,6 +191,10 @@ export struct UnlockPage {
     })
   }
 
+  /**
+   * 使用持久化 KDF 参数重新派生主密钥，匹配后按当前导航栈进入密码库或返回上一页。
+   * 参数缺失、密码不匹配和派生异常均转换为页面提示，不向事件回调传播。
+   */
   async startPasswordAuth() {
     if (!this.masterPassword || this.masterPassword.length === 0) {
       IBestToast.show('请输入主密码');
@@ -215,7 +268,7 @@ export struct UnlockPage {
     }
   }
 
-  // 发起生物识别认证
+  /** 使用随机 challenge 发起 ATL3 系统认证，成功后按当前导航栈完成解锁。 */
   startBiometricAuth() {
     try {
       const rand = cryptoFramework.createRandom();

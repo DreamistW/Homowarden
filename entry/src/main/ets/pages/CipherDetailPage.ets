@@ -1,7 +1,5 @@
 import { Cipher, CipherDetailParams, CipherField, CipherUri } from '../model/CipherModels';
 import {
-  AUTO_LOCK,
-  BACKGROUND_TIMESTAMP,
   CardBrandType,
   CipherFieldType,
   CipherItemType,
@@ -22,7 +20,10 @@ import {
 } from '@ibestservices/ibest-ui';
 import { Logger } from '@nzy/logger';
 import { DataPreferences } from '@abner/datastore';
-import { EntryRouter } from '../../../../EntryRouter';
+import { hdsMaterial, HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
+import { AdaptiveTextButton } from '../component/AdaptiveButton';
+import { VaultChangeNotifier } from '../utils/VaultChangeNotifier';
+import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
 
 @Builder
 export function CipherDetailPageBuilder() {
@@ -121,33 +122,56 @@ export struct CipherDetailPage {
     }
   }
 
-  EditItemBtn: NavigationMenuItem = {
-    'value': '', 'icon': 'resources/base/media/icon_edit.svg', 'action': () => {
-      this.isEditable = true;
-      if (this.cipher.type === CipherItemType.LOGIN && this.cipher.login) {
-        this.editUris = this.cipher.login.uris;
+  EditItemBtn: HdsNavigationBadgeIconOptions = {
+    content: {
+      label: '编辑',
+      icon: $r('app.media.icon_edit'),
+      action: () => {
+        this.isEditable = true;
       }
     }
   }
-  DeleteItemBtn: NavigationMenuItem = {
-    'value': '', 'icon': 'resources/base/media/icon_delete.svg', 'action': () => {
-      this.deleteCipher();
+  DeleteItemBtn: HdsNavigationBadgeIconOptions = {
+    content: {
+      label: '删除',
+      icon: $r('app.media.icon_delete'),
+      action: () => {
+        this.deleteCipher();
+      }
     }
   }
-  ConfirmEditBtn: NavigationMenuItem = {
-    'value': '', 'icon': 'resources/base/media/icon_confirm.svg', 'action': async () => {
-      await this.saveCipher();
+  ConfirmEditBtn: HdsNavigationBadgeIconOptions = {
+    content: {
+      label: '确认',
+      icon: $r('app.media.icon_confirm'),
+      action: async () => {
+        if (this.isSaving) {
+          return;
+        }
+        await this.saveCipher();
+      }
     }
   }
-  CancelEditBtn: NavigationMenuItem = {
-    'value': '', 'icon': 'resources/base/media/icon_cancel.svg', 'action': () => {
-      this.isEditable = false;
-      this.loadCipherDetail();
+  CancelEditBtn: HdsNavigationBadgeIconOptions = {
+    content: {
+      label: '取消',
+      icon: $r('app.media.icon_cancel'),
+      action: () => {
+        if (this.isSaving) {
+          return;
+        }
+        this.isEditable = false;
+        this.loadCipherDetail();
+      }
     }
   }
-  RestoreItemBtn: NavigationMenuItem = {
-    'value': '', 'icon': 'resources/base/media/icon_restore.svg', 'action': async () => {
-      await this.restoreCipher();
+  RestoreItemBtn: HdsNavigationBadgeIconOptions = {
+    content: {
+      label: '还原',
+      icon: $r('app.media.icon_restore'),
+      action: async () => {
+        await this.restoreCipher();
+      }
     }
   }
 
@@ -167,7 +191,8 @@ export struct CipherDetailPage {
   }
 
   /**
-   * 加载密码项详情
+   * 使用路由传入的列表对象补齐并解密类型详情，同时同步编辑控件状态。
+   * 加载异常只记录日志并结束 loading，不向页面生命周期传播。
    */
   private async loadCipherDetail() {
     this.isLoading = true;
@@ -175,6 +200,9 @@ export struct CipherDetailPage {
       const cipherDetail = await this.viewModel.getCipherDetail(this.cipher);
       if (cipherDetail) {
         this.cipher = cipherDetail;
+        if (this.cipher.type === CipherItemType.LOGIN && this.cipher.login) {
+          this.editUris = this.cipher.login.uris;
+        }
         // 初始化下拉菜单的选中值
         if (this.cipher.card?.brand) {
           this.selectedCardBrand = this.getCardBrandEnum(this.cipher.card.brand);
@@ -197,9 +225,13 @@ export struct CipherDetailPage {
   }
 
   /**
-   * 保存密码项
+   * 过滤空 URI，标记本地修订，执行远端更新与本地缓存后发布一次性列表变更。
+   * 失败时保留编辑状态并展示错误；并发点击由 isSaving 阻止。
    */
   private async saveCipher() {
+    if (this.isSaving) {
+      return;
+    }
     this.isSaving = true;
     try {
       if (this.cipher.type === CipherItemType.LOGIN && this.cipher.login) {
@@ -209,31 +241,62 @@ export struct CipherDetailPage {
       }
 
       // 调用 ViewModel 的 updateCipher 方法
-      await this.viewModel.updateCipher(this.cipher);
+      VaultChangeNotifier.markLocalChangePending();
+      this.cipher = await this.viewModel.updateCipher(this.cipher);
+      VaultChangeNotifier.setUpdatedCipher(this.cipher);
       // 保存成功，退出编辑模式
       this.isEditable = false;
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
       IBestToast.show(`保存成功`);
+      // 重新加载密码项
+      await this.loadCipherDetail();
     } catch (error) {
       Logger.error('Failed to save cipher:', error);
-      IBestToast.show(`编辑失败, 错误信息: ${JSON.stringify(error)}`);
+      IBestToast.show(`编辑失败, 错误信息: ${ErrorMessageUtil.getMessage(error as Object)}`);
     } finally {
       this.isSaving = false;
     }
   }
 
+  private getConfirmEditBtn(): HdsNavigationBadgeIconOptions {
+    return {
+      content: {
+        label: this.isSaving ? '保存中' : '确认',
+        icon: $r('app.media.icon_confirm'),
+        action: async () => {
+          if (this.isSaving) {
+            return;
+          }
+          await this.saveCipher();
+        }
+      }
+    };
+  }
+
+  private getTitleMenu(): HdsNavigationBadgeIconOptions[] {
+    if (this.isEditable) {
+      return [this.CancelEditBtn, this.getConfirmEditBtn()];
+    }
+    if (this.cipher.deletedDate) {
+      return [this.RestoreItemBtn, this.DeleteItemBtn];
+    }
+    return [this.EditItemBtn, this.DeleteItemBtn];
+  }
+
   /**
-   * 还原密码项
+   * 还原远端条目、更新本地缓存并发布列表增量通知；异常转换为 Toast。
    */
   private async restoreCipher() {
     try {
-      await this.viewModel.restoreCipher(this.cipher);
-      this.cipher.deletedDate = null;
+      VaultChangeNotifier.markLocalChangePending();
+      this.cipher = await this.viewModel.restoreCipher(this.cipher);
+      VaultChangeNotifier.setUpdatedCipher(this.cipher);
+      DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
       // 显示成功提示
       IBestToast.show('还原成功');
     } catch (error) {
       Logger.error('Failed to restore cipher:', error);
-      IBestToast.show(`还原失败, 错误信息: ${JSON.stringify(error)}`);
+      IBestToast.show(`还原失败, 错误信息: ${ErrorMessageUtil.getMessage(error as Object)}`);
     }
   }
 
@@ -251,7 +314,7 @@ export struct CipherDetailPage {
   }
 
   build() {
-    NavDestination() {
+    HdsNavDestination() {
       Column() {
         if (this.isLoading) {
           Column() {
@@ -269,10 +332,26 @@ export struct CipherDetailPage {
         } else if (this.cipher && this.cipher.id) {
           Scroll() {
             Column() {
-              Text(this.cipher.name)
-                .fontSize(16)
-                .fontWeight(FontWeight.Bold)
-                .margin({ bottom: 8 })
+              // Text(this.cipher.name)
+              //   .fontSize(16)
+              //   .fontWeight(FontWeight.Bold)
+              //   .margin({ top: 8, bottom: 8 })
+
+              Row() {
+                // 项目名称
+                CipherDetailTextItem({
+                  label: '项目名称',
+                  content: this.cipher.name,
+                  isEditable: this.isEditable,
+                  showCopyButton: false,
+                  onValueChange: (value: string) => {
+                    this.cipher.name = value;
+                  }
+                })
+              }
+              .margin({ top: 8, bottom: 8 })
+              .width('100%')
+              .padding(16)
 
               // 登录信息
               if (this.cipher.type === CipherItemType.LOGIN && this.cipher.login) {
@@ -403,7 +482,23 @@ export struct CipherDetailPage {
       .width('100%')
       .height('100%')
     }
-    .title('详情')
+    .titleBar({
+      content: {
+        title: {
+          mainTitle: '详情'
+        },
+        menu: {
+          value: this.getTitleMenu()
+        }
+      },
+      enableComponentSafeArea: true,
+      style: {
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
+        }
+      }
+    })
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
       const param = ctx.pathInfo.param as CipherDetailParams;
@@ -411,21 +506,6 @@ export struct CipherDetailPage {
         this.cipher = param.cipher;
         this.viewModel.symmetricKey = param.symmetricKey;
         this.loadCipherDetail();
-      }
-    })
-    .menus(this.isEditable ? [this.CancelEditBtn, this.ConfirmEditBtn] :
-      this.cipher.deletedDate ? [this.RestoreItemBtn, this.DeleteItemBtn] : [this.EditItemBtn, this.DeleteItemBtn])
-    .onHidden(() => {
-      DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
-    })
-    .onShown(() => {
-      const autoLockStatus = DataPreferences.getInstance().getSync<number>(AUTO_LOCK);
-      if (autoLockStatus == 1) {
-        const currentTime = Math.floor(Date.now() / 1000);
-        const backgroundTime = DataPreferences.getInstance().getSync<number>(BACKGROUND_TIMESTAMP);
-        if (currentTime - backgroundTime > 120) {
-          this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
-        }
       }
     })
   }
@@ -466,7 +546,7 @@ export struct CipherDetailPage {
 
       // 网址
       if (this.cipher.login?.uris && this.cipher.login.uris.length > 0 && !this.isEditable) {
-        ForEach(this.cipher.login.uris as CipherUri[], (uri: CipherUri) => {
+        ForEach(this.editUris, (uri: CipherUri, index: number) => {
           CipherDetailTextItem({
             label: '网站',
             content: uri.uri,
@@ -492,19 +572,31 @@ export struct CipherDetailPage {
           })
         })
 
-        Button() {
-          Text('添加网站')
-            .fontSize(18)
-            .fontColor(Color.White)
+        Row() {
+          AdaptiveTextButton({
+            text: '添加网站',
+            barWidth: 150,
+            barHeight: 50,
+            fontSize: 18,
+            onButtonClick: () => {
+              this.addUriEdit();
+            }
+          })
         }
-        .width(150)
-        .height(40)
-        .backgroundColor('#007DFF')
-        .borderRadius(25)
-        .margin({ top: 24, bottom: 24 })
-        .onClick(() => {
-          this.addUriEdit();
-        })
+
+        // Button() {
+        //   Text('添加网站')
+        //     .fontSize(18)
+        //     .fontColor(Color.White)
+        // }
+        // .width(150)
+        // .height(40)
+        // .backgroundColor('#007DFF')
+        // .borderRadius(25)
+        // .margin({ top: 24, bottom: 24 })
+        // .onClick(() => {
+        //   this.addUriEdit();
+        // })
       }
 
       // TOTP验证码显示（仅查看模式且有TOTP密钥时）
@@ -961,16 +1053,24 @@ export struct CipherDetailPage {
   }
 
   /**
-   * 执行删除密码项
+   * 根据 deletedDate 选择移入回收站或彻底删除，并发布对应的单槽本地变更。
+   * @returns 远端和本地处理完成且已返回上一页时为 `true`；异常时保留当前页并返回 `false`。
    */
   private async doDeleteCipher(): Promise<boolean> {
     try {
-      await this.viewModel.deleteCipher(this.cipher.id, this.cipher.deletedDate ? true : false);
+      const isRealDelete = this.cipher.deletedDate ? true : false;
+      VaultChangeNotifier.markLocalChangePending();
+      const changedCipher = await this.viewModel.deleteCipher(this.cipher, isRealDelete);
       Logger.info(`Cipher ${this.cipher.id} deleted successfully`);
 
       // 显示成功提示
       IBestToast.show('删除成功');
 
+      if (changedCipher) {
+        VaultChangeNotifier.setUpdatedCipher(changedCipher);
+      } else {
+        VaultChangeNotifier.setDeletedCipher(this.cipher.id);
+      }
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
 
       // 返回上一页
@@ -980,7 +1080,7 @@ export struct CipherDetailPage {
       Logger.error('Failed to delete cipher:', error);
 
       // 显示失败提示
-      IBestToast.show(`删除失败, 错误信息: ${JSON.stringify(error)}`);
+      IBestToast.show(`删除失败, 错误信息: ${ErrorMessageUtil.getMessage(error as Object)}`);
 
       this.showDeleteDialog = false;
       return false;
@@ -996,4 +1096,4 @@ export struct CipherDetailPage {
     }
     return returnStr;
   }
-} 
+}

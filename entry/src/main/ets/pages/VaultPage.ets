@@ -8,19 +8,21 @@ import {
   IBestDropdownMenu,
   IBestField,
   IBestFieldValueType,
-  IBestFloatBubble,
   IBestPullRefresh,
   IBestToast
 } from '@ibestservices/ibest-ui';
 import { DataPreferences } from '@abner/datastore';
 import {
-  AUTO_LOCK,
-  BACKGROUND_TIMESTAMP,
-  FilterType,
-  LOGIN_STATUS_KEY,
-  NEED_RELOAD_CIPHERS
+  FilterType, LOGIN_STATUS_KEY, NEED_RELOAD_CIPHERS
 } from '../utils/Constants';
 import { CipherItem } from '../component/CipherItem';
+import {
+  HdsNavDestination, HdsNavigationBadgeIconOptions
+} from '@hms.hds.hdsBaseComponent';
+import { hdsMaterial } from '@kit.UIDesignKit';
+import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
+import { AdaptiveIconButton } from '../component/AdaptiveButton';
+import { VaultChangeNotifier, VaultLocalChange, VaultLocalChangeType } from '../utils/VaultChangeNotifier';
 
 @Builder
 export function VaultPageBuilder() {
@@ -34,6 +36,7 @@ export struct VaultPage {
   @State searchText: string = '';
   @State needReLogin: boolean = false;
   @State selectedType: FilterType | string = 0;
+  @State isInitialLoading: boolean = true;
   @State isLoading: boolean = false;
   @State showPasswordDialog: boolean = false;
   @State passwordInput: string = '';
@@ -42,43 +45,144 @@ export struct VaultPage {
   @State showAddBtn: boolean = false;
   private exitTime: number = 0;
   pathInfos: NavPathStack = new NavPathStack();
-  AddItemBtn: NavigationMenuItem = {
-    'value': '添加', 'icon': 'resources/base/media/icon_add.svg', 'action': () => {
-      this.pathInfos.pushPath({ name: EntryRouter.AddCipherPage, param: this.viewModel.symmetricKey });
+  AddItemBtn: HdsNavigationBadgeIconOptions = {
+    content: {
+      label: '添加',
+      icon: $r('app.media.icon_add'),
+      action: () => {
+        this.pathInfos.pushPath({ name: EntryRouter.AddCipherPage, param: this.viewModel.symmetricKey });
+      }
     }
   }
-  SettingsBtn: NavigationMenuItem = {
-    'value': '设置', 'icon': 'resources/base/media/icon_settings.svg', 'action': () => {
-      this.pathInfos.pushPath({ name: EntryRouter.SettingsPage });
+  SettingsBtn: HdsNavigationBadgeIconOptions = {
+    content: {
+      label: '设置',
+      icon: $r('app.media.icon_settings'),
+      action: () => {
+        this.pathInfos.pushPath({ name: EntryRouter.SettingsPage });
+      }
     }
   }
-  Sure2ShareBtn: NavigationMenuItem = {
-    'value': '安心分享', 'icon': 'resources/base/media/icon_share.svg', 'action': () => {
-      this.pathInfos.pushPath({ name: EntryRouter.Sure2SharePage });
+  Sure2ShareBtn: HdsNavigationBadgeIconOptions = {
+    content: {
+      label: '安心分享',
+      icon: $r('app.media.icon_share'),
+      action: () => {
+        this.pathInfos.pushPath({ name: EntryRouter.Sure2SharePage });
+      }
     }
   }
-  TotpCodeBtn: NavigationMenuItem = {
-    'value': '验证码', 'icon': 'resources/base/media/icon_time.svg', 'action': () => {
-      this.pathInfos.pushPath({
-        name: EntryRouter.TotpListPage,
-        param: { ciphers: this.viewModel.allCiphers, symmetricKey: this.viewModel.symmetricKey } as TotpListParams
-      });
+  TotpCodeBtn: HdsNavigationBadgeIconOptions = {
+    content: {
+      label: '验证码',
+      icon: $r('app.media.icon_key'),
+      action: () => {
+        this.pathInfos.pushPath({
+          name: EntryRouter.TotpListPage,
+          param: { ciphers: this.viewModel.allCiphers, symmetricKey: this.viewModel.symmetricKey } as TotpListParams
+        });
+      }
     }
   }
   groupId: string = 'filter_menu';
 
+  /** 进入页面时先展示本地数据，再按缓存是否为空选择前台或后台同步。 */
   async aboutToAppear() {
-    await this.loadCiphers();
+    await this.loadCiphersWithBackgroundSync();
   }
 
-  private async loadCiphers() {
+  /**
+   * 本地优先加载：空缓存时等待强制同步，非空缓存时保留界面并启动静默同步。
+   */
+  private async loadCiphersWithBackgroundSync() {
     // 设置重新登录回调
     this.viewModel.onReLoginRequired = () => {
       this.needReLogin = true;
     };
 
-    const result = await this.viewModel.loadCiphers();
-    if (!result) {
+    this.isInitialLoading = true;
+    try {
+      // 第一步：先加载本地数据库
+      const localResult = await this.viewModel.loadCiphers(false);
+      if (!localResult) {
+        IBestToast.show(this.viewModel.errorMessage);
+      }
+
+      this.viewModel.filterCiphers(this.selectedType, this.searchText);
+
+      // 第二步：如果本地没数据，则直接强制同步，避免先显示空态再跳变为列表
+      if (this.viewModel.allCiphers.length === 0) {
+        const syncResult = await this.viewModel.loadCiphers(true);
+        if (!syncResult && !this.needReLogin) {
+          IBestToast.show(this.viewModel.errorMessage);
+        }
+        this.viewModel.filterCiphers(this.selectedType, this.searchText);
+        return;
+      }
+
+      // 第三步：本地已有数据，则后台静默同步
+      void this.doBackgroundSync();
+    } finally {
+      this.isInitialLoading = false;
+    }
+  }
+
+  /**
+   * 捕获同步开始时的本地修订号，防止较晚返回的服务端快照覆盖页面保存/删除产生的新状态。
+   */
+  private async doBackgroundSync() {
+    const changeRevision = VaultChangeNotifier.getChangeRevision();
+    const result = await this.viewModel.syncCiphersInBackground(() => {
+      return changeRevision === VaultChangeNotifier.getChangeRevision();
+    });
+
+    if (result) {
+      // 后台同步完成后，重新应用当前筛选条件
+      this.viewModel.filterCiphers(this.selectedType, this.searchText);
+    } else {
+      // 后台同步失败时，不影响已显示的本地数据
+      if (!this.needReLogin && this.viewModel.errorMessage) {
+        IBestToast.show('已显示本地数据，后台同步失败');
+      }
+    }
+  }
+
+  private async reloadCiphersAfterLocalChange() {
+    const localResult = await this.viewModel.loadCiphers(false);
+    if (localResult) {
+      this.viewModel.filterCiphers(this.selectedType, this.searchText);
+    } else {
+      IBestToast.show(this.viewModel.errorMessage);
+    }
+    void this.doBackgroundSync();
+  }
+
+  /** 立即应用一次性本地变更，再异步用数据库重载和带版本守卫的后台同步校正列表。 */
+  private async handleLocalVaultChange(change: VaultLocalChange | null): Promise<void> {
+    if (change?.type === VaultLocalChangeType.UPSERT && change.cipher) {
+      this.viewModel.applyLocalCipherChange(change.cipher, this.selectedType, this.searchText);
+      void this.reloadCiphersAfterLocalChange();
+      return;
+    }
+
+    if (change?.type === VaultLocalChangeType.DELETE && change.cipherId) {
+      this.viewModel.applyLocalCipherDeletion(change.cipherId, this.selectedType, this.searchText);
+      void this.reloadCiphersAfterLocalChange();
+      return;
+    }
+
+    await this.reloadCiphersAfterLocalChange();
+  }
+
+  private async loadCiphers(forceSync: boolean = true) {
+    // 设置重新登录回调
+    this.viewModel.onReLoginRequired = () => {
+      this.needReLogin = true;
+    };
+
+    this.isLoading = true;
+    const result = await this.viewModel.loadCiphers(forceSync);
+    if (!result && !this.needReLogin) {
       IBestToast.show(this.viewModel.errorMessage);
     }
     this.viewModel.filterCiphers(this.selectedType, this.searchText);
@@ -117,31 +221,41 @@ export struct VaultPage {
   }
 
   @Builder
+  loadingContent() {
+    Column() {
+      LoadingProgress()
+        .width(40)
+        .height(40)
+      Text('加载中...')
+        .fontSize(14)
+        .fontColor(Color.Gray)
+        .margin({ top: 8 })
+    }
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+  }
+
+  @Builder
+  emptyContent() {
+    Column() {
+      Text('无项目')
+        .fontSize(16)
+        .fontColor(Color.Gray)
+    }
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+  }
+
+  @Builder
   listContent() {
     Scroll(this.listScroller) {
       // 密码项列表
       if (this.viewModel.isLoading) {
-        Column() {
-          LoadingProgress()
-            .width(40)
-            .height(40)
-          Text('加载中...')
-            .fontSize(14)
-            .fontColor(Color.Gray)
-            .margin({ top: 8 })
-        }
-        .width('100%')
-        .height('100%')
-        .justifyContent(FlexAlign.Center)
+        this.loadingContent()
       } else if (this.viewModel.filteredCiphers.length === 0) {
-        Column() {
-          Text('暂无密码项')
-            .fontSize(16)
-            .fontColor(Color.Gray)
-        }
-        .width('100%')
-        .height('100%')
-        .justifyContent(FlexAlign.Center)
+        this.emptyContent()
       } else {
         List({ scroller: this.listScroller }) {
           ForEach(this.viewModel.filteredCiphers, (cipher: Cipher) => {
@@ -165,109 +279,152 @@ export struct VaultPage {
   }
 
   build() {
-    NavDestination() {
-      Column() {
-        // 搜索栏
-        Row() {
-          Column() {
-            IBestDropdownMenu({ groupId: this.groupId }) {
-              IBestDropdownItem({
-                groupId: this.groupId,
-                options: this.viewModel.filterOptions,
-                value: this.selectedType,
-                onChange: value => {
-                  this.viewModel.filterCiphers(value, this.searchText);
-                  this.selectedType = value;
+    HdsNavDestination() {
+      Stack({ alignContent: Alignment.BottomEnd }) {
+        Column() {
+          if (this.isInitialLoading) {
+            this.loadingContent()
+          } else {
+            // 搜索栏
+            Row() {
+              Column() {
+                IBestDropdownMenu({ groupId: this.groupId }) {
+                  IBestDropdownItem({
+                    groupId: this.groupId,
+                    options: this.viewModel.filterOptions,
+                    value: this.selectedType,
+                    onChange: value => {
+                      this.viewModel.filterCiphers(value, this.searchText);
+                      this.selectedType = value;
+                    }
+                  })
                 }
-              })
-            }
-          }.width('30%')
+              }.width('30%')
 
-          IBestField({
-            value: this.searchText,
-            placeholder: "搜索密码项...",
-            showLabel: false,
-            hasBorder: false,
-            clearable: true,
-            onChange: (value: IBestFieldValueType) => {
-              this.searchText = value as string;
-              this.viewModel.filterCiphers('all', this.searchText);
+              IBestField({
+                value: this.searchText,
+                placeholder: "搜索密码项...",
+                showLabel: false,
+                hasBorder: false,
+                clearable: true,
+                onChange: (value: IBestFieldValueType) => {
+                  this.searchText = value as string;
+                  this.viewModel.filterCiphers('all', this.searchText);
+                }
+              }).width('70%')
+                .borderRadius(0)
+                .layoutWeight(1)
             }
-          }).width('70%')
-            .borderRadius(0)
-            .layoutWeight(1)
+            .width('100%')
+            .padding({ left: 16, right: 16, bottom: 8 })
+
+            IBestPullRefresh({
+              loading: $isLoading,
+              scroller: this.listScroller,
+              defaultContent: () => this.listContent(),
+              onRefresh: () => this.loadCiphers(true),
+              isEnableSlideUp: false
+            })
+          }
+
+          // 重新登录弹框
+          IBestDialog({
+            visible: this.needReLogin,
+            title: '重新登录',
+            showCancelButton: false,
+            closeOnClickOverlay: false,
+            defaultBuilder: (): void => this.reLoginDialogContent(),
+            onConfirm: () => {
+              DataPreferences.getInstance().putSync(LOGIN_STATUS_KEY, 0);
+              void WindowPrivacyUtil.applyForCurrentState();
+              this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
+              return true;
+            }
+          })
+
+          // 主密码验证弹框
+          IBestDialog({
+            visible: this.showPasswordDialog,
+            title: '主密码验证',
+            showCancelButton: true,
+            closeOnClickOverlay: false,
+            defaultBuilder: (): void => this.passwordVerifyDialogContent(),
+            beforeClose: async (action) => {
+              if (action === 'cancel') {
+                return true;
+              }
+              const result = await this.verifyMasterPassword();
+              if (result) {
+                // 验证成功，导航到详情页
+                if (this.pendingCipher) {
+                  this.doNavigateToDetail(this.pendingCipher);
+                  this.pendingCipher = null;
+                }
+                return true;
+              } else {
+                return false;
+              }
+            }
+          })
+
+          // IBestFloatBubble({
+          //   show: this.showAddBtn,
+          //   icon: $r("app.media.icon_add"),
+          //   onBubbleClick: () => {
+          //     this.pathInfos.pushPath({ name: EntryRouter.AddCipherPage, param: this.viewModel.symmetricKey });
+          //   }
+          // })
         }
         .width('100%')
-        .padding({ left: 16, right: 16, bottom: 8 })
+        .height('100%')
 
-        IBestPullRefresh({
-          loading: $isLoading,
-          scroller: this.listScroller,
-          defaultContent: () => this.listContent(),
-          onRefresh: () => this.loadCiphers(),
-          isEnableSlideUp: false
-        })
-
-        // 重新登录弹框
-        IBestDialog({
-          visible: this.needReLogin,
-          title: '重新登录',
-          showCancelButton: false,
-          closeOnClickOverlay: false,
-          defaultBuilder: (): void => this.reLoginDialogContent(),
-          onConfirm: () => {
-            DataPreferences.getInstance().putSync(LOGIN_STATUS_KEY, 0);
-            this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
-            return true;
-          }
-        })
-
-        // 主密码验证弹框
-        IBestDialog({
-          visible: this.showPasswordDialog,
-          title: '主密码验证',
-          showCancelButton: true,
-          closeOnClickOverlay: false,
-          defaultBuilder: (): void => this.passwordVerifyDialogContent(),
-          beforeClose: async (action) => {
-            if (action === 'cancel') {
-              return true;
-            }
-            const result = await this.verifyMasterPassword();
-            if (result) {
-              // 验证成功，导航到详情页
-              if (this.pendingCipher) {
-                this.doNavigateToDetail(this.pendingCipher);
-                this.pendingCipher = null;
+        if (this.showAddBtn && !this.isInitialLoading) {
+          Column() {
+            AdaptiveIconButton({
+              icon: $r('app.media.icon_add'),
+              iconWidth: 25,
+              iconHeight: 25,
+              contentPadding: 16,
+              barBottomMargin: 0,
+              onButtonClick: () => {
+                this.pathInfos.pushPath({ name: EntryRouter.AddCipherPage, param: this.viewModel.symmetricKey });
               }
-              return true;
-            } else {
-              return false;
-            }
+            })
           }
-        })
-
-        IBestFloatBubble({
-          show: this.showAddBtn,
-          icon: $r("app.media.icon_add"),
-          onBubbleClick: () => {
-            this.pathInfos.pushPath({ name: EntryRouter.AddCipherPage, param: this.viewModel.symmetricKey });
-          }
-        })
+          .margin({ right: 0, bottom: 0 })
+        }
       }
       .width('100%')
       .height('100%')
     }
-    .title('密码库')
+    .titleBar({
+      content: {
+        title: {
+          mainTitle: '密码库'
+        },
+        menu: {
+          value: [this.TotpCodeBtn, this.Sure2ShareBtn, this.SettingsBtn],
+          maxCount: 5
+        }
+      },
+      enableComponentSafeArea: true,
+      style: {
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
+        }
+      }
+    })
     .hideBackButton(true)
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
     })
     .onActive(async () => {
+      this.showAddBtn = true;
       const result = DataPreferences.getInstance().getSync<number>(NEED_RELOAD_CIPHERS);
       if (result == 1) {
-        await this.loadCiphers();
         DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 0);
+        await this.handleLocalVaultChange(VaultChangeNotifier.consumeChange());
       }
     })
     .onBackPressed(() => {
@@ -282,24 +439,12 @@ export struct VaultPage {
       }
       return true;
     })
-    .menus([this.Sure2ShareBtn, this.TotpCodeBtn, this.SettingsBtn])
     .onHidden(() => {
       this.showAddBtn = false;
-      DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
-    })
-    .onShown(() => {
-      this.showAddBtn = true;
-      const autoLockStatus = DataPreferences.getInstance().getSync<number>(AUTO_LOCK);
-      if (autoLockStatus == 1) {
-        const currentTime = Math.floor(Date.now() / 1000);
-        const backgroundTime = DataPreferences.getInstance().getSync<number>(BACKGROUND_TIMESTAMP);
-        if (currentTime - backgroundTime > 120) {
-          this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
-        }
-      }
     })
   }
 
+  /** 对需要重新提示主密码的条目先保存待导航对象，否则直接进入详情页。 */
   private navigateToDetail(cipher: Cipher) {
     // 检查是否需要验证主密码
     if (cipher.reprompt === 1) {
@@ -334,4 +479,4 @@ export struct VaultPage {
       return false;
     }
   }
-} 
+}

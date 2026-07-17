@@ -2,7 +2,7 @@ import { relationalStore } from '@kit.ArkData';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { Context } from '@kit.AbilityKit';
 
-// 关系型数据库操作类
+/** 管理分享历史使用的独立 S4 加密数据库。 */
 export class ShareDatabaseUtil {
   private static instance: ShareDatabaseUtil;
   private static store: relationalStore.RdbStore | null = null;
@@ -15,6 +15,10 @@ export class ShareDatabaseUtil {
     return ShareDatabaseUtil.instance;
   }
 
+  /**
+   * 打开分享历史数据库并触发建表。
+   * @throws 数据库打开失败时传播共享初始化 Promise 的异常。
+   */
   public static async init(context: Context): Promise<void> {
     const STORE_CONFIG: relationalStore.StoreConfig = {
       name: "sure2share.sql",
@@ -39,7 +43,7 @@ export class ShareDatabaseUtil {
     return ShareDatabaseUtil.initPromise;
   }
 
-  // 创建数据表
+  /** 幂等创建历史表；建表异常只记录日志，不向调用方传播。 */
   async createTables(): Promise<void> {
     const createHistoryTableSql = `
       CREATE TABLE IF NOT EXISTS history (
@@ -57,11 +61,12 @@ export class ShareDatabaseUtil {
     }
   }
 
-  // 生成唯一ID
+  /** @returns 由当前毫秒时间和随机后缀组成的进程内候选 ID，不提供密码学唯一性保证。 */
   generateId(): string {
     return `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
   }
 
+  /** 执行 SQL；执行失败或数据库不可用时拒绝 Promise。 */
   async executeSql(sql: string): Promise<boolean> {
     await ShareDatabaseUtil.initPromise;
     return new Promise((resolve, reject) => {
@@ -243,7 +248,11 @@ export class ShareDatabaseUtil {
     return result;
   }
 
-  // 根据搜索条件查询历史记录
+  /**
+   * 按内容包含关系筛选历史，并按毫秒时间戳倒序返回。
+   * @param searchText 空白文本表示不过滤。
+   * @throws 查询失败或数据库不可用时传播异常。
+   */
   async queryHistoryBySearch(searchText: string): Promise<relationalStore.ValuesBucket[]> {
     await ShareDatabaseUtil.initPromise;
     return new Promise((resolve, reject) => {

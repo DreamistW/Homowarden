@@ -1,7 +1,14 @@
 import { DataPreferences } from '@abner/datastore/src/main/ets/preferences/DataPreferences';
 import { EntryRouter } from '../../../../EntryRouter';
 import {
-  AUTO_LOCK, BACKGROUND_TIMESTAMP, BIOMETRIC_AUTH, EMAIL_KEY
+  AUTO_LOCK,
+  BIOMETRIC_AUTH,
+  EMAIL_KEY,
+  SERVER_ADDRESS_KEY,
+  SERVER_BASE_URL_EU,
+  SERVER_BASE_URL_US,
+  SERVER_TYPE_KEY,
+  ServerType
 } from '../utils/Constants';
 import { bundleManager, common, Want } from '@kit.AbilityKit';
 import { userAuth } from '@kit.UserAuthenticationKit';
@@ -10,6 +17,10 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { clearAssetAndPreferences, queryAssetSync } from '../utils/AssetUtil';
 import { Logger } from '@nzy/logger';
 import { IBestDialogUtil, IBestToast } from '@ibestservices/ibest-ui';
+import { hdsMaterial, HdsNavDestination } from '@kit.UIDesignKit';
+import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
+import { AdaptiveTextButton } from '../component/AdaptiveButton';
+import { AntiPeepUtil } from '../utils/AntiPeepUtil';
 
 @Builder
 export function SettingsPageBuilder() {
@@ -20,15 +31,22 @@ export function SettingsPageBuilder() {
 export struct SettingsPage {
   @State autoLockEnabled: boolean = true;
   @State biometricEnabled: boolean = false;
+  @State screenCaptureProtectionEnabled: boolean = true;
+  @State antiPeepProtectionEnabled: boolean = false;
   @State syncEnabled: boolean = true;
   pathInfos: NavPathStack = new NavPathStack();
   @State versionName: string = '1.0.0';
+  @State serverAddressText: string = '';
   email: string = '';
 
+  /** 进入页面时恢复账户、安全开关、服务器和版本展示状态。 */
   aboutToAppear() {
     this.getVersionName();
     this.loadBiometricAuthStatus();
     this.loadAutoLockStatus();
+    this.loadScreenCaptureProtectionStatus();
+    void this.loadAntiPeepProtectionStatus();
+    this.loadServerAddress();
     this.getEmail();
   }
 
@@ -61,7 +79,7 @@ export struct SettingsPage {
   }
 
   build() {
-    NavDestination() {
+    HdsNavDestination() {
       Column() {
         Scroll() {
           Column() {
@@ -114,6 +132,58 @@ export struct SettingsPage {
               .padding({ top: 12, bottom: 12 })
 
               Text('开启后, 应用置于后台两分钟会自动锁定密码库')
+                .fontSize(12)
+                .fontColor('#666666')
+
+              Row() {
+                Text('禁止截图和录屏')
+                  .fontSize(16)
+
+                Blank()
+
+                Toggle({ type: ToggleType.Switch, isOn: this.screenCaptureProtectionEnabled })
+                  .onChange(async (isOn: boolean) => {
+                    this.screenCaptureProtectionEnabled = isOn;
+                    const applied = await WindowPrivacyUtil.setScreenCaptureProtectionEnabled(isOn);
+                    if (!applied) {
+                      IBestToast.show('截图录屏保护设置失败');
+                    }
+                  })
+              }
+              .width('100%')
+              .padding({ top: 12, bottom: 12 })
+
+              Text('开启后, 登录态下所有页面会禁止截图和录屏')
+                .fontSize(12)
+                .fontColor('#666666')
+
+              Row() {
+                Text('防窥保护')
+                  .fontSize(16)
+
+                Blank()
+
+                Toggle({ type: ToggleType.Switch, isOn: this.antiPeepProtectionEnabled })
+                  .onChange(async (isOn: boolean) => {
+                    this.antiPeepProtectionEnabled = isOn;
+                    if (!isOn) {
+                      await AntiPeepUtil.setProtectionEnabled(false);
+                      this.antiPeepProtectionEnabled = false;
+                      return;
+                    }
+
+                    const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+                    const enabled = await AntiPeepUtil.setProtectionEnabled(true, context);
+                    this.antiPeepProtectionEnabled = enabled;
+                    if (!enabled) {
+                      IBestToast.show('防窥保护设置失败');
+                    }
+                  })
+              }
+              .width('100%')
+              .padding({ top: 12, bottom: 12 })
+
+              Text('开启后, 检测到窥屏风险时会拉起系统防窥蒙层')
                 .fontSize(12)
                 .fontColor('#666666')
             }
@@ -190,21 +260,61 @@ export struct SettingsPage {
               .width('100%')
               .padding({ top: 12, bottom: 12 })
 
-              Text('卸载本应用前请务必注销登录, 切记')
-                .fontSize(12)
-                .fontColor('#666666')
-
-              Button() {
-                Text('注销')
+              Row() {
+                Text('服务器: ')
                   .fontSize(16)
-                  .fontColor('#FF3B30')
+
+                Blank()
+
+                Text(this.serverAddressText)
+                  .fontSize(16)
+                  .fontColor('#666666')
+                  .maxLines(1)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
               }
-              .backgroundColor(Color.Transparent)
               .width('100%')
-              .height(48)
-              .onClick(() => {
-                this.logout();
-              })
+              .padding({ top: 4, bottom: 12 })
+
+              Column() {
+                AdaptiveTextButton({
+                  text: '立即锁定',
+                  barWidth: 150,
+                  barHeight: 50,
+                  fontSize: 18,
+                  onButtonClick: () => {
+                    this.lockVault();
+                  }
+                })
+
+                Blank()
+
+                Text('卸载本应用前请务必注销登录, 切记')
+                  .fontSize(12)
+                  .fontColor('#666666')
+
+                AdaptiveTextButton({
+                  text: '注销',
+                  barWidth: 150,
+                  barHeight: 50,
+                  fontSize: 18,
+                  onButtonClick: () => {
+                    this.logout();
+                  }
+                })
+              }
+              .margin({ top: 20 })
+
+              // Button() {
+              //   Text('注销')
+              //     .fontSize(16)
+              //     .fontColor('#FF3B30')
+              // }
+              // .backgroundColor(Color.Transparent)
+              // .width('100%')
+              // .height(48)
+              // .onClick(() => {
+              //   this.logout();
+              // })
             }
             .width('100%')
             .padding(16)
@@ -260,22 +370,22 @@ export struct SettingsPage {
       .width('100%')
       .height('100%')
     }
-    .title('设置')
-    .onReady((ctx: NavDestinationContext) => {
-      this.pathInfos = ctx.pathStack;
-    })
-    .onHidden(() => {
-      DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
-    })
-    .onShown(() => {
-      const autoLockStatus = DataPreferences.getInstance().getSync<number>(AUTO_LOCK);
-      if (autoLockStatus == 1) {
-        const currentTime = Math.floor(Date.now() / 1000);
-        const backgroundTime = DataPreferences.getInstance().getSync<number>(BACKGROUND_TIMESTAMP);
-        if (currentTime - backgroundTime > 120) {
-          this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
+    .titleBar({
+      content: {
+        title: {
+          mainTitle: '设置'
+        }
+      },
+      enableComponentSafeArea: true,
+      style: {
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
         }
       }
+    })
+    .onReady((ctx: NavDestinationContext) => {
+      this.pathInfos = ctx.pathStack;
     })
   }
 
@@ -335,7 +445,49 @@ export struct SettingsPage {
     DataPreferences.getInstance().putSync(BIOMETRIC_AUTH, status ? 1 : 0);
   }
 
-  // 发起生物识别认证
+  loadScreenCaptureProtectionStatus() {
+    this.screenCaptureProtectionEnabled = WindowPrivacyUtil.isScreenCaptureProtectionEnabled();
+  }
+
+  async loadAntiPeepProtectionStatus() {
+    this.antiPeepProtectionEnabled = await AntiPeepUtil.isProtectionActive();
+  }
+
+  loadServerAddress() {
+    try {
+      const serverType = DataPreferences.getInstance().getSync<ServerType>(SERVER_TYPE_KEY);
+      const serverAddress = DataPreferences.getInstance().getSync<string>(SERVER_ADDRESS_KEY);
+      this.serverAddressText = this.getServerAddressText(serverType, serverAddress);
+    } catch (err) {
+      Logger.error(`Failed to load server address. Error: ${JSON.stringify(err)}`);
+      this.serverAddressText = SERVER_BASE_URL_US;
+    }
+  }
+
+  private getServerAddressText(serverType: ServerType, serverAddress: string): string {
+    if (serverType === ServerType.EU) {
+      return SERVER_BASE_URL_EU;
+    }
+
+    if (serverType === ServerType.SELF_HOSTED) {
+      const normalizedAddress = this.normalizeSelfHostedAddress(serverAddress);
+      return normalizedAddress.length > 0 ? normalizedAddress : '自托管服务器';
+    }
+
+    return SERVER_BASE_URL_US;
+  }
+
+  private normalizeSelfHostedAddress(serverAddress: string): string {
+    let value = serverAddress ? serverAddress.trim() : '';
+    value = value.replace(/^https?:\/\//i, '');
+    value = value.replace(/\/+$/g, '');
+    return value;
+  }
+
+  /**
+   * 生成随机 challenge 后请求 ATL3 PIN/人脸/指纹认证；仅认证成功才持久化开启状态。
+   * 平台异常和失败结果均在回调或当前方法内转换为 UI 状态与提示。
+   */
   startBiometricAuth() {
     try {
       const rand = cryptoFramework.createRandom();
@@ -411,9 +563,14 @@ export struct SettingsPage {
       },
       onConfirm: () => {
         clearAssetAndPreferences();
+        void WindowPrivacyUtil.applyForCurrentState();
         // 跳转到登录页面
         this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
       }
     })
   }
-} 
+
+  private lockVault() {
+    this.pathInfos.replacePath({ name: EntryRouter.UnlockPage });
+  }
+}

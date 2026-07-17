@@ -1,12 +1,17 @@
 import { http } from '@kit.NetworkKit';
 import { Logger } from '@nzy/logger';
 
+/** @returns 内容中首个 HTTP(S) 链接；不存在时返回空字符串。 */
 export async function getShareLink(content: string): Promise<string> {
   const urlRegex = /https?:\/\/[^\s\u4e00-\u9fa5]+/;
   const match = urlRegex.exec(content);
   return match ? match[0] : "";
 }
 
+/**
+ * 请求短链并提取重定向目标；淘宝短链从响应脚本中兼容提取商品链接。
+ * @returns 成功解析且响应码为 200 时的目标链接，否则返回空字符串；网络和解析异常被吸收。
+ */
 export async function getFullLink(link: string): Promise<string> {
   try {
     let httpRequest = http.createHttp();
@@ -48,6 +53,10 @@ export async function getFullLink(link: string): Promise<string> {
   return "";
 }
 
+/**
+ * 将原文中的首个 HTTP(S) 链接替换为展开后的链接。
+ * @returns 替换后的文本；替换异常时返回空字符串。
+ */
 export async function replaceOutputText(originalText: string, fullLink: string): Promise<string> {
   try {
     const urlRegex = /https?:\/\/[^\s\u4e00-\u9fa5]+/;

@@ -13,8 +13,7 @@ export class DeviceUtil {
    * @returns 设备类型数字
    */
   static getDeviceType(): number {
-    // 使用Android设备类型
-    return DeviceType.CHROME;
+    return DeviceType.ANDROID;
   }
 
   /**
@@ -49,7 +48,8 @@ export class DeviceUtil {
 
   /**
    * 获取或生成设备标识符
-   * @returns Promise<string> 设备标识符
+   * @returns 偏好中已保存的标识符；不存在时返回新生成的 UUID 格式文本。
+   * @throws 读取偏好失败时传播异常；异步保存失败仅记录日志。
    */
   static async getOrGenerateDeviceIdentifier(): Promise<string> {
     let deviceId = '';
@@ -145,7 +145,7 @@ export class DeviceUtil {
     Logger.info('Device identifier cleared from DataStore');
   }
 
-  // 生成时间戳
+  /** @returns 当前时刻的 UTC ISO 8601 文本，供密码项修订时间使用。 */
   static getISOTimestamp() {
     const now = new Date();
     return now.toISOString();

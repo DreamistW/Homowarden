@@ -57,7 +57,7 @@ export const TOKEN_EXPIRE_TIME_KEY = 'token_expire_timestamp';
 
 export const KDF_PARAM_KEY = 'kdf_param';
 
-export const Header_Client_Name = 'web';
+export const Header_Client_Name = 'mobile';
 
 export const Header_Client_Version = '2025.12.1';
 
@@ -76,6 +76,12 @@ export const NEED_RELOAD_CIPHERS = 'need_reload_ciphers';
 export const BACKGROUND_TIMESTAMP = 'background_timestamp';
 
 export const AUTO_LOCK = 'auto_lock';
+
+export const SCREEN_CAPTURE_PROTECTION = 'screen_capture_protection';
+
+export const ANTI_PEEP_PROTECTION = 'anti_peep_protection';
+
+export const ANTI_PEEP_GUIDE_SHOWN = 'anti_peep_guide_shown';
 
 export enum GrantType {
   PASSWORD = 'password',

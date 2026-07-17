@@ -3,6 +3,10 @@
     {
       "name": "start_window_background",
       "value": "#FFFFFF"
+    },
+    {
+      "name": "button_text_color",
+      "value": "#18202A"
     }
   ]
 }

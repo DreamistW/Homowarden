@@ -3,6 +3,7 @@ import { Logger } from '@nzy/logger';
 import { TOTPUtil } from '../utils/TOTPUtil';
 import { scanBarcode, scanCore } from '@kit.ScanKit';
 import { BusinessError } from '@kit.BasicServicesKit';
+import { AdaptiveIconButton } from './AdaptiveButton';
 
 /**
  * TOTP密钥编辑组件
@@ -77,28 +78,61 @@ export struct TotpEditItem {
           .margin({ right: 8 })
           .focusable(false)
 
-        // 清除按钮（仅当有密钥时显示）
-        if (this.totpSecret && this.totpSecret.length > 0) {
-          Button() {
-            Image($r('app.media.icon_cancel'))
-              .width(18)
-          }
-          .backgroundColor(Color.Transparent)
-          .margin({ left: 8, right: 8 })
-          .onClick(() => {
-            this.totpSecret = '';
-            this.onSecretChange?.('');
-            IBestToast.show('密钥已清除');
-          })
-        }
+        Row({ space: 0 }) {
+          // 清除按钮（仅当有密钥时显示）
+          if (this.totpSecret && this.totpSecret.length > 0) {
+            AdaptiveIconButton({
+              icon: $r('app.media.icon_cancel'),
+              barWidth: 40,
+              barHeight: 40,
+              iconWidth: 20,
+              iconHeight: 20,
+              contentPadding: 6,
+              barBottomMargin: 0,
+              darkOffsetY: -6,
+              onButtonClick: () => {
+                this.totpSecret = '';
+                this.onSecretChange?.('');
+                IBestToast.show('密钥已清除');
+              }
+            })
 
-        Button() {
-          Image($r('app.media.icon_scan_barcode'))
-            .width(18)
+            // Button() {
+            //   Image($r('app.media.icon_cancel'))
+            //     .width(18)
+            // }
+            // .backgroundColor(Color.Transparent)
+            // .margin({ left: 8, right: 8 })
+            // .onClick(() => {
+            //   this.totpSecret = '';
+            //   this.onSecretChange?.('');
+            //   IBestToast.show('密钥已清除');
+            // })
+          }
+
+          AdaptiveIconButton({
+            icon: $r('app.media.icon_scan_barcode'),
+            barWidth: 40,
+            barHeight: 40,
+            iconWidth: 20,
+            iconHeight: 20,
+            contentPadding: 6,
+            barBottomMargin: 0,
+            darkOffsetY: -6,
+            onButtonClick: () => {
+              this.scanQRCode()
+            }
+          })
+
+          // Button() {
+          //   Image($r('app.media.icon_scan_barcode'))
+          //     .width(18)
+          // }
+          // .backgroundColor(Color.Transparent)
+          // .onClick(() => this.scanQRCode())
+          // .margin({ right: 8 })
         }
-        .backgroundColor(Color.Transparent)
-        .onClick(() => this.scanQRCode())
-        .margin({ right: 8 })
+        .alignItems(VerticalAlign.Center)
       }
       .width('100%')
     }

@@ -5,16 +5,17 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { Logger } from '@nzy/logger';
 
 /**
- * 加密工具类
+ * 实现登录 KDF、条目 AES-CBC/HMAC 加解密及摘要计算。
  */
 export class CryptoUtil {
   /**
    * PBKDF2密钥派生
    * @param password 明文密码
-   * @param salt 盐
+   * @param salt UTF-8 盐文本；登录场景使用规范化邮箱。
    * @param iterations 迭代次数
    * @param keyLen 派生密钥长度（字节）
-   * @returns Base64字符串
+   * @returns 指定字节长度派生结果的 Base64 文本。
+   * @throws 平台 KDF 创建或派生失败时传播异常。
    */
   static deriveKeyPBKDF2(password: string | Uint8Array, salt: string, iterations: number,
     keyLen: number = 32): Promise<string> {
@@ -36,10 +37,11 @@ export class CryptoUtil {
   /**
    * HKDF密钥派生
    * @param key 原始密钥
-   * @param salt 盐
-   * @param info 可选上下文
+   * @param info 可选 UTF-8 上下文，例如 `enc` 或 `mac`。
+   * @param salt 可选 UTF-8 盐；缺失时使用 32 个零字节。
    * @param keyLen 密钥字节长度
-   * @returns Base64字符串
+   * @returns HKDF-SHA256 EXPAND_ONLY 派生结果的 Base64 文本。
+   * @throws 平台 KDF 创建或派生失败时传播异常。
    */
   static deriveKeyHKDF(key: string | Uint8Array, info?: string, salt?: string,
     keyLen: number = 32): Promise<string> {
@@ -68,29 +70,29 @@ export class CryptoUtil {
   /**
    * Argon2id密钥派生
    * @param password 明文密码
-   * @param salt 盐（Base64字符串）
+   * @param salt UTF-8 盐文本，内部转为小写；不是 Base64 输入。
    * @param iterations 迭代次数
    * @param memory 内存（MB）
    * @param parallelism 并行度
    * @param keyLen 派生密钥长度（字节）
-   * @returns Base64字符串
+   * @returns Argon2id 原始 hash 的 Base64 文本。
+   * @throws Argon2 参数或计算失败时传播异常。
    */
   static async deriveKeyArgon2id(password: string, salt: string, iterations: number, memory: number,
     parallelism: number, keyLen: number = 32): Promise<string> {
-    let passwordBuffer = new util.TextEncoder().encodeInto(password.toLowerCase());
+    let passwordBuffer = new util.TextEncoder().encodeInto(password);
     let saltBuffer = new util.TextEncoder().encodeInto(salt.toLowerCase());
 
     const option: HashOption = {
       timeCost: iterations,
-      memoryCost: memory,
+      memoryCost: memory * 1024,
       parallelism: parallelism,
       hashLength: keyLen,
       argon2Type: 2, // Argon2id
       argon2Version: 19
     };
     const result = argon2Hash(passwordBuffer, saltBuffer, option);
-    // result.encoded为base64字符串
-    return result.encoded;
+    return new util.Base64Helper().encodeToStringSync(new Uint8Array(result.hash));
   }
 
   /**
@@ -115,7 +117,8 @@ export class CryptoUtil {
    * AES256-CBC解密
    * @param cipherText 完整的密文
    * @param key 对称密钥
-   * @returns 解密后的base64字符串
+   * @returns 解密字节的 Base64 文本，尚未按 UTF-8 解码。
+   * @throws 密文格式、Base64、密钥转换或平台解密失败时抛出新 Error。
    */
   static async decryptAESCBC(cipherText: string, key: Uint8Array): Promise<string> {
     try {
@@ -145,7 +148,8 @@ export class CryptoUtil {
    * HMAC-SHA256校验，密文内自带的HMAC与根据MAC Key生成的HMAC进行比较
    * @param cipherText 完整的密文
    * @param macKey 需要比较的MAC Key
-   * @returns 比较结果
+   * @returns 密文携带的 HMAC 与计算结果完全相同时为 `true`。
+   * @throws 密文格式、Base64 或平台 MAC 计算失败时抛出新 Error。
    */
   static async verifyHMAC(cipherText: string, macKey: Uint8Array): Promise<boolean> {
     const partsOfText = cipherText.substring(2).split('|');
@@ -176,7 +180,7 @@ export class CryptoUtil {
    * 解密字段
    * @param cipherText 完整的密文
    * @param symKey 包含HMAC的对称密钥
-   * @returns 明文字符串
+   * @returns 校验成功后的 UTF-8 明文；空输入或 HMAC 不匹配返回空字符串，处理异常返回错误描述文本。
    */
   static async decryptField(cipherText: string, symKey: string): Promise<string> {
     if (!cipherText || cipherText.length == 0) {
@@ -216,9 +220,10 @@ export class CryptoUtil {
   /**
    * AES-256-CBC加密
    * @param plainText 明文
-   * @param iv
+   * @param iv 16 字节初始化向量。
    * @param key 对称密钥
-   * @returns 加密后的base64字符串
+   * @returns AES-256-CBC 密文字节的 Base64 文本；空明文返回空字符串。
+   * @throws 密钥转换或平台加密失败时抛出新 Error。
    */
   static async encryptAESCBC(plainText: string, iv: Uint8Array, key: Uint8Array): Promise<string> {
     if (plainText.length == 0) {
@@ -245,10 +250,11 @@ export class CryptoUtil {
 
   /**
    * 生成HMAC
-   * @param iv
+   * @param iv 与密文一起参与认证的初始化向量。
    * @param cipherText base64密文字符串
    * @param macKey 生成MAC的密钥
-   * @returns HMAC的base64字符串
+   * @returns `iv + cipherBytes` 的 HMAC-SHA256 Base64 文本；空密文返回空字符串。
+   * @throws Base64、密钥转换或平台 MAC 计算失败时抛出新 Error。
    */
   static async generateHMAC(iv: Uint8Array, cipherText: string, macKey: Uint8Array): Promise<string> {
     if (cipherText.length == 0) {
@@ -275,7 +281,8 @@ export class CryptoUtil {
    * 加密字段
    * @param plainText 明文
    * @param key 包含HMAC的对称密钥
-   * @returns 完整的密文字符串
+   * @returns `2.Base64(iv)|Base64(ciphertext)|Base64(hmac)` 格式的协议密文。
+   * @throws 随机数、Base64 或加密/MAC 计算失败时抛出新 Error。
    */
   static async encryptField(plainText: string, key: string): Promise<string> {
     try {
@@ -303,7 +310,8 @@ export class CryptoUtil {
   /**
    * SHA256摘要计算
    * @param plainText 明文
-   * @returns SHA256计算结果
+   * @returns 摘要字节直接按 UTF-8 解码后的字符串；空输入返回空字符串。
+   * @throws 平台摘要计算失败时传播异常。
    */
   static async doSha256(plainText: string): Promise<string> {
     if (plainText.length == 0) {

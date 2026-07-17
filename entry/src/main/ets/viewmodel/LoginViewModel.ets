@@ -1,4 +1,4 @@
-import { accessToken, prelogin, sendEmailLogin } from '../network/AuthApi';
+import { accessToken, prelogin, resendNewDeviceOtp, sendEmailLogin } from '../network/AuthApi';
 import {
   ACCESS_TOKEN_KEY_1,
   ACCESS_TOKEN_KEY_2,
@@ -29,15 +29,45 @@ import { addAsset, deleteAsset, queryAssetSync, updateAsset } from '../utils/Ass
 import { AssetModel } from '../model/AssetModel';
 import { asset } from '@kit.AssetStoreKit';
 import { getServerConfig } from '../network/HttpClient';
-import { AccessTokenRequest, AccessTokenResponse } from '../model/AccessToken';
+import { AccessTokenRequest, AccessTokenResponse, TwoFactorProvider, TwoFactorProviderData } from '../model/AccessToken';
 import { PreloginRequest, PreloginResponse } from '../model/Prelogin';
-import { SendEmailLoginRequest } from '../model/SendEmailLogin';
+import { ResendNewDeviceOtpRequest, SendEmailLoginRequest } from '../model/SendEmailLogin';
+import { PasskeyTwoFactorUtil } from '../utils/PasskeyTwoFactorUtil';
+import { common } from '@kit.AbilityKit';
+import { getServerEndpoints } from '../network/ServerEndpointResolver';
+
+interface LoginErrorModel {
+  Message?: string;
+  message?: string;
+  Object?: string;
+}
+
+interface LoginErrorResponseData {
+  error?: string;
+  error_description?: string;
+  message?: string;
+  ErrorModel?: LoginErrorModel;
+  errorModel?: LoginErrorModel;
+  TwoFactorProviders?: string[] | string;
+  TwoFactorProviders2?: Record<string, TwoFactorProviderData | null>;
+  SsoEmail2faSessionToken?: string;
+}
+
+interface LoginErrorResponse {
+  data?: LoginErrorResponseData;
+}
+
+interface LoginRequestError {
+  message?: string;
+  response?: LoginErrorResponse;
+}
 
 /**
- * 登录界面ViewModel
+ * 协调服务器配置、KDF 派生、设备标识、2FA 登录和关键资产持久化。
+ * 页面输入与流程状态保存在实例中；主密码、派生主密钥和登录哈希均属于敏感明文状态。
  */
 export class LoginViewModel {
-  // 登录状态
+  /** 页面输入、提示以及认证分支状态。 */
   email: string = '';
   needSaveEmail: boolean = false;
   password: string = '';
@@ -49,18 +79,22 @@ export class LoginViewModel {
   needNewDevice: boolean = false;
   twoFactorToken: string = '';
   twoFactorRemember: boolean = false;
-  twoFactorProvider: number = 0;
-  // 预登录信息
+  twoFactorProvider: number = TwoFactorProvider.AUTHENTICATOR_APP;
+  availableTwoFactorProviders: number[] = [];
+  twoFactorProviderData: TwoFactorProviderData | null = null;
+  twoFactorProvidersData: Record<string, TwoFactorProviderData | null> | null = null;
+  ssoEmail2FaSessionToken: string = '';
+  /** 服务端预登录返回的 KDF 参数。 */
   kdfType: number = 0; // 0=PBKDF2, 1=Argon2id
   kdfIterations: number = 0;
   kdfMemory: number = 0;
   kdfParallelism: number = 0;
-  // 登录结果
+  /** 成功令牌响应，在持久化前仅保存在内存中。 */
   accessTokenResponse: AccessTokenResponse = {} as AccessTokenResponse;
-  // 加密相关
+  /** Base64 主密钥及发送给身份服务的二次派生登录密码。 */
   masterKey: string = '';
   loginPassword: string = '';
-  // 设备信息
+  /** 身份服务设备字段及异步标识初始化状态。 */
   deviceType: number = DeviceType.ANDROID;
   deviceIdentifier: string = '';
   deviceName: string = '';
@@ -107,7 +141,7 @@ export class LoginViewModel {
       return false;
     }
 
-    if (this.serverType === ServerType.SELF_HOSTED && !this.serverAddress.trim()) {
+    if (this.serverType === ServerType.SELF_HOSTED && !this.getNormalizedServerAddress()) {
       this.errorMessage = '请输入自托管服务器地址';
       return false;
     }
@@ -115,7 +149,10 @@ export class LoginViewModel {
     return true;
   }
 
-  // 预登录
+  /**
+   * 保存登录邮箱并获取 KDF 参数。
+   * @returns 参数写入状态成功时为 `true`；所有资产、端点和网络异常转换为错误消息与 `false`。
+   */
   async performPrelogin(): Promise<boolean> {
     try {
       // 先查询是否存在Asset
@@ -145,7 +182,10 @@ export class LoginViewModel {
     }
   }
 
-  // 派生主密钥
+  /**
+   * 使用规范化邮箱作盐，按预登录参数执行 PBKDF2 或 Argon2id。
+   * @returns 支持 KDF 且派生成功时为 `true`；异常被转换为错误消息。
+   */
   async deriveMasterKey(): Promise<boolean> {
     try {
       const salt = this.email.trim().toLowerCase();
@@ -182,7 +222,7 @@ export class LoginViewModel {
     }
   }
 
-  // 二次派生，生成登录时发送给服务器的密码
+  /** 将 Base64 主密钥与用户主密码进行一次 PBKDF2，生成提交给身份服务的登录密码。 */
   async hashMasterKey(): Promise<boolean> {
     try {
       // 将Base64主密钥解码为Uint8Array
@@ -202,7 +242,10 @@ export class LoginViewModel {
     }
   }
 
-  // 执行登录
+  /**
+   * 提交首次密码授权，并把服务端 2FA 或新设备验证要求转换为页面状态。
+   * @returns 收到令牌响应时为 `true`；认证及网络异常均转为状态和错误消息。
+   */
   async performLogin(): Promise<boolean> {
     try {
       // 确保设备信息已初始化
@@ -218,27 +261,27 @@ export class LoginViewModel {
         deviceIdentifier: this.deviceIdentifier,
         deviceName: this.deviceName
       };
+      this.applyRememberedTwoFactor(request);
 
       this.accessTokenResponse = await accessToken(request);
       this.successMessage = '登录成功！';
       Logger.info('Login successful, tokens received');
       return true;
     } catch (error) {
-      // 检查是否为2FA错误
-      if (error?.response?.data?.error === 'invalid_grant' &&
-        error?.response?.data?.error_description === 'Two factor required.') {
-        // 提取2FA方式字段
-        this.twoFactorProvider = error?.response?.data?.TwoFactorProviders.includes("0") ? 0 : 1;
-        this.needTwoFactor = true;
+      const loginError = error as LoginRequestError;
+      const errorData = loginError.response?.data;
+      if (this.isTwoFactorRequired(errorData)) {
+        this.handleTwoFactorRequired(errorData);
         return false;
       }
-      // 检查是否需要新设备验证
-      if (error?.response?.data?.error === 'device_error') {
+
+      if (this.isNewDeviceVerificationRequired(errorData)) {
         this.needNewDevice = true;
         return false;
       }
-      Logger.error(`Login failed: ${error}`);
-      this.errorMessage = `登录失败, 请检查邮箱和密码`;
+      const errorMessage = this.extractLoginErrorMessage(loginError);
+      Logger.error(`Login failed: ${errorMessage}`);
+      this.errorMessage = `登录失败，错误信息：${errorMessage}`;
       return false;
     }
   }
@@ -255,7 +298,7 @@ export class LoginViewModel {
         deviceType: this.deviceType,
         deviceIdentifier: this.deviceIdentifier,
         deviceName: this.deviceName,
-        twoFactorToken: this.twoFactorToken,
+        twoFactorToken: this.getCurrentTwoFactorToken(),
         twoFactorProvider: this.twoFactorProvider,
         twoFactorRemember: this.twoFactorRemember ? 1 : 0
       };
@@ -265,8 +308,9 @@ export class LoginViewModel {
       Logger.info('Login successful, tokens received');
       return true;
     } catch (error) {
-      Logger.error(`Login failed: ${error}`);
-      this.errorMessage = '登录失败，请重试';
+      const errorMessage = this.extractLoginErrorMessage(error as LoginRequestError);
+      Logger.error(`Login with 2FA failed: ${errorMessage}`);
+      this.errorMessage = `登录失败，错误信息：${errorMessage}`;
       return false;
     }
   }
@@ -283,7 +327,7 @@ export class LoginViewModel {
         deviceType: this.deviceType,
         deviceIdentifier: this.deviceIdentifier,
         deviceName: this.deviceName,
-        newDeviceOtp: this.twoFactorToken,
+        newDeviceOtp: this.twoFactorToken.trim(),
       };
 
       this.accessTokenResponse = await accessToken(request);
@@ -291,13 +335,191 @@ export class LoginViewModel {
       Logger.info('Login successful, tokens received');
       return true;
     } catch (error) {
-      Logger.error(`Login failed: ${error}`);
-      this.errorMessage = '登录失败，请重试';
+      const errorMessage = this.extractLoginErrorMessage(error as LoginRequestError);
+      Logger.error(`Login with new device failed: ${errorMessage}`);
+      this.errorMessage = `登录失败，错误信息：${errorMessage}`;
       return false;
     }
   }
 
-  // 登录流程
+  private applyRememberedTwoFactor(request: AccessTokenRequest): void {
+    const rememberedToken = queryAssetSync(TWO_FACTOR_TOKEN_KEY);
+    if (!rememberedToken) {
+      return;
+    }
+
+    request.twoFactorToken = rememberedToken;
+    request.twoFactorProvider = TwoFactorProvider.REMEMBER;
+    request.twoFactorRemember = 0;
+  }
+
+  private isTwoFactorRequired(errorData?: LoginErrorResponseData): boolean {
+    if (errorData?.TwoFactorProviders2) {
+      return true;
+    }
+
+    return errorData?.error === 'invalid_grant' &&
+      errorData?.error_description === 'Two factor required.';
+  }
+
+  private isNewDeviceVerificationRequired(errorData?: LoginErrorResponseData): boolean {
+    if (errorData?.error === 'device_error') {
+      return true;
+    }
+
+    return this.getErrorModelMessage(errorData).toLowerCase() === 'new device verification required';
+  }
+
+  private handleTwoFactorRequired(errorData?: LoginErrorResponseData): void {
+    this.ssoEmail2FaSessionToken = errorData?.SsoEmail2faSessionToken ?? '';
+    this.twoFactorProvidersData = errorData?.TwoFactorProviders2 ?? null;
+    this.availableTwoFactorProviders = this.parseSupportedTwoFactorProviders(errorData);
+    if (this.availableTwoFactorProviders.length === 0) {
+      this.errorMessage = '当前账号启用了不受支持的两步验证方式';
+      this.needTwoFactor = false;
+      return;
+    }
+
+    this.twoFactorProvider = this.availableTwoFactorProviders[0];
+    this.twoFactorProviderData = this.getTwoFactorProviderData(errorData, this.twoFactorProvider);
+    this.twoFactorToken = '';
+    this.needTwoFactor = true;
+  }
+
+  /** 从服务端错误响应筛选本客户端可处理的 2FA 方式，并按验证器、邮箱、通行密钥排序。 */
+  private parseSupportedTwoFactorProviders(errorData?: LoginErrorResponseData): number[] {
+    const rawProviders = this.parseRawTwoFactorProviders(errorData);
+    const supportedProviders: number[] = [];
+    const preferredOrder: number[] = [
+      TwoFactorProvider.AUTHENTICATOR_APP,
+      TwoFactorProvider.EMAIL,
+      TwoFactorProvider.WEB_AUTHN
+    ];
+
+    for (let i = 0; i < preferredOrder.length; i++) {
+      const provider = preferredOrder[i];
+      if (rawProviders.includes(provider) && this.isSupportedTwoFactorProvider(provider, errorData)) {
+        supportedProviders.push(provider);
+      }
+    }
+
+    return supportedProviders;
+  }
+
+  private isSupportedTwoFactorProvider(provider: number, errorData?: LoginErrorResponseData): boolean {
+    if (provider === TwoFactorProvider.AUTHENTICATOR_APP || provider === TwoFactorProvider.EMAIL) {
+      return true;
+    }
+
+    if (provider === TwoFactorProvider.WEB_AUTHN) {
+      return this.hasNativePasskeyChallenge(this.getTwoFactorProviderData(errorData, provider));
+    }
+
+    return false;
+  }
+
+  private hasNativePasskeyChallenge(providerData: TwoFactorProviderData | null): boolean {
+    if (!providerData) {
+      return false;
+    }
+
+    const challenge = providerData['challenge'] ?? providerData['Challenge'];
+    return typeof challenge === 'string' && challenge.length > 0;
+  }
+
+  private parseRawTwoFactorProviders(errorData?: LoginErrorResponseData): number[] {
+    if (errorData?.TwoFactorProviders2) {
+      return Object.keys(errorData.TwoFactorProviders2)
+        .map((provider: string) => Number(provider))
+        .filter((provider: number) => !Number.isNaN(provider));
+    }
+
+    const providers = errorData?.TwoFactorProviders;
+    if (Array.isArray(providers)) {
+      return providers
+        .map((provider: string) => Number(provider))
+        .filter((provider: number) => !Number.isNaN(provider));
+    }
+
+    if (typeof providers === 'string') {
+      const matches = providers.match(/-?\d+/g) ?? [];
+      return matches
+        .map((provider: string) => Number(provider))
+        .filter((provider: number) => !Number.isNaN(provider));
+    }
+
+    return [];
+  }
+
+  private getTwoFactorProviderData(
+    errorData: LoginErrorResponseData | undefined,
+    provider: number
+  ): TwoFactorProviderData | null {
+    const providers = errorData?.TwoFactorProviders2;
+    if (!providers) {
+      return null;
+    }
+
+    return providers[provider.toString()] ?? null;
+  }
+
+  setTwoFactorProvider(provider: number): void {
+    if (!this.availableTwoFactorProviders.includes(provider)) {
+      return;
+    }
+
+    this.twoFactorProvider = provider;
+    this.twoFactorProviderData = this.twoFactorProvidersData?.[provider.toString()] ?? null;
+    this.twoFactorToken = '';
+  }
+
+  private getCurrentTwoFactorToken(): string {
+    if (this.twoFactorProvider === TwoFactorProvider.WEB_AUTHN) {
+      return this.twoFactorToken;
+    }
+
+    return this.twoFactorToken.trim();
+  }
+
+  /**
+   * 调起平台通行密钥验证并保存未经 trim 的 JSON 认证响应。
+   * @returns 平台认证成功时为 `true`；前置条件或平台异常转为错误消息与 `false`。
+   */
+  async performPasskeyTwoFactor(context: common.Context): Promise<boolean> {
+    if (this.twoFactorProvider !== TwoFactorProvider.WEB_AUTHN) {
+      this.errorMessage = '当前两步验证方式不是通行密钥';
+      return false;
+    }
+
+    if (!this.twoFactorProviderData) {
+      this.errorMessage = '服务端未返回可用的通行密钥验证数据';
+      return false;
+    }
+
+    try {
+      this.twoFactorToken = await PasskeyTwoFactorUtil.authenticate(
+        context,
+        this.twoFactorProviderData,
+        await this.getFallbackRpId()
+      );
+      return true;
+    } catch (error) {
+      Logger.error(`Passkey two factor failed: ${error}`);
+      this.errorMessage = '通行密钥验证失败，请改用验证码或重试';
+      return false;
+    }
+  }
+
+  private async getFallbackRpId(): Promise<string> {
+    const endpoints = await getServerEndpoints();
+    const match = endpoints.vaultBaseUrl.match(/^https?:\/\/([^\/:?#]+)/i);
+    return match ? match[1] : '';
+  }
+
+  /**
+   * 串行执行输入校验、服务器配置保存、预登录、两次密钥派生及对应认证分支。
+   * @returns 完成令牌持久化时为 `true`；各步骤失败或异常均返回 `false`。
+   */
   async login(): Promise<boolean> {
     // 清除之前的错误信息
     this.errorMessage = '';
@@ -309,7 +531,7 @@ export class LoginViewModel {
     }
 
     // 保存服务器配置
-    this.saveServerConfig();
+    await this.saveServerConfig();
 
     try {
       // 执行预登录
@@ -351,10 +573,17 @@ export class LoginViewModel {
     }
   }
 
-  // 保存登录凭据和加密参数
+  /**
+   * 替换关键资产中的会话令牌、主密钥、用户密钥、私钥及 KDF 参数，并标记已登录。
+   * 超长访问令牌和私钥按 1000 字符拆分；关键资产 API 的失败由工具层记录并吸收。
+   */
   private saveLoginInfo() {
     this.needTwoFactor = false;
     this.needNewDevice = false;
+    this.twoFactorToken = '';
+    this.availableTwoFactorProviders = [];
+    this.twoFactorProviderData = null;
+    this.twoFactorProvidersData = null;
     // 删除原本的凭据
     deleteAsset(MASTER_KEY);
     deleteAsset(ACCESS_TOKEN_KEY_1);
@@ -374,9 +603,13 @@ export class LoginViewModel {
       addAsset(this.createAssetModel(ACCESS_TOKEN_KEY_1, this.accessTokenResponse.access_token));
     }
     addAsset(this.createAssetModel(MASTER_KEY, this.masterKey));
-    addAsset(this.createAssetModel(PRIVATE_KEY_1, this.accessTokenResponse.PrivateKey.substring(0, 1000)));
-    addAsset(this.createAssetModel(PRIVATE_KEY_2, this.accessTokenResponse.PrivateKey.substring(1000)));
-    addAsset(this.createAssetModel(USER_KEY, this.accessTokenResponse.Key));
+    if (this.accessTokenResponse.PrivateKey) {
+      addAsset(this.createAssetModel(PRIVATE_KEY_1, this.accessTokenResponse.PrivateKey.substring(0, 1000)));
+      addAsset(this.createAssetModel(PRIVATE_KEY_2, this.accessTokenResponse.PrivateKey.substring(1000)));
+    }
+    if (this.accessTokenResponse.Key) {
+      addAsset(this.createAssetModel(USER_KEY, this.accessTokenResponse.Key));
+    }
     addAsset(this.createAssetModel(REFRESH_TOKEN_KEY, this.accessTokenResponse.refresh_token));
     let expireTime = Math.floor(Date.now() / 1000) + this.accessTokenResponse.expires_in;
     addAsset(this.createAssetModel(TOKEN_EXPIRE_TIME_KEY, expireTime.toString()));
@@ -387,9 +620,9 @@ export class LoginViewModel {
     // 保存后续加解密的参数
     const kdfParam: PreloginResponse = {
       kdf: this.accessTokenResponse.Kdf,
-      kdfIterations: this.accessTokenResponse.KdfIterations,
-      kdfMemory: this.accessTokenResponse.KdfMemory,
-      kdfParallelism: this.accessTokenResponse.KdfParallelism
+      kdfIterations: this.accessTokenResponse.KdfIterations ?? this.kdfIterations,
+      kdfMemory: this.accessTokenResponse.KdfMemory ?? this.kdfMemory,
+      kdfParallelism: this.accessTokenResponse.KdfParallelism ?? this.kdfParallelism
     };
     addAsset(this.createAssetModel(KDF_PARAM_KEY, JSON.stringify(kdfParam)));
 
@@ -404,6 +637,32 @@ export class LoginViewModel {
       secret: secret,
       label: label
     }
+  }
+
+  private extractLoginErrorMessage(error: LoginRequestError): string {
+    const errorData = error.response?.data;
+    if (errorData?.error_description === 'invalid_username_or_password') {
+      return '用户名或密码不正确，请重试';
+    }
+
+    const serverMessage = this.getErrorModelMessage(errorData) || errorData?.message || errorData?.error_description;
+    if (serverMessage && serverMessage.length > 0) {
+      return serverMessage;
+    }
+
+    if (error.message && error.message.length > 0) {
+      return error.message;
+    }
+
+    return '请检查邮箱、密码和服务器连接后重试';
+  }
+
+  private getErrorModelMessage(errorData?: LoginErrorResponseData): string {
+    return errorData?.ErrorModel?.Message ||
+      errorData?.ErrorModel?.message ||
+      errorData?.errorModel?.Message ||
+      errorData?.errorModel?.message ||
+      '';
   }
 
   // 清除错误信息
@@ -439,6 +698,12 @@ export class LoginViewModel {
     newViewModel.needSaveEmail = this.needSaveEmail;
     newViewModel.accessTokenResponse = this.accessTokenResponse;
     newViewModel.twoFactorProvider = this.twoFactorProvider;
+    newViewModel.availableTwoFactorProviders = this.availableTwoFactorProviders;
+    newViewModel.twoFactorProviderData = this.twoFactorProviderData;
+    newViewModel.twoFactorProvidersData = this.twoFactorProvidersData;
+    newViewModel.ssoEmail2FaSessionToken = this.ssoEmail2FaSessionToken;
+    newViewModel.twoFactorRemember = this.twoFactorRemember;
+    newViewModel.twoFactorToken = this.twoFactorToken;
     return newViewModel;
   }
 
@@ -455,9 +720,18 @@ export class LoginViewModel {
     this.kdfMemory = 0;
     this.kdfParallelism = 0;
     this.masterKey = '';
+    this.needTwoFactor = false;
+    this.needNewDevice = false;
+    this.twoFactorToken = '';
+    this.twoFactorRemember = false;
+    this.twoFactorProvider = TwoFactorProvider.AUTHENTICATOR_APP;
+    this.availableTwoFactorProviders = [];
+    this.twoFactorProviderData = null;
+    this.twoFactorProvidersData = null;
+    this.ssoEmail2FaSessionToken = '';
   }
 
-  // 清理敏感数据
+  /** 清除内存中的主密码和主密钥；登录哈希及令牌响应仍由现有生命周期管理。 */
   clearSensitiveData(): void {
     // 清理密码和密钥
     this.password = '';
@@ -468,17 +742,27 @@ export class LoginViewModel {
 
   // 保存服务器配置
   private async saveServerConfig(): Promise<void> {
-    DataPreferences.getInstance().put(SERVER_TYPE_KEY, this.serverType, (isSuccess: boolean, error) => {
-      if (!isSuccess) {
-        Logger.error("failed to save server config, error message: " + error?.message);
-      }
-    })
-    DataPreferences.getInstance()
-      .put(SERVER_ADDRESS_KEY, this.serverAddress, (isSuccess: boolean, error) => {
-        if (!isSuccess) {
-          Logger.error("failed to save server config, error message: " + error?.message);
-        }
-      })
+    try {
+      const serverType = this.getValidServerType();
+      DataPreferences.getInstance().putSync(SERVER_TYPE_KEY, serverType);
+      DataPreferences.getInstance().putSync(SERVER_ADDRESS_KEY, this.getNormalizedServerAddress());
+    } catch (error) {
+      Logger.error("failed to save server config, error message: " + error);
+    }
+  }
+
+  private getValidServerType(): ServerType {
+    if (this.serverType === ServerType.US ||
+      this.serverType === ServerType.EU ||
+      this.serverType === ServerType.SELF_HOSTED) {
+      return this.serverType;
+    }
+
+    return ServerType.US;
+  }
+
+  private getNormalizedServerAddress(): string {
+    return this.serverAddress ? this.serverAddress.trim() : '';
   }
 
   // 读取服务器配置
@@ -491,20 +775,32 @@ export class LoginViewModel {
     this.serverAddress = serverConfig.serverAddress;
   }
 
+  /** 请求邮箱 2FA；哈希失败时不发请求，网络失败由 API 转换为 `false`。 */
   async doSendEmailLogin(): Promise<boolean> {
+    await this.initializeAsyncDeviceInfo();
     if (!await this.hashMasterKey()) {
       return false;
     }
     const request: SendEmailLoginRequest = {
-      authRequestAccessCode: "",
-      authRequestId: "",
-      ssoEmail2FaSessionToken: "",
-      deviceIdentifier
-      : this.deviceIdentifier,
-      email: this.email,
-      masterPasswordHash: this.loginPassword
+      DeviceIdentifier: this.deviceIdentifier,
+      Email: this.email.trim().toLowerCase(),
+      MasterPasswordHash: this.loginPassword,
+      SsoEmail2FaSessionToken: this.ssoEmail2FaSessionToken
     }
 
     return await sendEmailLogin(request);
+  }
+
+  /** 请求重发新设备 OTP；哈希失败或 API 返回失败时为 `false`。 */
+  async doResendNewDeviceOtp(): Promise<boolean> {
+    if (!await this.hashMasterKey()) {
+      return false;
+    }
+    const request: ResendNewDeviceOtpRequest = {
+      Email: this.email.trim().toLowerCase(),
+      MasterPasswordHash: this.loginPassword
+    }
+
+    return await resendNewDeviceOtp(request);
   }
 }
