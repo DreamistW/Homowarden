@@ -195,12 +195,29 @@ export class CryptoUtil {
         const plainText = await CryptoUtil.decryptAESCBC(cipherText, keyBytes.slice(0, 32));
         return CryptoUtil.base64DecodeToString(plainText);
       }
+      throw new Error('MAC verification failed');
     } catch (err) {
       const error = err as BusinessError;
       Logger.error(`Failed to decrypt, error message: ${error.message}`);
-      return `Failed to decrypt, error message: ${error.message}`;
+      throw new Error(`Failed to decrypt: ${error.message}`);
     }
-    return '';
+  }
+
+  static async decryptCipherKey(cipherKey: string | null | undefined, symKey: string): Promise<string> {
+    if (!cipherKey) {
+      return symKey;
+    }
+    const keyBytes = new util.Base64Helper().decodeSync(symKey);
+    const macResult = await CryptoUtil.verifyHMAC(cipherKey, keyBytes.slice(32));
+    if (!macResult) {
+      throw new Error('Cipher key MAC verification failed');
+    }
+    const decryptedKey = await CryptoUtil.decryptAESCBC(cipherKey, keyBytes.slice(0, 32));
+    const decryptedKeyBytes = new util.Base64Helper().decodeSync(decryptedKey);
+    if (decryptedKeyBytes.length !== 64) {
+      throw new Error('Invalid cipher key length');
+    }
+    return decryptedKey;
   }
 
   // Base64字符串解码

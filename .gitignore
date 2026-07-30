@@ -12,3 +12,5 @@
 /.appanalyzer
 /.claude
 /Profile
+.DS_Store
+/.cache

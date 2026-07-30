@@ -103,6 +103,7 @@ export enum CipherFieldType {
 
 export enum DBTableName {
   MAIN = 'ciphers',
+  KEYS = 'cipher_keys',
   LOGINS = 'cipher_logins',
   CARDS = 'cipher_cards',
   IDENTITIES = 'cipher_identities',

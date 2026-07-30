@@ -23,7 +23,7 @@ export class TotpListViewModel {
     for (const cipher of this.allCiphers) {
       if (cipher.type == CipherItemType.LOGIN) {
         // 获取登录项信息
-        cipher.login = await this.getCipherLogin(cipher.id);
+        cipher.login = await this.getCipherLogin(cipher);
       }
     }
     this.filteredCiphers = this.allCiphers.filter(cipher => cipher.type == CipherItemType.LOGIN && cipher.login?.totp)
@@ -100,21 +100,20 @@ export class TotpListViewModel {
   /**
    * 获取登录信息
    */
-  private async getCipherLogin(cipherId: string): Promise<CipherLogin> {
-    return new Promise(async (resolve) => {
-      const encUsername =
-        DatabaseUtil.getInstance().querySingleData(DBTableName.LOGINS, 'cipher_id', cipherId, 'username');
-      const username = await CryptoUtil.decryptField(encUsername as string, this.symmetricKey);
-      const encTotp = DatabaseUtil.getInstance().querySingleData(DBTableName.LOGINS, 'cipher_id', cipherId, 'totp');
-      const totp = await CryptoUtil.decryptField(encTotp as string, this.symmetricKey);
-      const loginItem: CipherLogin = {
-        username: username,
-        totp: totp,
-        password: null,
-        passwordRevisionDate: null,
-        uris: []
-      };
-      resolve(loginItem);
-    })
+  private async getCipherLogin(cipher: Cipher): Promise<CipherLogin> {
+    const cipherKey = await CryptoUtil.decryptCipherKey(cipher.key, this.symmetricKey);
+    const encUsername =
+      DatabaseUtil.getInstance().querySingleData(DBTableName.LOGINS, 'cipher_id', cipher.id, 'username');
+    const username = await CryptoUtil.decryptField(encUsername as string, cipherKey);
+    const encTotp = DatabaseUtil.getInstance().querySingleData(DBTableName.LOGINS, 'cipher_id', cipher.id, 'totp');
+    const totp = await CryptoUtil.decryptField(encTotp as string, cipherKey);
+    const loginItem: CipherLogin = {
+      username: username,
+      totp: totp,
+      password: null,
+      passwordRevisionDate: null,
+      uris: []
+    };
+    return loginItem;
   }
 }

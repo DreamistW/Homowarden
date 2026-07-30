@@ -10,7 +10,6 @@ import {
 } from '../utils/Constants';
 import { common } from '@kit.AbilityKit';
 import { EntryRouter } from '../../../../EntryRouter';
-import { DatabaseUtil } from '../utils/DatabaseUtil';
 import { Logger } from '@nzy/logger';
 import { HdsNavigation } from '@kit.UIDesignKit';
 import { window } from '@kit.ArkUI';
@@ -149,7 +148,6 @@ struct Index {
 
   onPrivacyAgreed() {
     DataPreferences.getInstance().putSync(PRIVACY_AGREED_KEY, 1);
-    DatabaseUtil.getInstance().createTable();
     this.pathInfos.pushPath({ name: EntryRouter.LoginPage });
   }
 
