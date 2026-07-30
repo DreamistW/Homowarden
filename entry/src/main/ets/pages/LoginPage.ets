@@ -103,7 +103,7 @@ export struct LoginPage {
             const result = await this.viewModel.doSendEmailLogin();
             if (!result) {
               this.twoFactorInputError = true;
-              this.twoFactorInputHint = '发送验证码失败';
+              this.twoFactorInputHint = this.viewModel.errorMessage || '发送验证码失败';
             } else {
               this.twoFactorInputError = true;
               this.twoFactorInputHint = '已发送验证码';
@@ -141,7 +141,7 @@ export struct LoginPage {
           const result = await this.viewModel.doResendNewDeviceOtp();
           if (!result) {
             this.twoFactorInputError = true;
-            this.twoFactorInputHint = '发送验证码失败';
+            this.twoFactorInputHint = this.viewModel.errorMessage || '发送验证码失败';
           } else {
             this.twoFactorInputError = true;
             this.twoFactorInputHint = '已发送验证码';
@@ -298,12 +298,12 @@ export struct LoginPage {
                 return false;
               }
             }
-            const result = await this.viewModel.login();
+            const result = await this.viewModel.continueLogin();
             if (!result) {
               this.twoFactorInputError = true;
               this.twoFactorInputHint = this.viewModel.twoFactorProvider === TwoFactorProvider.WEB_AUTHN ?
                 (this.viewModel.errorMessage || '通行密钥验证失败') :
-                '无效的验证码';
+                (this.viewModel.errorMessage || '无效的验证码');
               return false;
             }
             this.isNeed2FA = false;
@@ -330,10 +330,10 @@ export struct LoginPage {
               this.twoFactorInputHint = '验证码不能为空';
               return false;
             }
-            const result = await this.viewModel.login();
+            const result = await this.viewModel.continueLogin();
             if (!result) {
               this.twoFactorInputError = true;
-              this.twoFactorInputHint = '无效的验证码';
+              this.twoFactorInputHint = this.viewModel.errorMessage || '无效的验证码';
               return false;
             }
             this.isNeedNewDevice = false;

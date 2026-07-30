@@ -18,11 +18,13 @@ import { queryAssetSync } from '../utils/AssetUtil';
 import { util } from '@kit.ArkTS';
 import { CryptoUtil } from '../utils/CryptoUtil';
 import { PreloginResponse } from '../model/Prelogin';
+import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
 
 /**
  * 密码库ViewModel
  */
 export class VaultViewModel {
+  private static activeSyncPromise: Promise<boolean> | null = null;
   // 所有密码项
   allCiphers: Cipher[] = [];
   // 筛选后的密码项
@@ -49,8 +51,9 @@ export class VaultViewModel {
 
       if (forceSync) {
         this.isLoading = true;
-        // 从服务器同步数据
-        await this.syncCiphersFromServer();
+        const syncResult = await this.syncCiphersFromServer();
+        await this.loadCiphersFromDatabase();
+        return syncResult;
       }
 
       await this.loadCiphersFromDatabase();
@@ -68,6 +71,21 @@ export class VaultViewModel {
    * 从服务器同步密码项数据
    */
   private async syncCiphersFromServer(shouldApplyResult?: () => boolean): Promise<boolean> {
+    if (VaultViewModel.activeSyncPromise) {
+      return await VaultViewModel.activeSyncPromise;
+    }
+    const syncPromise = this.performSyncCiphersFromServer(shouldApplyResult);
+    VaultViewModel.activeSyncPromise = syncPromise;
+    try {
+      return await syncPromise;
+    } finally {
+      if (VaultViewModel.activeSyncPromise === syncPromise) {
+        VaultViewModel.activeSyncPromise = null;
+      }
+    }
+  }
+
+  private async performSyncCiphersFromServer(shouldApplyResult?: () => boolean): Promise<boolean> {
     try {
       Logger.info('Starting to sync ciphers from server...');
 
@@ -99,8 +117,9 @@ export class VaultViewModel {
       return true;
     } catch (error) {
       const businessError = error as BusinessError;
-      Logger.error(`Failed to sync ciphers from server: ${businessError.message}`);
-      this.errorMessage = `获取密码项失败, 错误信息: ${businessError.message}`;
+      const errorMessage = ErrorMessageUtil.getMessage(error as Object);
+      Logger.error(`Failed to sync ciphers from server: ${errorMessage}`);
+      this.errorMessage = `获取密码项失败, 错误信息: ${errorMessage}`;
 
       // 检查是否是认证错误（需要重新登录）
       if (businessError.message.includes('401') || businessError.message.includes('403')) {
@@ -156,7 +175,9 @@ export class VaultViewModel {
       Logger.info('Background sync completed');
       return true;
     } catch (error) {
-      Logger.error(`Background sync failed: ${error}`);
+      const errorMessage = ErrorMessageUtil.getMessage(error as Object);
+      Logger.error(`Background sync failed: ${errorMessage}`);
+      this.errorMessage = `加载同步结果失败, 错误信息: ${errorMessage}`;
       return false;
     }
   }

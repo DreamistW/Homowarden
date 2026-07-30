@@ -35,6 +35,7 @@ import { ResendNewDeviceOtpRequest, SendEmailLoginRequest } from '../model/SendE
 import { PasskeyTwoFactorUtil } from '../utils/PasskeyTwoFactorUtil';
 import { common } from '@kit.AbilityKit';
 import { getServerEndpoints } from '../network/ServerEndpointResolver';
+import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
 
 interface LoginErrorModel {
   Message?: string;
@@ -555,6 +556,31 @@ export class LoginViewModel {
     }
   }
 
+  async continueLogin(): Promise<boolean> {
+    this.errorMessage = '';
+    try {
+      let loginSuccess: boolean = false;
+      if (this.needTwoFactor) {
+        loginSuccess = await this.performLoginWith2FA();
+      } else if (this.needNewDevice) {
+        loginSuccess = await this.performLoginWithNewDevice();
+      } else {
+        this.errorMessage = '当前没有待完成的登录验证';
+        return false;
+      }
+      if (!loginSuccess) {
+        return false;
+      }
+      this.saveLoginInfo();
+      return true;
+    } catch (error) {
+      const errorMessage = ErrorMessageUtil.getMessage(error as Object);
+      Logger.error(`Login continuation failed: ${errorMessage}`);
+      this.errorMessage = `登录失败，错误信息：${errorMessage}`;
+      return false;
+    }
+  }
+
   // 保存登录凭据和加密参数
   private saveLoginInfo() {
     this.needTwoFactor = false;
@@ -668,6 +694,7 @@ export class LoginViewModel {
     newViewModel.kdfMemory = this.kdfMemory;
     newViewModel.kdfParallelism = this.kdfParallelism;
     newViewModel.masterKey = this.masterKey;
+    newViewModel.loginPassword = this.loginPassword;
     newViewModel.deviceType = this.deviceType;
     newViewModel.deviceIdentifier = this.deviceIdentifier;
     newViewModel.deviceName = this.deviceName;
@@ -699,6 +726,7 @@ export class LoginViewModel {
     this.kdfMemory = 0;
     this.kdfParallelism = 0;
     this.masterKey = '';
+    this.loginPassword = '';
     this.needTwoFactor = false;
     this.needNewDevice = false;
     this.twoFactorToken = '';
@@ -715,6 +743,7 @@ export class LoginViewModel {
     // 清理密码和密钥
     this.password = '';
     this.masterKey = '';
+    this.loginPassword = '';
 
     Logger.info('Sensitive data cleared from LoginViewModel');
   }
@@ -755,29 +784,33 @@ export class LoginViewModel {
   }
 
   async doSendEmailLogin(): Promise<boolean> {
-    await this.initializeAsyncDeviceInfo();
-    if (!await this.hashMasterKey()) {
+    try {
+      await this.initializeAsyncDeviceInfo();
+      const request: SendEmailLoginRequest = {
+        DeviceIdentifier: this.deviceIdentifier,
+        Email: this.email.trim().toLowerCase(),
+        MasterPasswordHash: this.loginPassword,
+        SsoEmail2FaSessionToken: this.ssoEmail2FaSessionToken
+      }
+      return await sendEmailLogin(request);
+    } catch (error) {
+      const errorMessage = ErrorMessageUtil.getMessage(error as Object);
+      this.errorMessage = `发送验证码失败，错误信息：${errorMessage}`;
       return false;
     }
-    const request: SendEmailLoginRequest = {
-      DeviceIdentifier: this.deviceIdentifier,
-      Email: this.email.trim().toLowerCase(),
-      MasterPasswordHash: this.loginPassword,
-      SsoEmail2FaSessionToken: this.ssoEmail2FaSessionToken
-    }
-
-    return await sendEmailLogin(request);
   }
 
   async doResendNewDeviceOtp(): Promise<boolean> {
-    if (!await this.hashMasterKey()) {
+    try {
+      const request: ResendNewDeviceOtpRequest = {
+        Email: this.email.trim().toLowerCase(),
+        MasterPasswordHash: this.loginPassword
+      }
+      return await resendNewDeviceOtp(request);
+    } catch (error) {
+      const errorMessage = ErrorMessageUtil.getMessage(error as Object);
+      this.errorMessage = `发送验证码失败，错误信息：${errorMessage}`;
       return false;
     }
-    const request: ResendNewDeviceOtpRequest = {
-      Email: this.email.trim().toLowerCase(),
-      MasterPasswordHash: this.loginPassword
-    }
-
-    return await resendNewDeviceOtp(request);
   }
 }

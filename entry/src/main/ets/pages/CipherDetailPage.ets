@@ -37,6 +37,7 @@ export struct CipherDetailPage {
   @State isSaving: boolean = false;
   @State showHideField: boolean = false;
   @State isEditable: boolean = false;
+  @State isDetailLoaded: boolean = false;
   @State showDeleteDialog: boolean = false;
   @State selectedCardBrand: CardBrandType | string = CardBrandType.NONE;
   @State selectedIdentityTitle: IdentityTitleType | string = IdentityTitleType.NONE;
@@ -127,6 +128,10 @@ export struct CipherDetailPage {
       label: '编辑',
       icon: $r('app.media.icon_edit'),
       action: () => {
+        if (!this.isDetailLoaded) {
+          IBestToast.show('密码项尚未成功解密，无法编辑');
+          return;
+        }
         this.isEditable = true;
       }
     }
@@ -195,6 +200,7 @@ export struct CipherDetailPage {
    */
   private async loadCipherDetail() {
     this.isLoading = true;
+    this.isDetailLoaded = false;
     try {
       const cipherDetail = await this.viewModel.getCipherDetail(this.cipher);
       if (cipherDetail) {
@@ -215,9 +221,12 @@ export struct CipherDetailPage {
         } else {
           this.totpSecret = '';
         }
+        this.isDetailLoaded = true;
       }
     } catch (error) {
       Logger.error('Failed to load cipher detail:', error);
+      this.isEditable = false;
+      IBestToast.show(`加载密码项失败, 错误信息: ${ErrorMessageUtil.getMessage(error as Object)}`);
     } finally {
       this.isLoading = false;
     }
@@ -277,6 +286,9 @@ export struct CipherDetailPage {
     }
     if (this.cipher.deletedDate) {
       return [this.RestoreItemBtn, this.DeleteItemBtn];
+    }
+    if (!this.isDetailLoaded) {
+      return [this.DeleteItemBtn];
     }
     return [this.EditItemBtn, this.DeleteItemBtn];
   }
