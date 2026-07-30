@@ -135,7 +135,7 @@ export struct VaultPage {
     } else {
       // 后台同步失败时，不影响已显示的本地数据
       if (!this.needReLogin && this.viewModel.errorMessage) {
-        IBestToast.show('已显示本地数据，后台同步失败');
+        IBestToast.show(`已显示本地数据，${this.viewModel.errorMessage}`);
       }
     }
   }

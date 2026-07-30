@@ -84,12 +84,16 @@ export class VaultViewModel {
         const enableForeignKeys = `PRAGMA foreign_keys = ON`;
         await DatabaseUtil.getInstance().executeSql(enableForeignKeys);
 
-        // 删除数据库中所有密码项
-        await DatabaseUtil.getInstance().deleteAllData(DBTableName.MAIN);
-
-        // 将服务器数据保存到数据库
-        for (const cipher of response.ciphers) {
-          await DatabaseUtil.getInstance().saveCipherToDatabase(cipher);
+        await DatabaseUtil.getInstance().beginTransaction();
+        try {
+          await DatabaseUtil.getInstance().deleteAllData(DBTableName.MAIN);
+          for (const cipher of response.ciphers) {
+            await DatabaseUtil.getInstance().saveCipherToDatabase(cipher);
+          }
+          await DatabaseUtil.getInstance().commitTransaction();
+        } catch (error) {
+          await DatabaseUtil.getInstance().rollBackTransaction();
+          throw new Error(`Cipher sync transaction failed: ${error}`);
         }
       }
       return true;
@@ -108,9 +112,11 @@ export class VaultViewModel {
   }
 
   private async loadCiphersFromDatabase() {
+    await DatabaseUtil.getInstance().createTable();
     this.symmetricKey = await this.getSymmetricKey();
     const ciphersData = await DatabaseUtil.getInstance().queryAllData(DBTableName.MAIN);
-    this.allCiphers = await this.buildCiphersFromData(ciphersData);
+    const cipherKeysData = await DatabaseUtil.getInstance().queryAllData(DBTableName.KEYS);
+    this.allCiphers = await this.buildCiphersFromData(ciphersData, cipherKeysData);
     this.filteredCiphers = this.allCiphers.filter(cipher => cipher.deletedDate == null);
     this.stats = await this.getCipherTypeStats(ciphersData);
     this.buildFilterOptions();
@@ -158,11 +164,13 @@ export class VaultViewModel {
   /**
    * 从数据库数据构建密码项对象
    */
-  private async buildCiphersFromData(ciphersData: relationalStore.ValuesBucket[]): Promise<Cipher[]> {
+  private async buildCiphersFromData(ciphersData: relationalStore.ValuesBucket[],
+    cipherKeysData: relationalStore.ValuesBucket[]): Promise<Cipher[]> {
     const ciphers: Cipher[] = [];
 
     for (const cipherData of ciphersData) {
       const rawRevisionDate = cipherData.revision_date as string;
+      const keyData = cipherKeysData.find(data => data.cipher_id === cipherData.id);
       const cipher: Cipher = {
         id: cipherData.id as string,
         type: cipherData.type as CipherItemType,
@@ -176,6 +184,8 @@ export class VaultViewModel {
         lastKnownRevisionDate: rawRevisionDate,
         deletedDate: cipherData.deleted_date as string || null,
         notes: cipherData.notes as string || null,
+        key: keyData ? keyData.encrypted_key as string : null,
+        encryptedFor: keyData ? keyData.encrypted_for as string || null : null,
         reprompt: cipherData.reprompt as number,
         login: null,
         identity: null,
@@ -188,10 +198,18 @@ export class VaultViewModel {
       if (cipher.deletedDate != null) {
         cipher.deletedDate = this.formatDateTime(cipher.deletedDate);
       }
-      // 解密基本字段
-      cipher.name = await CryptoUtil.decryptField(cipher.name, this.symmetricKey);
-      cipher.subtitle = await this.getSubtitle(cipher);
-      cipher.notes = await CryptoUtil.decryptField(cipher.notes as string, this.symmetricKey);
+      try {
+        const cipherKey = await CryptoUtil.decryptCipherKey(cipher.key, this.symmetricKey);
+        cipher.name = await CryptoUtil.decryptField(cipher.name, cipherKey);
+        cipher.subtitle = await this.getSubtitle(cipher, cipherKey);
+        cipher.notes = await CryptoUtil.decryptField(cipher.notes as string, cipherKey);
+      } catch (error) {
+        Logger.error(`Failed to decrypt cipher ${cipher.id}: ${error}`);
+        cipher.name = '无法解密的条目';
+        cipher.subtitle = '解密失败';
+        cipher.notes = null;
+        cipher.edit = false;
+      }
       ciphers.push(cipher);
     }
 
@@ -441,7 +459,7 @@ export class VaultViewModel {
       passwordHistory: null,
       attachments: null,
       attachments2: null,
-      key: null,
+      key: cipher.key || null,
       encryptedFor: cipher.encryptedFor || null,
       reprompt: cipher.reprompt,
       subtitle: this.getPlainSubtitle(cipher)
@@ -510,20 +528,20 @@ export class VaultViewModel {
   }
 
   // 写入密码项副标题
-  async getSubtitle(cipher: Cipher): Promise<string> {
+  async getSubtitle(cipher: Cipher, cipherKey: string): Promise<string> {
     // 根据不同的项目类型返回对应的副标题
     if (cipher.type == CipherItemType.LOGIN) {
       const encUsername =
         DatabaseUtil.getInstance().querySingleData(DBTableName.LOGINS, 'cipher_id', cipher.id, 'username');
       if (encUsername != '') {
-        const username = await CryptoUtil.decryptField(encUsername as string, this.symmetricKey);
+        const username = await CryptoUtil.decryptField(encUsername as string, cipherKey);
         return username;
       }
     } else if (cipher.type == CipherItemType.CARD) {
       const encCardNumber =
         DatabaseUtil.getInstance().querySingleData(DBTableName.CARDS, 'cipher_id', cipher.id, 'number');
       if (encCardNumber && encCardNumber.toString().length > 5) {
-        const cardNumber = await CryptoUtil.decryptField(encCardNumber as string, this.symmetricKey);
+        const cardNumber = await CryptoUtil.decryptField(encCardNumber as string, cipherKey);
         return '*' + cardNumber.slice(-4);
       }
     } else if (cipher.type == CipherItemType.IDENTITY) {
@@ -532,8 +550,8 @@ export class VaultViewModel {
       const encLastName =
         DatabaseUtil.getInstance().querySingleData(DBTableName.IDENTITIES, 'cipher_id', cipher.id, 'last_name');
       if (encFirstName != '' && encLastName != '') {
-        const firstName = await CryptoUtil.decryptField(encFirstName as string, this.symmetricKey);
-        const lastName = await CryptoUtil.decryptField(encLastName as string, this.symmetricKey);
+        const firstName = await CryptoUtil.decryptField(encFirstName as string, cipherKey);
+        const lastName = await CryptoUtil.decryptField(encLastName as string, cipherKey);
         return `${firstName} ${lastName}`;
       }
     }

@@ -17,7 +17,11 @@ export default class EntryAbility extends UIAbility {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
     DataPreferences.getInstance().init(this.context);
     try {
-      DatabaseUtil.init(this.context);
+      void DatabaseUtil.init(this.context).then(() => {
+        return DatabaseUtil.getInstance().createTable();
+      }).catch((err: Error) => {
+        hilog.error(DOMAIN, 'testTag', 'Failed to create database tables: %{public}s', err.message);
+      });
       ShareDatabaseUtil.init(this.context);
     } catch (err) {
       console.error(`Failed to init database. Error: ${JSON.stringify(err)}`);

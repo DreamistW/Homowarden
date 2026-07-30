@@ -10,6 +10,7 @@ export class DatabaseUtil {
   private static instance: DatabaseUtil;
   private static store: relationalStore.RdbStore | null = null;
   private static initPromise: Promise<void> | null = null;
+  private static transactionActive: boolean = false;
 
   public static getInstance(): DatabaseUtil {
     if (DatabaseUtil.instance == null) {
@@ -60,6 +61,31 @@ export class DatabaseUtil {
     })
   }
 
+  async beginTransaction(): Promise<void> {
+    await DatabaseUtil.initPromise;
+    if (DatabaseUtil.store == null) {
+      throw new Error('Database is undefined');
+    }
+    DatabaseUtil.store.beginTransaction();
+    DatabaseUtil.transactionActive = true;
+  }
+
+  async commitTransaction(): Promise<void> {
+    if (DatabaseUtil.store == null) {
+      throw new Error('Database is undefined');
+    }
+    DatabaseUtil.store.commit();
+    DatabaseUtil.transactionActive = false;
+  }
+
+  async rollBackTransaction(): Promise<void> {
+    if (DatabaseUtil.store == null) {
+      throw new Error('Database is undefined');
+    }
+    DatabaseUtil.store.rollBack();
+    DatabaseUtil.transactionActive = false;
+  }
+
   async insertData(table: string, data: relationalStore.ValuesBucket): Promise<number> {
     await DatabaseUtil.initPromise;
     return new Promise((resolve, reject) => {
@@ -71,7 +97,9 @@ export class DatabaseUtil {
             return;
           }
           Logger.info(`Insert into ${table} successful, rowId = ${rowId}`);
-          DatabaseUtil.store?.commit();
+          if (!DatabaseUtil.transactionActive) {
+            DatabaseUtil.store?.commit();
+          }
           resolve(rowId);
         })
       } else {
@@ -94,7 +122,9 @@ export class DatabaseUtil {
             return;
           }
           Logger.info(`Updated ${table}, row count: ${rows}`);
-          DatabaseUtil.store?.commit();
+          if (!DatabaseUtil.transactionActive) {
+            DatabaseUtil.store?.commit();
+          }
           resolve();
         })
       } else {
@@ -113,10 +143,13 @@ export class DatabaseUtil {
         DatabaseUtil.store.delete(predicates, (err, rows) => {
           if (err) {
             Logger.error(`Delete from ${table} failed, message is ${err.message}`);
-            resolve();
+            reject(err);
+            return;
           }
           Logger.info(`Deleted from ${table}, row count: ${rows}`);
-          DatabaseUtil.store?.commit();
+          if (!DatabaseUtil.transactionActive) {
+            DatabaseUtil.store?.commit();
+          }
           resolve();
         })
       } else {
@@ -135,10 +168,13 @@ export class DatabaseUtil {
         DatabaseUtil.store.delete(predicates, (err, rows) => {
           if (err) {
             Logger.error(`Delete from ${table} failed, message is ${err.message}`);
-            resolve();
+            reject(err);
+            return;
           }
           Logger.info(`Deleted from ${table}, row count: ${rows}`);
-          DatabaseUtil.store?.commit();
+          if (!DatabaseUtil.transactionActive) {
+            DatabaseUtil.store?.commit();
+          }
           resolve();
         })
       } else {
@@ -222,7 +258,7 @@ export class DatabaseUtil {
     return result;
   }
 
-  createTable() {
+  async createTable(): Promise<void> {
     // 创建密码项主表
     const createCiphersTable = `
     CREATE TABLE IF NOT EXISTS ciphers (
@@ -251,6 +287,15 @@ export class DatabaseUtil {
       password_revision_date TEXT,
       totp TEXT,
       uris TEXT,
+      FOREIGN KEY (cipher_id) REFERENCES ciphers(id) ON DELETE CASCADE
+    )
+  `;
+
+    const createCipherKeysTable = `
+    CREATE TABLE IF NOT EXISTS cipher_keys (
+      cipher_id TEXT PRIMARY KEY,
+      encrypted_key TEXT NOT NULL,
+      encrypted_for TEXT,
       FOREIGN KEY (cipher_id) REFERENCES ciphers(id) ON DELETE CASCADE
     )
   `;
@@ -318,12 +363,13 @@ export class DatabaseUtil {
       FOREIGN KEY (cipher_id) REFERENCES ciphers(id) ON DELETE CASCADE
     )
   `;
-    this.executeSql(createCiphersTable);
-    this.executeSql(createLoginTable);
-    this.executeSql(createCardTable);
-    this.executeSql(createIdentityTable);
-    this.executeSql(createSecureNoteTable);
-    this.executeSql(createFieldsTable);
+    await this.executeSql(createCiphersTable);
+    await this.executeSql(createCipherKeysTable);
+    await this.executeSql(createLoginTable);
+    await this.executeSql(createCardTable);
+    await this.executeSql(createIdentityTable);
+    await this.executeSql(createSecureNoteTable);
+    await this.executeSql(createFieldsTable);
 
     Logger.info('Database tables created successfully');
   }
@@ -350,6 +396,15 @@ export class DatabaseUtil {
         reprompt: cipher.reprompt
       };
       await DatabaseUtil.getInstance().insertData(DBTableName.MAIN, cipherData);
+
+      if (cipher.key) {
+        const cipherKeyData: relationalStore.ValuesBucket = {
+          cipher_id: cipher.id,
+          encrypted_key: cipher.key,
+          encrypted_for: cipher.encryptedFor || null
+        };
+        await DatabaseUtil.getInstance().insertData(DBTableName.KEYS, cipherKeyData);
+      }
 
       // 保存登录信息
       if (cipher.login && cipher.type == CipherItemType.LOGIN) {
@@ -434,6 +489,7 @@ export class DatabaseUtil {
     } catch (err) {
       const error = err as BusinessError;
       Logger.error(`Failed to save cipher to database, error message: ${error.message}`);
+      throw new Error(error.message);
     }
   }
 
@@ -459,8 +515,20 @@ export class DatabaseUtil {
       };
       await DatabaseUtil.getInstance().updateData(DBTableName.MAIN, cipher.id, cipherData);
 
-      // 2. 清理旧的子表数据
       const cipherId = cipher.id.replace(/'/g, "''");
+      await DatabaseUtil.getInstance().executeSql(
+        `DELETE FROM ${DBTableName.KEYS} WHERE cipher_id = '${cipherId}'`
+      );
+      if (cipher.key) {
+        const cipherKeyData: relationalStore.ValuesBucket = {
+          cipher_id: cipher.id,
+          encrypted_key: cipher.key,
+          encrypted_for: cipher.encryptedFor || null
+        };
+        await DatabaseUtil.getInstance().insertData(DBTableName.KEYS, cipherKeyData);
+      }
+
+      // 2. 清理旧的子表数据
       await DatabaseUtil.getInstance().executeSql(
         `DELETE FROM ${DBTableName.LOGINS} WHERE cipher_id = '${cipherId}'`
       );
@@ -562,6 +630,7 @@ export class DatabaseUtil {
     } catch (err) {
       const error = err as BusinessError;
       Logger.error(`Failed to update cipher to database, error message: ${error.message}`);
+      throw new Error(error.message);
     }
   }
 }
