@@ -21,6 +21,7 @@ import { AxiosResponse } from '@ohos/axios';
 import { RefreshTokenRequest } from '../model/RefreshToken';
 import { asset } from '@kit.AssetStoreKit';
 import { getServerEndpoints } from './ServerEndpointResolver';
+import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
 
 /**
  * 读取访问令牌，并在到期前 120 秒内尝试刷新。
@@ -60,8 +61,9 @@ async function getAccessToken(): Promise<string> {
         token = newTokenObj.access_token;
       }
     } catch (err) {
-      let error = err as BusinessError;
-      Logger.error(`Failed to refresh token, error message: ${error.message}`);
+      const errorMessage = ErrorMessageUtil.getMessage(err as Object);
+      Logger.error(`Failed to refresh token, error message: ${errorMessage}`);
+      throw new Error(errorMessage);
     }
   } else {
     let token1 = queryAssetSync(ACCESS_TOKEN_KEY_1);
@@ -95,7 +97,7 @@ export async function getAllCiphers(): Promise<VaultSyncResponse> {
   }).then((response: AxiosResponse<VaultSyncResponse>) => {
     return response.data;
   }).catch((error: BusinessError) => {
-    Logger.error('Failed to sync vault: ' + error.message);
+    Logger.error('Failed to sync vault: ' + ErrorMessageUtil.getMessage(error as Object));
     return Promise.reject(error);
   });
 }

@@ -14,6 +14,7 @@ export class DatabaseUtil {
   private static instance: DatabaseUtil;
   private static store: relationalStore.RdbStore | null = null;
   private static initPromise: Promise<void> | null = null;
+  private static tablePromise: Promise<void> | null = null;
   private static transactionActive: boolean = false;
 
   /** @returns 已创建的单例；调用方必须先等待 {@link init} 完成。 */
@@ -289,6 +290,19 @@ export class DatabaseUtil {
   }
 
   async createTable(): Promise<void> {
+    if (DatabaseUtil.tablePromise) {
+      return DatabaseUtil.tablePromise;
+    }
+    DatabaseUtil.tablePromise = DatabaseUtil.createTables();
+    try {
+      await DatabaseUtil.tablePromise;
+    } catch (error) {
+      DatabaseUtil.tablePromise = null;
+      throw new Error(`Failed to create database tables: ${error}`);
+    }
+  }
+
+  private static async createTables(): Promise<void> {
     // 创建密码项主表
     const createCiphersTable = `
     CREATE TABLE IF NOT EXISTS ciphers (
@@ -393,13 +407,13 @@ export class DatabaseUtil {
       FOREIGN KEY (cipher_id) REFERENCES ciphers(id) ON DELETE CASCADE
     )
   `;
-    await this.executeSql(createCiphersTable);
-    await this.executeSql(createCipherKeysTable);
-    await this.executeSql(createLoginTable);
-    await this.executeSql(createCardTable);
-    await this.executeSql(createIdentityTable);
-    await this.executeSql(createSecureNoteTable);
-    await this.executeSql(createFieldsTable);
+    await DatabaseUtil.getInstance().executeSql(createCiphersTable);
+    await DatabaseUtil.getInstance().executeSql(createCipherKeysTable);
+    await DatabaseUtil.getInstance().executeSql(createLoginTable);
+    await DatabaseUtil.getInstance().executeSql(createCardTable);
+    await DatabaseUtil.getInstance().executeSql(createIdentityTable);
+    await DatabaseUtil.getInstance().executeSql(createSecureNoteTable);
+    await DatabaseUtil.getInstance().executeSql(createFieldsTable);
 
     Logger.info('Database tables created successfully');
   }

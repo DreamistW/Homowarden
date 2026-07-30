@@ -137,12 +137,11 @@ export async function sendEmailLogin(request: SendEmailLoginRequest): Promise<bo
   }).then((response: AxiosResponse) => {
     if (response.status === 200) {
       return true;
-    } else {
-      return false;
     }
+    throw new Error(`发送验证码失败，HTTP ${response.status}`);
   }).catch((error: BusinessError) => {
     Logger.error("Failed to send email request, error message: " + error.message);
-    return false;
+    return Promise.reject(error);
   })
 }
 
@@ -160,9 +159,12 @@ export async function resendNewDeviceOtp(request: ResendNewDeviceOtpRequest): Pr
       'Content-Type': 'application/json',
     }
   }).then((response: AxiosResponse) => {
-    return response.status === 200;
+    if (response.status === 200) {
+      return true;
+    }
+    throw new Error(`发送验证码失败，HTTP ${response.status}`);
   }).catch((error: BusinessError) => {
     Logger.error("Failed to resend new device OTP, error message: " + error.message);
-    return false;
+    return Promise.reject(error);
   })
 }

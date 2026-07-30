@@ -35,6 +35,7 @@ import { ResendNewDeviceOtpRequest, SendEmailLoginRequest } from '../model/SendE
 import { PasskeyTwoFactorUtil } from '../utils/PasskeyTwoFactorUtil';
 import { common } from '@kit.AbilityKit';
 import { getServerEndpoints } from '../network/ServerEndpointResolver';
+import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
 
 interface LoginErrorModel {
   Message?: string;
@@ -573,6 +574,31 @@ export class LoginViewModel {
     }
   }
 
+  async continueLogin(): Promise<boolean> {
+    this.errorMessage = '';
+    try {
+      let loginSuccess: boolean = false;
+      if (this.needTwoFactor) {
+        loginSuccess = await this.performLoginWith2FA();
+      } else if (this.needNewDevice) {
+        loginSuccess = await this.performLoginWithNewDevice();
+      } else {
+        this.errorMessage = '当前没有待完成的登录验证';
+        return false;
+      }
+      if (!loginSuccess) {
+        return false;
+      }
+      this.saveLoginInfo();
+      return true;
+    } catch (error) {
+      const errorMessage = ErrorMessageUtil.getMessage(error as Object);
+      Logger.error(`Login continuation failed: ${errorMessage}`);
+      this.errorMessage = `登录失败，错误信息：${errorMessage}`;
+      return false;
+    }
+  }
+
   /**
    * 替换关键资产中的会话令牌、主密钥、用户密钥、私钥及 KDF 参数，并标记已登录。
    * 超长访问令牌和私钥按 1000 字符拆分；关键资产 API 的失败由工具层记录并吸收。
@@ -689,6 +715,7 @@ export class LoginViewModel {
     newViewModel.kdfMemory = this.kdfMemory;
     newViewModel.kdfParallelism = this.kdfParallelism;
     newViewModel.masterKey = this.masterKey;
+    newViewModel.loginPassword = this.loginPassword;
     newViewModel.deviceType = this.deviceType;
     newViewModel.deviceIdentifier = this.deviceIdentifier;
     newViewModel.deviceName = this.deviceName;
@@ -720,6 +747,7 @@ export class LoginViewModel {
     this.kdfMemory = 0;
     this.kdfParallelism = 0;
     this.masterKey = '';
+    this.loginPassword = '';
     this.needTwoFactor = false;
     this.needNewDevice = false;
     this.twoFactorToken = '';
@@ -736,6 +764,7 @@ export class LoginViewModel {
     // 清理密码和密钥
     this.password = '';
     this.masterKey = '';
+    this.loginPassword = '';
 
     Logger.info('Sensitive data cleared from LoginViewModel');
   }
@@ -777,30 +806,34 @@ export class LoginViewModel {
 
   /** 请求邮箱 2FA；哈希失败时不发请求，网络失败由 API 转换为 `false`。 */
   async doSendEmailLogin(): Promise<boolean> {
-    await this.initializeAsyncDeviceInfo();
-    if (!await this.hashMasterKey()) {
+    try {
+      await this.initializeAsyncDeviceInfo();
+      const request: SendEmailLoginRequest = {
+        DeviceIdentifier: this.deviceIdentifier,
+        Email: this.email.trim().toLowerCase(),
+        MasterPasswordHash: this.loginPassword,
+        SsoEmail2FaSessionToken: this.ssoEmail2FaSessionToken
+      }
+      return await sendEmailLogin(request);
+    } catch (error) {
+      const errorMessage = ErrorMessageUtil.getMessage(error as Object);
+      this.errorMessage = `发送验证码失败，错误信息：${errorMessage}`;
       return false;
     }
-    const request: SendEmailLoginRequest = {
-      DeviceIdentifier: this.deviceIdentifier,
-      Email: this.email.trim().toLowerCase(),
-      MasterPasswordHash: this.loginPassword,
-      SsoEmail2FaSessionToken: this.ssoEmail2FaSessionToken
-    }
-
-    return await sendEmailLogin(request);
   }
 
   /** 请求重发新设备 OTP；哈希失败或 API 返回失败时为 `false`。 */
   async doResendNewDeviceOtp(): Promise<boolean> {
-    if (!await this.hashMasterKey()) {
+    try {
+      const request: ResendNewDeviceOtpRequest = {
+        Email: this.email.trim().toLowerCase(),
+        MasterPasswordHash: this.loginPassword
+      }
+      return await resendNewDeviceOtp(request);
+    } catch (error) {
+      const errorMessage = ErrorMessageUtil.getMessage(error as Object);
+      this.errorMessage = `发送验证码失败，错误信息：${errorMessage}`;
       return false;
     }
-    const request: ResendNewDeviceOtpRequest = {
-      Email: this.email.trim().toLowerCase(),
-      MasterPasswordHash: this.loginPassword
-    }
-
-    return await resendNewDeviceOtp(request);
   }
 }
