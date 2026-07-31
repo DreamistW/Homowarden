@@ -2,6 +2,7 @@ import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
 import { IBestToast } from '@ibestservices/ibest-ui';
 import { Logger } from '@nzy/logger';
 import { TOTPUtil } from '../utils/TOTPUtil';
+import { AdaptiveIconButton } from './AdaptiveButton';
 
 /**
  * TOTP验证码显示组件
@@ -117,13 +118,18 @@ export struct TotpDisplayItem {
         .width(42)
 
       // 复制按钮
-      Button() {
-        Image($r('app.media.icon_copy'))
-          .width(18)
-      }
-      .backgroundColor(Color.Transparent)
-      .onClick(() => this.copyCode())
-      .margin({ right: 8 })
+      AdaptiveIconButton({
+        icon: $r('app.media.icon_copy'),
+        barWidth: 40,
+        barHeight: 40,
+        iconWidth: 20,
+        iconHeight: 20,
+        contentPadding: 6,
+        barBottomMargin: 0,
+        onButtonClick: () => {
+          this.copyCode();
+        }
+      })
     }
     .width('100%')
     .padding({ top: 8, bottom: 8 })

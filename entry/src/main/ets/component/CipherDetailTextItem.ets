@@ -77,33 +77,63 @@ export struct CipherDetailTextItem {
       }
 
       if (this.showHideButton && !this.isEditable && this.content) {
-        Button() {
-          Image(this.showContent ? $r('app.media.icon_show') : $r('app.media.icon_hide'))
-            .width(18)
+        if (this.showContent) {
+          AdaptiveIconButton({
+            icon: $r('app.media.icon_show'),
+            barWidth: 40,
+            barHeight: 40,
+            iconWidth: 20,
+            iconHeight: 20,
+            contentPadding: 6,
+            barBottomMargin: 0,
+            onButtonClick: () => {
+              this.showContent = false;
+            }
+          })
+        } else {
+          AdaptiveIconButton({
+            icon: $r('app.media.icon_hide'),
+            barWidth: 40,
+            barHeight: 40,
+            iconWidth: 20,
+            iconHeight: 20,
+            contentPadding: 6,
+            barBottomMargin: 0,
+            onButtonClick: () => {
+              this.showContent = true;
+            }
+          })
         }
-        .backgroundColor(Color.Transparent)
-        .onClick(() => this.showContent = !this.showContent)
-        .margin({ right: 8 })
       }
 
       if (this.showCopyButton && !this.isEditable && this.content) {
-        Button() {
-          Image($r('app.media.icon_copy'))
-            .width(18)
-        }
-        .backgroundColor(Color.Transparent)
-        .onClick(() => this.copyText(this.content))
-        .margin({ right: 8 })
+        AdaptiveIconButton({
+          icon: $r('app.media.icon_copy'),
+          barWidth: 40,
+          barHeight: 40,
+          iconWidth: 20,
+          iconHeight: 20,
+          contentPadding: 6,
+          barBottomMargin: 0,
+          onButtonClick: () => {
+            this.copyText(this.content);
+          }
+        })
       }
 
       if (this.isUri && !this.isEditable) {
-        Button() {
-          Image($r('app.media.icon_jump'))
-            .width(18)
-        }
-        .backgroundColor(Color.Transparent)
-        .onClick(() => this.doUriJump())
-        .margin({ right: 8 })
+        AdaptiveIconButton({
+          icon: $r('app.media.icon_jump'),
+          barWidth: 40,
+          barHeight: 40,
+          iconWidth: 20,
+          iconHeight: 20,
+          contentPadding: 6,
+          barBottomMargin: 0,
+          onButtonClick: () => {
+            this.doUriJump();
+          }
+        })
       }
     }
     .width('100%')
