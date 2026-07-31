@@ -89,7 +89,6 @@ export struct TotpEditItem {
               iconHeight: 20,
               contentPadding: 6,
               barBottomMargin: 0,
-              darkOffsetY: -6,
               onButtonClick: () => {
                 this.totpSecret = '';
                 this.onSecretChange?.('');
@@ -118,7 +117,6 @@ export struct TotpEditItem {
             iconHeight: 20,
             contentPadding: 6,
             barBottomMargin: 0,
-            darkOffsetY: -6,
             onButtonClick: () => {
               this.scanQRCode()
             }

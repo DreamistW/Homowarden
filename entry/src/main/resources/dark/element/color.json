@@ -5,7 +5,11 @@
       "value": "#000000"
     },
     {
-      "name": "button_text_color",
+      "name": "button_background_color",
+      "value": "#2B77D9"
+    },
+    {
+      "name": "button_foreground_color",
       "value": "#FFFFFF"
     },
     {

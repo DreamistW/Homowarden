@@ -156,7 +156,6 @@ export struct TotpListItem {
               iconHeight: 20,
               contentPadding: 6,
               barBottomMargin: 0,
-              darkOffsetY: -6,
               onButtonClick: () => {
                 this.copyCode();
               }

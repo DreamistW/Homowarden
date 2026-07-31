@@ -5,8 +5,12 @@
       "value": "#FFFFFF"
     },
     {
-      "name": "button_text_color",
-      "value": "#18202A"
+      "name": "button_background_color",
+      "value": "#2B77D9"
+    },
+    {
+      "name": "button_foreground_color",
+      "value": "#FFFFFF"
     },
     {
       "name": "main_nav_background",
