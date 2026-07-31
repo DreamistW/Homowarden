@@ -1,5 +1,5 @@
 import { EntryRouter } from '../../../../EntryRouter';
-import { Cipher, CipherDetailParams, TotpListParams } from '../model/CipherModels';
+import { Cipher, CipherDetailParams } from '../model/CipherModels';
 import { VaultViewModel } from '../viewmodel/VaultViewModel';
 import { common } from '@kit.AbilityKit';
 import {
@@ -21,8 +21,11 @@ import {
 } from '@hms.hds.hdsBaseComponent';
 import { hdsMaterial } from '@kit.UIDesignKit';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
-import { AdaptiveIconButton } from '../component/AdaptiveButton';
 import { VaultChangeNotifier, VaultLocalChange, VaultLocalChangeType } from '../utils/VaultChangeNotifier';
+import { MainBottomNavigation, MainTab } from '../component/MainBottomNavigation';
+import { TotpListPage } from './TotpListPage';
+import { Sure2SharePage } from './Sure2Share';
+import { SettingsPage } from './SettingsPage';
 
 @Builder
 export function VaultPageBuilder() {
@@ -30,7 +33,11 @@ export function VaultPageBuilder() {
 }
 
 @Component
-export struct VaultPage {
+struct VaultContent {
+  @Prop @Watch('handleActivationRevision') activationRevision: number = 0;
+  onVaultDataChanged: (ciphers: Cipher[], symmetricKey: string) => void = () => {};
+  onNavigateToDetail: (params: CipherDetailParams) => void = () => {};
+  onRelogin: () => void = () => {};
   @State viewModel: VaultViewModel = new VaultViewModel();
   private listScroller: ListScroller = new ListScroller();
   @State searchText: string = '';
@@ -42,52 +49,22 @@ export struct VaultPage {
   @State passwordInput: string = '';
   @State passwordError: string = '';
   @State pendingCipher: Cipher | null = null;
-  @State showAddBtn: boolean = false;
-  private exitTime: number = 0;
-  pathInfos: NavPathStack = new NavPathStack();
-  AddItemBtn: HdsNavigationBadgeIconOptions = {
-    content: {
-      label: '添加',
-      icon: $r('app.media.icon_add'),
-      action: () => {
-        this.pathInfos.pushPath({ name: EntryRouter.AddCipherPage, param: this.viewModel.symmetricKey });
-      }
-    }
-  }
-  SettingsBtn: HdsNavigationBadgeIconOptions = {
-    content: {
-      label: '设置',
-      icon: $r('app.media.icon_settings'),
-      action: () => {
-        this.pathInfos.pushPath({ name: EntryRouter.SettingsPage });
-      }
-    }
-  }
-  Sure2ShareBtn: HdsNavigationBadgeIconOptions = {
-    content: {
-      label: '安心分享',
-      icon: $r('app.media.icon_share'),
-      action: () => {
-        this.pathInfos.pushPath({ name: EntryRouter.Sure2SharePage });
-      }
-    }
-  }
-  TotpCodeBtn: HdsNavigationBadgeIconOptions = {
-    content: {
-      label: '验证码',
-      icon: $r('app.media.icon_key'),
-      action: () => {
-        this.pathInfos.pushPath({
-          name: EntryRouter.TotpListPage,
-          param: { ciphers: this.viewModel.allCiphers, symmetricKey: this.viewModel.symmetricKey } as TotpListParams
-        });
-      }
-    }
-  }
   groupId: string = 'filter_menu';
 
-  async aboutToAppear() {
+  async aboutToAppear(): Promise<void> {
     await this.loadCiphersWithBackgroundSync();
+  }
+
+  private handleActivationRevision(): void {
+    const result = DataPreferences.getInstance().getSync<number>(NEED_RELOAD_CIPHERS);
+    if (result === 1) {
+      DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 0);
+      void this.handleLocalVaultChange(VaultChangeNotifier.consumeChange());
+    }
+  }
+
+  private publishVaultData(): void {
+    this.onVaultDataChanged(this.viewModel.allCiphers, this.viewModel.symmetricKey);
   }
 
   private async loadCiphersWithBackgroundSync() {
@@ -105,6 +82,7 @@ export struct VaultPage {
       }
 
       this.viewModel.filterCiphers(this.selectedType, this.searchText);
+      this.publishVaultData();
 
       // 第二步：如果本地没数据，则直接强制同步，避免先显示空态再跳变为列表
       if (this.viewModel.allCiphers.length === 0) {
@@ -113,6 +91,7 @@ export struct VaultPage {
           IBestToast.show(this.viewModel.errorMessage);
         }
         this.viewModel.filterCiphers(this.selectedType, this.searchText);
+        this.publishVaultData();
         return;
       }
 
@@ -132,6 +111,7 @@ export struct VaultPage {
     if (result) {
       // 后台同步完成后，重新应用当前筛选条件
       this.viewModel.filterCiphers(this.selectedType, this.searchText);
+      this.publishVaultData();
     } else {
       // 后台同步失败时，不影响已显示的本地数据
       if (!this.needReLogin && this.viewModel.errorMessage) {
@@ -144,6 +124,7 @@ export struct VaultPage {
     const localResult = await this.viewModel.loadCiphers(false);
     if (localResult) {
       this.viewModel.filterCiphers(this.selectedType, this.searchText);
+      this.publishVaultData();
     } else {
       IBestToast.show(this.viewModel.errorMessage);
     }
@@ -178,6 +159,7 @@ export struct VaultPage {
       IBestToast.show(this.viewModel.errorMessage);
     }
     this.viewModel.filterCiphers(this.selectedType, this.searchText);
+    this.publishVaultData();
     this.isLoading = false;
   }
 
@@ -271,8 +253,7 @@ export struct VaultPage {
   }
 
   build() {
-    HdsNavDestination() {
-      Stack({ alignContent: Alignment.BottomEnd }) {
+    Stack({ alignContent: Alignment.BottomEnd }) {
         Column() {
           if (this.isInitialLoading) {
             this.loadingContent()
@@ -329,7 +310,7 @@ export struct VaultPage {
             onConfirm: () => {
               DataPreferences.getInstance().putSync(LOGIN_STATUS_KEY, 0);
               void WindowPrivacyUtil.applyForCurrentState();
-              this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
+              this.onRelogin();
               return true;
             }
           })
@@ -370,73 +351,12 @@ export struct VaultPage {
         .width('100%')
         .height('100%')
 
-        if (this.showAddBtn && !this.isInitialLoading) {
-          Column() {
-            AdaptiveIconButton({
-              icon: $r('app.media.icon_add'),
-              iconWidth: 25,
-              iconHeight: 25,
-              contentPadding: 16,
-              barBottomMargin: 0,
-              onButtonClick: () => {
-                this.pathInfos.pushPath({ name: EntryRouter.AddCipherPage, param: this.viewModel.symmetricKey });
-              }
-            })
-          }
-          .margin({ right: 0, bottom: 0 })
-        }
       }
       .width('100%')
       .height('100%')
     }
-    .titleBar({
-      content: {
-        title: {
-          mainTitle: '密码库'
-        },
-        menu: {
-          value: [this.TotpCodeBtn, this.Sure2ShareBtn, this.SettingsBtn],
-          maxCount: 5
-        }
-      },
-      enableComponentSafeArea: true,
-      style: {
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.ADAPTIVE,
-          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
-        }
-      }
-    })
-    .hideBackButton(true)
-    .onReady((ctx: NavDestinationContext) => {
-      this.pathInfos = ctx.pathStack;
-    })
-    .onActive(async () => {
-      this.showAddBtn = true;
-      const result = DataPreferences.getInstance().getSync<number>(NEED_RELOAD_CIPHERS);
-      if (result == 1) {
-        DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 0);
-        await this.handleLocalVaultChange(VaultChangeNotifier.consumeChange());
-      }
-    })
-    .onBackPressed(() => {
-      const currentTime = new Date().getTime();
-      if (currentTime - this.exitTime < 2000) {
-        (this.getUIContext().getHostContext() as common.UIAbilityContext)?.terminateSelf();
-      } else {
-        this.exitTime = currentTime;
-        this.getUIContext().getPromptAction().showToast({
-          message: "再按一次退出"
-        });
-      }
-      return true;
-    })
-    .onHidden(() => {
-      this.showAddBtn = false;
-    })
-  }
 
-  private navigateToDetail(cipher: Cipher) {
+  private navigateToDetail(cipher: Cipher): void {
     // 检查是否需要验证主密码
     if (cipher.reprompt === 1) {
       this.pendingCipher = cipher;
@@ -448,11 +368,9 @@ export struct VaultPage {
     }
   }
 
-  private doNavigateToDetail(cipher: Cipher) {
-    this.pathInfos.pushPath({
-      name: EntryRouter.CipherDetailPage,
-      param: { cipher: cipher, symmetricKey: this.viewModel.symmetricKey } as CipherDetailParams
-    });
+  private doNavigateToDetail(cipher: Cipher): void {
+    const params: CipherDetailParams = { cipher: cipher, symmetricKey: this.viewModel.symmetricKey };
+    this.onNavigateToDetail(params);
   }
 
   /**
@@ -469,5 +387,180 @@ export struct VaultPage {
       this.passwordError = this.viewModel.errorMessage;
       return false;
     }
+  }
+}
+
+@Component
+export struct VaultPage {
+  @State selectedMainTab: MainTab = MainTab.VAULT;
+  @State sharedCiphers: Cipher[] = [];
+  @State sharedSymmetricKey: string = '';
+  @State vaultDataRevision: number = 0;
+  @State vaultActivationRevision: number = 0;
+  private tabsController: TabsController = new TabsController();
+  private exitTime: number = 0;
+  @State pathInfos: NavPathStack = new NavPathStack();
+  historyBtn: HdsNavigationBadgeIconOptions = {
+    content: {
+      label: '历史',
+      icon: $r('app.media.icon_history'),
+      action: () => {
+        this.pathInfos.pushPath({ name: EntryRouter.ShareHistoryPage });
+      }
+    }
+  };
+
+  private getTitle(): string {
+    if (this.selectedMainTab === MainTab.TOTP) {
+      return '验证码';
+    }
+    if (this.selectedMainTab === MainTab.SHARE) {
+      return '安心分享';
+    }
+    if (this.selectedMainTab === MainTab.SETTINGS) {
+      return '设置';
+    }
+    return '密码库';
+  }
+
+  private selectTab(tab: MainTab): void {
+    this.selectedMainTab = tab;
+    this.tabsController.changeIndex(tab);
+  }
+
+  private getTabByIndex(index: number): MainTab {
+    if (index === MainTab.TOTP) {
+      return MainTab.TOTP;
+    }
+    if (index === MainTab.SHARE) {
+      return MainTab.SHARE;
+    }
+    if (index === MainTab.SETTINGS) {
+      return MainTab.SETTINGS;
+    }
+    return MainTab.VAULT;
+  }
+
+  private addCipher(): void {
+    if (this.sharedSymmetricKey.length === 0) {
+      this.getUIContext().getPromptAction().showToast({ message: '密码库仍在加载，请稍候' });
+      return;
+    }
+    this.pathInfos.pushPath({ name: EntryRouter.AddCipherPage, param: this.sharedSymmetricKey });
+  }
+
+  private updateVaultData(ciphers: Cipher[], symmetricKey: string): void {
+    this.sharedCiphers = ciphers;
+    this.sharedSymmetricKey = symmetricKey;
+    this.vaultDataRevision++;
+  }
+
+  private navigateToCipherDetail(params: CipherDetailParams): void {
+    this.pathInfos.pushPath({ name: EntryRouter.CipherDetailPage, param: params });
+  }
+
+  private lockVault(): void {
+    this.pathInfos.replacePath({ name: EntryRouter.UnlockPage });
+  }
+
+  private logout(): void {
+    this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
+  }
+
+  build() {
+    HdsNavDestination() {
+      Column() {
+        Tabs({ barPosition: BarPosition.End, controller: this.tabsController }) {
+          TabContent() {
+            VaultContent({
+              activationRevision: this.vaultActivationRevision,
+              onVaultDataChanged: (ciphers: Cipher[], symmetricKey: string) => {
+                this.updateVaultData(ciphers, symmetricKey);
+              },
+              onNavigateToDetail: (params: CipherDetailParams) => {
+                this.navigateToCipherDetail(params);
+              },
+              onRelogin: () => {
+                this.logout();
+              }
+            })
+          }
+          TabContent() {
+            TotpListPage({
+              ciphers: this.sharedCiphers,
+              symmetricKey: this.sharedSymmetricKey,
+              isActive: this.selectedMainTab === MainTab.TOTP,
+              dataRevision: this.vaultDataRevision,
+              onNavigateToDetail: (params: CipherDetailParams) => {
+                this.navigateToCipherDetail(params);
+              }
+            })
+          }
+          TabContent() {
+            Sure2SharePage()
+          }
+          TabContent() {
+            SettingsPage({
+              isActive: this.selectedMainTab === MainTab.SETTINGS,
+              onLockVault: () => {
+                this.lockVault();
+              },
+              onLogout: () => {
+                this.logout();
+              }
+            })
+          }
+        }
+        .barHeight(0)
+        .scrollable(true)
+        .layoutWeight(1)
+        .onChange((index: number) => {
+          this.selectedMainTab = this.getTabByIndex(index);
+        })
+
+        MainBottomNavigation({
+          selectedMainTab: this.selectedMainTab,
+          addEnabled: this.sharedSymmetricKey.length > 0,
+          onSelect: (tab: MainTab) => {
+            this.selectTab(tab);
+          },
+          onAdd: () => {
+            this.addCipher();
+          }
+        })
+      }
+      .width('100%')
+      .height('100%')
+    }
+    .titleBar({
+      content: {
+        title: { mainTitle: this.getTitle() },
+        menu: { value: this.selectedMainTab === MainTab.SHARE ? [this.historyBtn] : [] }
+      },
+      enableComponentSafeArea: true,
+      style: {
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
+        }
+      }
+    })
+    .hideBackButton(true)
+    .onReady((ctx: NavDestinationContext) => {
+      this.pathInfos = ctx.pathStack;
+    })
+    .onActive(() => {
+      this.vaultActivationRevision++;
+    })
+    .onBackPressed(() => {
+      const currentTime = Date.now();
+      if (currentTime - this.exitTime < 2000) {
+        (this.getUIContext().getHostContext() as common.UIAbilityContext)?.terminateSelf();
+      } else {
+        this.exitTime = currentTime;
+        this.getUIContext().getPromptAction().showToast({ message: '再按一次退出' });
+      }
+      return true;
+    })
   }
 }

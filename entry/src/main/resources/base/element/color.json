@@ -7,6 +7,26 @@
     {
       "name": "button_text_color",
       "value": "#18202A"
+    },
+    {
+      "name": "main_nav_background",
+      "value": "#F7F7FA"
+    },
+    {
+      "name": "main_nav_selected",
+      "value": "#0A59F7"
+    },
+    {
+      "name": "main_nav_unselected",
+      "value": "#666A73"
+    },
+    {
+      "name": "main_nav_disabled",
+      "value": "#A9ADB7"
+    },
+    {
+      "name": "main_nav_add_icon",
+      "value": "#FFFFFF"
     }
   ]
 }

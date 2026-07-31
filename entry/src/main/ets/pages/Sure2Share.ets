@@ -4,17 +4,10 @@ import { relationalStore, uniformTypeDescriptor } from '@kit.ArkData';
 import { common } from '@kit.AbilityKit';
 import { inputMethod } from '@kit.IMEKit';
 import { getFullLink, getShareLink, replaceOutputText } from '../utils/ParseLinkUtil';
-import { EntryRouter } from '../../../../EntryRouter';
 import { Logger } from '@nzy/logger';
 import { IBestToast } from '@ibestservices/ibest-ui';
 import { ShareDatabaseUtil } from '../utils/ShareDatabaseUtil';
-import { hdsMaterial, HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
 import { AdaptiveMenuTextButton, AdaptivePasteButton, AdaptiveTextButton } from '../component/AdaptiveButton';
-
-@Builder
-export function Sure2SharePageBuilder() {
-  Sure2SharePage();
-}
 
 @Component
 export struct Sure2SharePage {
@@ -22,16 +15,6 @@ export struct Sure2SharePage {
     '你可以把分享链接复制到这里, 它会帮你去除链接中的跟踪信息。\n目前支持淘宝、京东、哔哩哔哩、小红书、抖音等平台的分享链接。';
   @State inputText: string = '';
   @State outputText: string = '';
-  pathInfos: NavPathStack = new NavPathStack();
-  historyBtn: HdsNavigationBadgeIconOptions = {
-    content: {
-      label: 'History',
-      icon: $r('app.media.icon_history'),
-      action: () => {
-        this.pathInfos.pushPath({ name: EntryRouter.ShareHistoryPage });
-      }
-    }
-  }
 
   async convertLink() {
     const shareLink = await getShareLink(this.inputText);
@@ -97,9 +80,8 @@ export struct Sure2SharePage {
   }
 
   build() {
-    HdsNavDestination() {
-      Scroll() {
-        Column() {
+    Scroll() {
+      Column() {
           Text(this.hint)
             .alignRules({
               middle: { anchor: '__container__', align: HorizontalAlign.Center }
@@ -230,32 +212,13 @@ export struct Sure2SharePage {
           }
           .width('100%')
           .justifyContent(FlexAlign.Center)
-        }
-        .padding(20)
-        .width('100%')
       }
-      .scrollBar(BarState.Auto)
-      .scrollable(ScrollDirection.Vertical)
+      .padding(20)
       .width('100%')
-      .height('100%')
     }
-    .titleBar({
-      content: {
-        title: {
-          mainTitle: '安心分享'
-        },
-        menu: { value: [this.historyBtn] }
-      },
-      enableComponentSafeArea: true,
-      style: {
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.ADAPTIVE,
-          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
-        }
-      }
-    })
-    .onReady((ctx: NavDestinationContext) => {
-      this.pathInfos = ctx.pathStack;
-    })
+    .scrollBar(BarState.Auto)
+    .scrollable(ScrollDirection.Vertical)
+    .width('100%')
+    .height('100%')
   }
 }

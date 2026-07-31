@@ -1,5 +1,4 @@
 import { DataPreferences } from '@abner/datastore/src/main/ets/preferences/DataPreferences';
-import { EntryRouter } from '../../../../EntryRouter';
 import {
   AUTO_LOCK,
   BIOMETRIC_AUTH,
@@ -17,29 +16,35 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { clearAssetAndPreferences, queryAssetSync } from '../utils/AssetUtil';
 import { Logger } from '@nzy/logger';
 import { IBestDialogUtil, IBestToast } from '@ibestservices/ibest-ui';
-import { hdsMaterial, HdsNavDestination } from '@kit.UIDesignKit';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 import { AdaptiveTextButton } from '../component/AdaptiveButton';
 import { AntiPeepUtil } from '../utils/AntiPeepUtil';
 
-@Builder
-export function SettingsPageBuilder() {
-  SettingsPage();
-}
-
 @Component
 export struct SettingsPage {
+  @Prop @Watch('handleActiveChanged') isActive: boolean = false;
   @State autoLockEnabled: boolean = true;
   @State biometricEnabled: boolean = false;
   @State screenCaptureProtectionEnabled: boolean = true;
   @State antiPeepProtectionEnabled: boolean = false;
   @State syncEnabled: boolean = true;
-  pathInfos: NavPathStack = new NavPathStack();
+  onLockVault: () => void = () => {};
+  onLogout: () => void = () => {};
   @State versionName: string = '1.0.0';
   @State serverAddressText: string = '';
   email: string = '';
 
-  aboutToAppear() {
+  aboutToAppear(): void {
+    this.refreshSettings();
+  }
+
+  private handleActiveChanged(): void {
+    if (this.isActive) {
+      this.refreshSettings();
+    }
+  }
+
+  private refreshSettings(): void {
     this.getVersionName();
     this.loadBiometricAuthStatus();
     this.loadAutoLockStatus();
@@ -78,8 +83,7 @@ export struct SettingsPage {
   }
 
   build() {
-    HdsNavDestination() {
-      Column() {
+    Column() {
         Scroll() {
           Column() {
             // 安全设置
@@ -382,27 +386,9 @@ export struct SettingsPage {
         }
         .layoutWeight(1)
         .align(Alignment.TopStart)
-      }
-      .width('100%')
-      .height('100%')
     }
-    .titleBar({
-      content: {
-        title: {
-          mainTitle: '设置'
-        }
-      },
-      enableComponentSafeArea: true,
-      style: {
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.ADAPTIVE,
-          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
-        }
-      }
-    })
-    .onReady((ctx: NavDestinationContext) => {
-      this.pathInfos = ctx.pathStack;
-    })
+    .width('100%')
+    .height('100%')
   }
 
   clickBeian() {
@@ -577,13 +563,12 @@ export struct SettingsPage {
       onConfirm: () => {
         clearAssetAndPreferences();
         void WindowPrivacyUtil.applyForCurrentState();
-        // 跳转到登录页面
-        this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
+        this.onLogout();
       }
     })
   }
 
   private lockVault() {
-    this.pathInfos.replacePath({ name: EntryRouter.UnlockPage });
+    this.onLockVault();
   }
 }

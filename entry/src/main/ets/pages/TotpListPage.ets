@@ -1,17 +1,15 @@
-import { Cipher, CipherDetailParams, TotpListParams } from '../model/CipherModels';
-import { EntryRouter } from '../../../../EntryRouter';
+import { Cipher, CipherDetailParams } from '../model/CipherModels';
 import { TotpListItem } from '../component/TotpListItem';
 import { TotpListViewModel } from '../viewmodel/TotpListViewModel';
 import { IBestDialog } from '@ibestservices/ibest-ui';
-import { hdsMaterial, HdsNavDestination } from '@kit.UIDesignKit';
-
-@Builder
-export function TotpListPageBuilder() {
-  TotpListPage();
-}
 
 @Component
 export struct TotpListPage {
+  @Prop ciphers: Cipher[] = [];
+  @Prop symmetricKey: string = '';
+  @Prop @Watch('handleActiveChanged') isActive: boolean = false;
+  @Prop @Watch('handleDataRevisionChanged') dataRevision: number = 0;
+  onNavigateToDetail: (params: CipherDetailParams) => void = () => {};
   @State viewModel: TotpListViewModel = new TotpListViewModel();
   @State currentTime: number = Date.now();
   @State isLoading: boolean = true;
@@ -20,36 +18,66 @@ export struct TotpListPage {
   @State passwordError: string = '';
   @State pendingCipher: Cipher | null = null;
   private timerId: number = -1;
-  pathInfos: NavPathStack = new NavPathStack();
+  private loadedRevision: number = -1;
 
-  aboutToDisappear() {
+  aboutToAppear(): void {
+    if (this.isActive) {
+      void this.activate();
+    }
+  }
+
+  aboutToDisappear(): void {
     this.stopTimer();
   }
 
-  /**
-   * 启动定时器
-   */
-  private startTimer() {
+  private handleActiveChanged(): void {
+    if (this.isActive) {
+      void this.activate();
+    } else {
+      this.stopTimer();
+    }
+  }
+
+  private handleDataRevisionChanged(): void {
+    if (this.isActive) {
+      void this.activate();
+    }
+  }
+
+  private async activate(): Promise<void> {
+    if (this.loadedRevision !== this.dataRevision) {
+      await this.reloadCiphers();
+    }
+    this.startTimer();
+  }
+
+  private async reloadCiphers(): Promise<void> {
+    this.isLoading = true;
+    this.viewModel.allCiphers = this.ciphers;
+    this.viewModel.symmetricKey = this.symmetricKey;
+    await this.viewModel.loadLogins();
+    this.loadedRevision = this.dataRevision;
+    this.isLoading = false;
+  }
+
+  private startTimer(): void {
+    if (this.timerId !== -1 || !this.isActive) {
+      return;
+    }
+    this.currentTime = Date.now();
     this.timerId = setInterval(() => {
       this.currentTime = Date.now();
     }, 1000);
   }
 
-  /**
-   * 停止定时器
-   */
-  private stopTimer() {
+  private stopTimer(): void {
     if (this.timerId !== -1) {
       clearInterval(this.timerId);
       this.timerId = -1;
     }
   }
 
-  /**
-   * 跳转到密码项详情
-   */
-  private navigateToDetail(cipher: Cipher) {
-    // 检查是否需要验证主密码
+  private navigateToDetail(cipher: Cipher): void {
     if (cipher.reprompt === 1) {
       this.pendingCipher = cipher;
       this.passwordInput = '';
@@ -60,120 +88,80 @@ export struct TotpListPage {
     }
   }
 
-  private doNavigateToDetail(cipher: Cipher) {
-    this.pathInfos.pushPath({
-      name: EntryRouter.CipherDetailPage,
-      param: { cipher: cipher, symmetricKey: this.viewModel.symmetricKey } as CipherDetailParams
-    });
+  private doNavigateToDetail(cipher: Cipher): void {
+    const params: CipherDetailParams = { cipher: cipher, symmetricKey: this.symmetricKey };
+    this.onNavigateToDetail(params);
   }
 
   build() {
-    HdsNavDestination() {
-      Column() {
-        // 内容区
-        if (this.isLoading) {
-          Column() {
-            Text('加载中...')
-              .fontSize(16)
-              .fontColor('#666666')
-              .margin({ top: 40 })
-          }
-          .width('100%')
-          .height('100%')
-          .justifyContent(FlexAlign.Center)
-        } else if (this.viewModel.filteredCiphers.length === 0) {
-          Column() {
-            Image($r('app.media.icon_key'))
-              .width(80)
-              .height(80)
-              .fillColor('#CCCCCC')
-              .margin({ bottom: 16 })
-
-            Text('暂无验证码')
-              .fontSize(16)
-              .fontColor('#999999')
-              .textAlign(TextAlign.Center)
-          }
-          .width('100%')
-          .height('100%')
-          .justifyContent(FlexAlign.Center)
-        } else {
-          List({ space: 8 }) {
-            ForEach(this.viewModel.filteredCiphers, (cipher: Cipher) => {
-              ListItem() {
-                TotpListItem({
-                  cipher: cipher,
-                  currentTime: this.currentTime,
-                  onTap: () => {
-                    this.navigateToDetail(cipher);
-                  }
-                })
-              }
-            })
-          }
-          .width('100%')
-          .height('100%')
-          .layoutWeight(1)
-          .padding({ left: 16, right: 16 })
+    Column() {
+      if (this.isLoading) {
+        Column() {
+          Text('加载中...')
+            .fontSize(16)
+            .fontColor('#666666')
         }
-
-        // 主密码验证弹框
-        IBestDialog({
-          visible: this.showPasswordDialog,
-          title: '主密码验证',
-          showCancelButton: true,
-          closeOnClickOverlay: false,
-          defaultBuilder: (): void => this.passwordVerifyDialogContent(),
-          beforeClose: async (action) => {
-            if (action === 'cancel') {
-              return true;
+        .width('100%')
+        .height('100%')
+        .justifyContent(FlexAlign.Center)
+      } else if (this.viewModel.filteredCiphers.length === 0) {
+        Column() {
+          Image($r('app.media.icon_key'))
+            .width(80)
+            .height(80)
+            .fillColor('#CCCCCC')
+            .margin({ bottom: 16 })
+          Text('暂无验证码')
+            .fontSize(16)
+            .fontColor('#999999')
+            .textAlign(TextAlign.Center)
+        }
+        .width('100%')
+        .height('100%')
+        .justifyContent(FlexAlign.Center)
+      } else {
+        List({ space: 8 }) {
+          ForEach(this.viewModel.filteredCiphers, (cipher: Cipher) => {
+            ListItem() {
+              TotpListItem({
+                cipher: cipher,
+                currentTime: this.currentTime,
+                onTap: () => {
+                  this.navigateToDetail(cipher);
+                }
+              })
             }
-            const result = await this.verifyMasterPassword();
-            if (result) {
-              // 验证成功，导航到详情页
-              if (this.pendingCipher) {
-                this.doNavigateToDetail(this.pendingCipher);
-                this.pendingCipher = null;
-              }
-              return true;
-            } else {
-              return false;
-            }
-          }
-        })
+          })
+        }
+        .width('100%')
+        .height('100%')
+        .layoutWeight(1)
+        .padding({ left: 16, right: 16 })
       }
-      .width('100%')
-      .height('100%')
+
+      IBestDialog({
+        visible: this.showPasswordDialog,
+        title: '主密码验证',
+        showCancelButton: true,
+        closeOnClickOverlay: false,
+        defaultBuilder: (): void => this.passwordVerifyDialogContent(),
+        beforeClose: async (action) => {
+          if (action === 'cancel') {
+            return true;
+          }
+          const result = await this.verifyMasterPassword();
+          if (result && this.pendingCipher) {
+            this.doNavigateToDetail(this.pendingCipher);
+            this.pendingCipher = null;
+          }
+          return result;
+        }
+      })
     }
-    .titleBar({
-      content: {
-        title: { mainTitle: '验证码' }
-      },
-      enableComponentSafeArea: true,
-      style: {
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.ADAPTIVE,
-          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
-        }
-      }
-    })
-    .onReady((ctx: NavDestinationContext) => {
-      this.pathInfos = ctx.pathStack;
-      const param = ctx.pathInfo.param as TotpListParams;
-      if (param.ciphers) {
-        this.viewModel.allCiphers = param.ciphers;
-        this.viewModel.symmetricKey = param.symmetricKey;
-        this.viewModel.loadLogins();
-      }
-      this.isLoading = false;
-      // 启动全局定时器
-      this.startTimer();
-    })
+    .width('100%')
+    .height('100%')
   }
 
-  /**
-   * 验证主密码
-   */
   private async verifyMasterPassword(): Promise<boolean> {
     const result = await this.viewModel.verifyMasterPassword(this.passwordInput);
     if (result) {
@@ -181,10 +169,9 @@ export struct TotpListPage {
       this.passwordError = '';
       this.showPasswordDialog = false;
       return true;
-    } else {
-      this.passwordError = this.viewModel.errorMessage;
-      return false;
     }
+    this.passwordError = this.viewModel.errorMessage;
+    return false;
   }
 
   @Builder
