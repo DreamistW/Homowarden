@@ -118,6 +118,7 @@ export struct SettingsPage {
               Text('开启后, 可以使用锁屏密码/指纹/人脸解锁密码库')
                 .fontSize(12)
                 .fontColor('#666666')
+                .alignSelf(ItemAlign.Start)
 
               Row() {
                 Text('自动锁定')
@@ -137,6 +138,7 @@ export struct SettingsPage {
               Text('开启后, 应用置于后台两分钟会自动锁定密码库')
                 .fontSize(12)
                 .fontColor('#666666')
+                .alignSelf(ItemAlign.Start)
 
               Row() {
                 Text('禁止截图和录屏')
@@ -159,6 +161,7 @@ export struct SettingsPage {
               Text('开启后, 登录态下所有页面会禁止截图和录屏')
                 .fontSize(12)
                 .fontColor('#666666')
+                .alignSelf(ItemAlign.Start)
 
               Row() {
                 Text('防窥保护')
@@ -189,6 +192,7 @@ export struct SettingsPage {
               Text('开启后, 检测到窥屏风险时会拉起系统防窥蒙层')
                 .fontSize(12)
                 .fontColor('#666666')
+                .alignSelf(ItemAlign.Start)
             }
             .width('100%')
             .padding(16)
