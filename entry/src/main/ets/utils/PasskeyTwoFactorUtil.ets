@@ -23,7 +23,7 @@ export class PasskeyTwoFactorUtil {
   ): fido2.CredentialRequestOptions {
     const challenge = PasskeyTwoFactorUtil.getString(providerData, ['challenge', 'Challenge']);
     if (!challenge) {
-      throw new Error('通行密钥验证缺少 challenge');
+      throw new Error('passkey_challenge_missing');
     }
 
     const publicKey: fido2.PublicKeyCredentialRequestOptions = {

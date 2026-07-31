@@ -11,28 +11,26 @@ import { AdaptiveMenuTextButton, AdaptivePasteButton, AdaptiveTextButton } from 
 
 @Component
 export struct Sure2SharePage {
-  @State hint: string =
-    '你可以把分享链接复制到这里, 它会帮你去除链接中的跟踪信息。\n目前支持淘宝、京东、哔哩哔哩、小红书、抖音等平台的分享链接。';
   @State inputText: string = '';
   @State outputText: string = '';
 
   async convertLink() {
     const shareLink = await getShareLink(this.inputText);
     if (shareLink == "") {
-      IBestToast.show(`没有发现分享链接`);
+      IBestToast.show($r('app.string.share_no_link'));
       return;
     }
     const fullLink = await getFullLink(shareLink);
     if (fullLink == "") {
-      IBestToast.show(`获取完整链接失败`);
+      IBestToast.show($r('app.string.error_network'));
       return;
     }
     this.outputText = await replaceOutputText(this.inputText, fullLink);
     if (this.outputText == "") {
-      IBestToast.show(`替换链接失败`);
+      IBestToast.show($r('app.string.error_unknown'));
       return;
     }
-    IBestToast.show(`转换成功, 已保存至历史记录`);
+    IBestToast.show($r('app.string.share_convert_success'));
     // 写入记录到数据库
     const dbUtil = ShareDatabaseUtil.getInstance();
     const item: relationalStore.ValuesBucket = {
@@ -45,22 +43,22 @@ export struct Sure2SharePage {
 
   copyLink(text: string) {
     if (text == "") {
-      IBestToast.show(`请先转换分享链接`);
+      IBestToast.show($r('app.string.share_convert_first'));
       return;
     }
     let pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, text);
     const systemPasteboard: pasteboard.SystemPasteboard = pasteboard.getSystemPasteboard();
     systemPasteboard.setData(pasteData).catch((err: BusinessError) => {
       Logger.error(`Failed to set paste data. Code is ${err.code}, message is ${err.message}.`);
-      IBestToast.show(`复制失败, 错误信息: ${err.message}}`);
+      IBestToast.show($r('app.string.share_copy_failed'));
       return;
     });
-    IBestToast.show(`复制成功`);
+    IBestToast.show($r('app.string.share_copy_success'));
   }
 
   shareLink(text: string, shareLink: boolean) {
     if (text == "") {
-      IBestToast.show(`请先转换分享链接`);
+      IBestToast.show($r('app.string.share_convert_first'));
       return;
     }
     let shareData: systemShare.SharedData = new systemShare.SharedData({
@@ -75,14 +73,14 @@ export struct Sure2SharePage {
       previewMode: systemShare.SharePreviewMode.DETAIL
     }).catch((err: BusinessError) => {
       Logger.error(`Failed to show share panel. Code is ${err.code}, message is ${err.message}.`);
-      IBestToast.show(`分享失败, 错误信息: ${err.message}`);
+      IBestToast.show($r('app.string.share_failed'));
     })
   }
 
   build() {
     Scroll() {
       Column() {
-          Text(this.hint)
+          Text($r('app.string.share_help'))
             .alignRules({
               middle: { anchor: '__container__', align: HorizontalAlign.Center }
             })
@@ -92,7 +90,7 @@ export struct Sure2SharePage {
               bottom: "10%"
             })
           // 输入标题
-          Text('粘贴分享链接')
+          Text($r('app.string.share_input_title'))
             .fontSize(24)
             .fontWeight(FontWeight.Bold)
             .align(Alignment.Start)
@@ -125,7 +123,7 @@ export struct Sure2SharePage {
             })
 
             AdaptiveTextButton({
-              text: '转换',
+              text: $r('app.string.share_convert'),
               barWidth: 144,
               barHeight: 50,
               fontSize: 16,
@@ -146,7 +144,7 @@ export struct Sure2SharePage {
           .justifyContent(FlexAlign.Center)
 
           // 输出标题
-          Text('转换后的链接')
+          Text($r('app.string.share_output_title'))
             .id('afterLink')
             .fontSize(24)
             .fontWeight(FontWeight.Bold)
@@ -163,7 +161,7 @@ export struct Sure2SharePage {
 
           Row({ space: 0 }) {
             AdaptiveMenuTextButton({
-              text: '复制',
+              text: $r('app.string.common_copy'),
               barWidth: 144,
               barHeight: 50,
               fontSize: 16,
@@ -171,13 +169,13 @@ export struct Sure2SharePage {
               barBottomMargin: 0,
               menuItems: [
                 {
-                  value: '复制完整内容',
+                  value: $r('app.string.share_copy_full'),
                   action: () => {
                     this.copyLink(this.outputText);
                   }
                 },
                 {
-                  value: '仅复制链接',
+                  value: $r('app.string.share_copy_link'),
                   action: async () => {
                     const link: string = await getShareLink(this.outputText);
                     this.copyLink(link);
@@ -187,7 +185,7 @@ export struct Sure2SharePage {
             })
 
             AdaptiveMenuTextButton({
-              text: '分享',
+              text: $r('app.string.common_share'),
               barWidth: 144,
               barHeight: 50,
               fontSize: 16,
@@ -195,13 +193,13 @@ export struct Sure2SharePage {
               barBottomMargin: 0,
               menuItems: [
                 {
-                  value: '分享完整内容',
+                  value: $r('app.string.share_full'),
                   action: () => {
                     this.shareLink(this.outputText, false);
                   }
                 },
                 {
-                  value: '仅分享链接',
+                  value: $r('app.string.share_link'),
                   action: async () => {
                     const link: string = await getShareLink(this.outputText);
                     this.shareLink(link, true);

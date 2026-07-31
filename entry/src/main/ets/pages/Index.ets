@@ -27,25 +27,25 @@ struct PrivacyDialogContent {
 
   build() {
     Column() {
-      Text("欢迎")
+      Text($r('app.string.privacy_welcome'))
         .fontSize(20)
         .margin({ top: 20, bottom: 10 })
 
       Text() {
-        Span('欢迎使用 Homowarden\n\n')
-        Span('注意: 本应用的密钥数据存储在关键资产区域, 不会随应用卸载而清除, 卸载应用前请务必注销登录\n\n')
-        Span('在开始使用之前, 请仔细阅读并同意')
-        Span('隐私政策')
+        Span($r('app.string.privacy_intro_brand'))
+        Span($r('app.string.privacy_storage_notice'))
+        Span($r('app.string.privacy_read_prefix'))
+        Span($r('app.string.privacy_policy'))
           .fontColor(Color.Blue)
           .decoration({ type: TextDecorationType.Underline })
           .onClick(() => {
             const context = getContext(this) as common.UIAbilityContext;
             const want: Want = {
-              uri: 'https://agreement-drcn.hispace.dbankcloud.cn/index.html?lang=zh&agreementId=1846508510607638400'
+              uri: 'https://agreement-drcn.hispace.dbankcloud.cn/index.html?agreementId=1846508510607638400'
             };
             context.startAbility(want).catch((err: Error) => {
               Logger.error(`Failed to open url. Error: ${err.message}`);
-              IBestToast.show(`无法打开页面, 错误信息: ${err.message}`);
+              IBestToast.show($r('app.string.error_open_website'));
             });
           })
       }
@@ -53,13 +53,13 @@ struct PrivacyDialogContent {
       .margin({ bottom: 20 })
 
       Row() {
-        Button('不同意')
+        Button($r('app.string.privacy_disagree'))
           .onClick(() => {
             this.dialogController?.close();
             this.cancel();
           })
           .margin({ right: 12 })
-        Button('同意')
+        Button($r('app.string.privacy_agree'))
           .onClick(() => {
             this.dialogController?.close();
             this.confirm();

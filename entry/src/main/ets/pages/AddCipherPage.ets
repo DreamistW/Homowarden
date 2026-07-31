@@ -10,6 +10,8 @@ import {
 import { AddCipherViewModel } from '../viewmodel/AddCipherViewModel';
 import { hdsMaterial, HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
 import { VaultChangeNotifier } from '../utils/VaultChangeNotifier';
+import { CipherDisplayMapping } from '../domain/CipherDisplayMapping';
+import { AppOptionFactory } from '../localization/AppOptionFactory';
 
 @Builder
 export function AddCipherPageBuilder() {
@@ -28,7 +30,7 @@ export struct AddCipherPage {
   pathInfos: NavPathStack = new NavPathStack();
   ConfirmBtn: HdsNavigationBadgeIconOptions = {
     content: {
-      label: '确认',
+      label: $r('app.string.common_confirm'),
       icon: $r('app.media.icon_confirm'),
       isEnabled: true,
       action: () => {
@@ -45,7 +47,7 @@ export struct AddCipherPage {
       Scroll() {
         Column() {
           Column() {
-            Text('类型')
+            Text($r('app.string.cipher_type'))
               .fontSize(14)
               .margin(8)
 
@@ -60,13 +62,13 @@ export struct AddCipherPage {
             }) {
               IBestRadio({
                 group: this.itemTypeGroup,
-                label: '登录',
+                label: $r('app.string.vault_type_login'),
                 name: CipherItemType.LOGIN,
                 labelDisabled: true,
               })
               IBestRadio({
                 group: this.itemTypeGroup,
-                label: '安全笔记',
+                label: $r('app.string.vault_type_note'),
                 name: CipherItemType.NOTE,
                 labelDisabled: true,
               })
@@ -84,13 +86,13 @@ export struct AddCipherPage {
             }) {
               IBestRadio({
                 group: this.itemTypeGroup,
-                label: '支付卡',
+                label: $r('app.string.vault_type_card'),
                 name: CipherItemType.CARD,
                 labelDisabled: true,
               })
               IBestRadio({
                 group: this.itemTypeGroup,
-                label: '身份',
+                label: $r('app.string.vault_type_identity'),
                 name: CipherItemType.IDENTITY,
                 labelDisabled: true,
               })
@@ -98,7 +100,7 @@ export struct AddCipherPage {
           }
 
           // 名称
-          Text('项目名称')
+          Text($r('app.string.cipher_item_name'))
             .fontSize(14)
             .fontColor('#666666')
             .margin({
@@ -116,7 +118,7 @@ export struct AddCipherPage {
 
           if (this.cipherType == CipherItemType.LOGIN) {
             // 用户名
-            Text('用户名')
+            Text($r('app.string.cipher_username'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -132,7 +134,7 @@ export struct AddCipherPage {
               .margin({ left: 16, right: 16 })
 
             // 密码
-            Text('密码')
+            Text($r('app.string.cipher_password'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -141,7 +143,7 @@ export struct AddCipherPage {
                 top: 12,
                 bottom: 4
               })
-            TextInput({ placeholder: '输入密码' })
+            TextInput({ placeholder: $r('app.string.login_password_placeholder') })
               .type(InputType.Password)
               .onChange((v: string) => {
                 this.viewModel.loginItem.password = v;
@@ -149,7 +151,7 @@ export struct AddCipherPage {
               .margin({ left: 16, right: 16 })
 
             // 网站
-            Text('网站')
+            Text($r('app.string.cipher_website'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -158,7 +160,7 @@ export struct AddCipherPage {
                 top: 12,
                 bottom: 4
               })
-            TextInput({ placeholder: '例如：https://example.com' })
+            TextInput({ placeholder: $r('app.string.cipher_website_example') })
               .onChange((v: string) => {
                 this.viewModel.loginUri.uri = v;
               })
@@ -173,7 +175,7 @@ export struct AddCipherPage {
             }).margin({ left: 16, right: 16 })
           } else if (this.cipherType == CipherItemType.IDENTITY) {
             // 称呼
-            Text('称呼')
+            Text($r('app.string.cipher_identity_title'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -185,35 +187,18 @@ export struct AddCipherPage {
             IBestDropdownMenu({ groupId: this.identityTitleGroup }) {
               IBestDropdownItem({
                 groupId: this.identityTitleGroup,
-                options: this.viewModel.identityTitleOptions,
+                options: AppOptionFactory.identityTitles(),
                 value: this.identityTitle,
                 onChange: value => {
                   this.identityTitle = value;
-                  switch (this.identityTitle) {
-                    case IdentityTitleType.NONE:
-                      this.viewModel.identityItem.title = '';
-                      break;
-                    case IdentityTitleType.MR:
-                      this.viewModel.identityItem.title = '先生';
-                      break;
-                    case IdentityTitleType.MRS:
-                      this.viewModel.identityItem.title = '女士';
-                      break;
-                    case IdentityTitleType.MX:
-                      this.viewModel.identityItem.title = 'Mx';
-                      break;
-                    case IdentityTitleType.DR:
-                      this.viewModel.identityItem.title = '博士';
-                      break;
-                    default:
-                      this.viewModel.identityItem.title = '';
-                  }
+                  this.viewModel.identityItem.title =
+                    CipherDisplayMapping.writeIdentityTitle(this.identityTitle as IdentityTitleType);
                 }
               })
             }
 
             // 名
-            Text('名')
+            Text($r('app.string.cipher_first_name'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -228,7 +213,7 @@ export struct AddCipherPage {
               })
               .margin({ left: 16, right: 16 })
             // 中间名
-            Text('中间名')
+            Text($r('app.string.cipher_middle_name'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -243,7 +228,7 @@ export struct AddCipherPage {
               })
               .margin({ left: 16, right: 16 })
             // 姓
-            Text('姓')
+            Text($r('app.string.cipher_last_name'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -258,7 +243,7 @@ export struct AddCipherPage {
               })
               .margin({ left: 16, right: 16 })
             // 用户名
-            Text('用户名')
+            Text($r('app.string.cipher_username'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -273,7 +258,7 @@ export struct AddCipherPage {
               })
               .margin({ left: 16, right: 16 })
             // 公司
-            Text('公司')
+            Text($r('app.string.cipher_company'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -288,7 +273,7 @@ export struct AddCipherPage {
               })
               .margin({ left: 16, right: 16 })
             // 社会保障号码
-            Text('社会保障号码')
+            Text($r('app.string.cipher_ssn'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -304,7 +289,7 @@ export struct AddCipherPage {
               .margin({ left: 16, right: 16 })
               .type(InputType.Password)
             // 护照号码
-            Text('护照号码')
+            Text($r('app.string.cipher_passport'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -320,7 +305,7 @@ export struct AddCipherPage {
               .margin({ left: 16, right: 16 })
               .type(InputType.Password)
             // 许可证号码
-            Text('许可证号码')
+            Text($r('app.string.cipher_license'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -335,7 +320,7 @@ export struct AddCipherPage {
               })
               .margin({ left: 16, right: 16 })
             // 电子邮箱
-            Text('电子邮箱')
+            Text($r('app.string.cipher_email'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -350,7 +335,7 @@ export struct AddCipherPage {
               })
               .margin({ left: 16, right: 16 })
             // 电话
-            Text('电话')
+            Text($r('app.string.cipher_phone'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -365,7 +350,7 @@ export struct AddCipherPage {
               })
               .margin({ left: 16, right: 16 })
             // 地址1
-            Text('地址 1')
+            Text($r('app.string.cipher_address1'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -380,7 +365,7 @@ export struct AddCipherPage {
               })
               .margin({ left: 16, right: 16 })
             // 地址2
-            Text('地址 2')
+            Text($r('app.string.cipher_address2'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -395,7 +380,7 @@ export struct AddCipherPage {
               })
               .margin({ left: 16, right: 16 })
             // 地址3
-            Text('地址 3')
+            Text($r('app.string.cipher_address3'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -410,7 +395,7 @@ export struct AddCipherPage {
               })
               .margin({ left: 16, right: 16 })
             // 市/镇
-            Text('市/镇')
+            Text($r('app.string.cipher_city'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -425,7 +410,7 @@ export struct AddCipherPage {
               })
               .margin({ left: 16, right: 16 })
             // 州/省
-            Text('州/省')
+            Text($r('app.string.cipher_state'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -440,7 +425,7 @@ export struct AddCipherPage {
               })
               .margin({ left: 16, right: 16 })
             // 邮政编码
-            Text('邮政编码')
+            Text($r('app.string.cipher_postal_code'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -455,7 +440,7 @@ export struct AddCipherPage {
               })
               .margin({ left: 16, right: 16 })
             // 国家
-            Text('国家')
+            Text($r('app.string.cipher_country'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -471,7 +456,7 @@ export struct AddCipherPage {
               .margin({ left: 16, right: 16 })
           } else if (this.cipherType == CipherItemType.CARD) {
             // 姓名
-            Text('持卡人姓名')
+            Text($r('app.string.cipher_cardholder'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -486,7 +471,7 @@ export struct AddCipherPage {
               })
               .margin({ left: 16, right: 16 })
             // 号码
-            Text('号码')
+            Text($r('app.string.cipher_number'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -502,7 +487,7 @@ export struct AddCipherPage {
               .margin({ left: 16, right: 16 })
               .type(InputType.Password)
             // 品牌
-            Text('品牌')
+            Text($r('app.string.cipher_brand'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -514,51 +499,18 @@ export struct AddCipherPage {
             IBestDropdownMenu({ groupId: this.cardBrandGroup }) {
               IBestDropdownItem({
                 groupId: this.cardBrandGroup,
-                options: this.viewModel.cardBrandOptions,
+                options: AppOptionFactory.cardBrands(),
                 value: this.cardBrand,
                 onChange: value => {
                   this.cardBrand = value;
-                  switch (this.cardBrand) {
-                    case CardBrandType.NONE:
-                      this.viewModel.cardItem.brand = '';
-                      break;
-                    case CardBrandType.VISA:
-                      this.viewModel.cardItem.brand = 'Visa';
-                      break;
-                    case CardBrandType.MASTER:
-                      this.viewModel.cardItem.brand = 'MasterCard';
-                      break;
-                    case CardBrandType.AME:
-                      this.viewModel.cardItem.brand = 'American Express';
-                      break;
-                    case CardBrandType.DISCOVER:
-                      this.viewModel.cardItem.brand = 'Discover';
-                      break;
-                    case CardBrandType.DINERS:
-                      this.viewModel.cardItem.brand = 'Diners Club';
-                      break;
-                    case CardBrandType.JCB:
-                      this.viewModel.cardItem.brand = 'JCB';
-                      break;
-                    case CardBrandType.MAESTRO:
-                      this.viewModel.cardItem.brand = 'Maestro';
-                      break;
-                    case CardBrandType.UNIONPAY:
-                      this.viewModel.cardItem.brand = 'UnionPay';
-                      break;
-                    case CardBrandType.RUPAY:
-                      this.viewModel.cardItem.brand = 'RuPay';
-                      break;
-                    case CardBrandType.OTHER:
-                      this.viewModel.cardItem.brand = '其他';
-                      break;
-                  }
+                  this.viewModel.cardItem.brand =
+                    CipherDisplayMapping.writeCardBrand(this.cardBrand as CardBrandType);
                 }
               })
             }
 
             // 过期月份
-            Text('过期月份')
+            Text($r('app.string.cipher_exp_month'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -579,7 +531,7 @@ export struct AddCipherPage {
               .type(InputType.NUMBER_DECIMAL)
 
             // 过期年份
-            Text('过期年份')
+            Text($r('app.string.cipher_exp_year'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -599,7 +551,7 @@ export struct AddCipherPage {
               .margin({ left: 16, right: 16 })
               .type(InputType.NUMBER_DECIMAL)
             // 安全码
-            Text('安全码')
+            Text($r('app.string.cipher_security_code'))
               .fontSize(14)
               .fontColor('#666666')
               .margin({
@@ -617,7 +569,7 @@ export struct AddCipherPage {
           }
 
           // 备注
-          Text('备注')
+          Text($r('app.string.cipher_notes'))
             .fontSize(14)
             .fontColor('#666666')
             .margin({
@@ -634,7 +586,8 @@ export struct AddCipherPage {
 
           // 错误提示
           if (this.viewModel.errorMessage && this.viewModel.errorMessage.length > 0) {
-            Text(this.viewModel.errorMessage)
+            Text(this.viewModel.errorMessage === 'cipher_name_required' ?
+              $r('app.string.cipher_name_required') : $r('app.string.error_save_failed'))
               .fontColor(Color.Red)
               .fontSize(14)
               .margin({ left: 16, right: 16, bottom: 16 })
@@ -647,7 +600,7 @@ export struct AddCipherPage {
     .titleBar({
       content: {
         title: {
-          mainTitle: '添加密码项'
+          mainTitle: $r('app.string.cipher_add_title')
         },
         menu: {
           value: [this.ConfirmBtn]
@@ -676,7 +629,7 @@ export struct AddCipherPage {
 
   private async saveCipher() {
     if (!this.allowSave) {
-      IBestToast.show('请先输入名称');
+      IBestToast.show($r('app.string.cipher_name_required'));
       return;
     }
     this.isSubmitting = true;
@@ -684,12 +637,13 @@ export struct AddCipherPage {
     const createdCipher = await this.viewModel.submitCreate();
     this.isSubmitting = false;
     if (createdCipher) {
-      IBestToast.show("创建成功");
+      IBestToast.show($r('app.string.cipher_create_success'));
       VaultChangeNotifier.setUpdatedCipher(createdCipher);
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
       this.pathInfos.pop();
     } else if (this.viewModel.errorMessage && this.viewModel.errorMessage.length > 0) {
-      IBestToast.show(this.viewModel.errorMessage);
+      IBestToast.show(this.viewModel.errorMessage === 'cipher_name_required' ?
+        $r('app.string.cipher_name_required') : $r('app.string.error_save_failed'));
     }
   }
 }

@@ -2,7 +2,7 @@ import { IBestIcon } from "@ibestservices/ibest-ui";
 
 @Component
 export struct SearchBar {
-  placeholder: string = '';
+  placeholder: ResourceStr = '';
   onSearch?: (text: string) => void;
   onClear?: () => void;
 
@@ -41,4 +41,4 @@ export struct SearchBar {
     .backgroundColor(Color.White)
     .borderRadius(8)
   }
-} 
+}

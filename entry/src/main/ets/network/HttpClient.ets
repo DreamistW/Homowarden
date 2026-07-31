@@ -13,6 +13,7 @@ import { DeviceUtil } from '../utils/DeviceUtil';
 import { DataPreferences } from '@abner/datastore';
 import { util } from '@kit.ArkTS';
 import { ServerConfig } from '../model/ServerConfig';
+import { LocaleUtil } from '../localization/LocaleUtil';
 
 export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
   const instance = axios.create({
@@ -29,7 +30,7 @@ export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
       config.headers['bitwarden-client-name'] = Header_Client_Name;
       config.headers['bitwarden-client-version'] = Header_Client_Version;
       config.headers['device-type'] = DeviceUtil.getDeviceType();
-      config.headers['Accept-Language'] = "zh-CN,zh;q=0.9";
+      config.headers['Accept-Language'] = LocaleUtil.getAcceptLanguage();
       // config.headers['accept'] = 'application/json';
       // config.headers['origin'] = config.baseURL
       Logger.info(`[HTTP] Request ${config.method?.toUpperCase()} ${config.baseURL ||

@@ -1,4 +1,4 @@
-import { Cipher } from '../model/CipherModels';
+import { Cipher, CipherDisplayNameKind, CipherDisplaySubtitleKind } from '../model/CipherModels';
 import { IBestIcon } from "@ibestservices/ibest-ui";
 import { CipherItemType } from '../utils/Constants';
 
@@ -30,6 +30,32 @@ export struct CipherItem {
     }
   }
 
+  private getDisplayName(): ResourceStr {
+    if (this.cipher.displayNameKind === CipherDisplayNameKind.DECRYPTION_FAILED) {
+      return $r('app.string.vault_decryption_failed_name');
+    }
+    return this.cipher.name;
+  }
+
+  private getDisplaySubtitle(): ResourceStr {
+    switch (this.cipher.displaySubtitleKind) {
+      case CipherDisplaySubtitleKind.DECRYPTION_FAILED:
+        return $r('app.string.vault_decryption_failed_subtitle');
+      case CipherDisplaySubtitleKind.LOGIN:
+        return $r('app.string.vault_type_login');
+      case CipherDisplaySubtitleKind.NOTE:
+        return $r('app.string.vault_type_note');
+      case CipherDisplaySubtitleKind.CARD:
+        return $r('app.string.vault_type_card');
+      case CipherDisplaySubtitleKind.IDENTITY:
+        return $r('app.string.vault_type_identity');
+      case CipherDisplaySubtitleKind.UNKNOWN:
+        return $r('app.string.vault_type_unknown');
+      default:
+        return this.cipher.subtitle ?? '';
+    }
+  }
+
   build() {
     Row() {
       // 类型图标
@@ -37,13 +63,13 @@ export struct CipherItem {
 
       // 内容区域
       Column() {
-        Text(this.cipher.name)
+        Text(this.getDisplayName())
           .fontSize(16)
           .fontWeight(FontWeight.Medium)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-        Text(this.cipher.subtitle)
+        Text(this.getDisplaySubtitle())
           .fontSize(14)
           .fontColor('#666666')
           .maxLines(1)
@@ -61,4 +87,4 @@ export struct CipherItem {
       this.onTap?.();
     })
   }
-} 
+}

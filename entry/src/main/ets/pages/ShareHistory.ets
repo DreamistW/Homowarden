@@ -14,14 +14,43 @@ export function HistoryPageBuilder() {
 
 @Component
 struct History {
+  @StorageLink('localeRevision') @Watch('handleLocaleRevision') localeRevision: number = 0;
   pathInfos: NavPathStack = new NavPathStack();
   @State searchText: string = '';
   @State historyList: HistoryItem[] = [];
   @State filteredList: HistoryItem[] = [];
   private dbUtil: ShareDatabaseUtil = ShareDatabaseUtil.getInstance();
+  private refreshTimer: number = -1;
+  private isPageActive: boolean = false;
+  private appearanceGeneration: number = 0;
 
   async aboutToAppear() {
+    this.isPageActive = true;
+    this.appearanceGeneration++;
+    const currentGeneration: number = this.appearanceGeneration;
     await this.loadHistory();
+    if (!this.isPageActive || currentGeneration !== this.appearanceGeneration) {
+      return;
+    }
+    if (this.refreshTimer !== -1) {
+      clearInterval(this.refreshTimer);
+    }
+    this.refreshTimer = setInterval(() => {
+      this.filteredList = [...this.filteredList];
+    }, 60000);
+  }
+
+  aboutToDisappear(): void {
+    this.isPageActive = false;
+    this.appearanceGeneration++;
+    if (this.refreshTimer !== -1) {
+      clearInterval(this.refreshTimer);
+      this.refreshTimer = -1;
+    }
+  }
+
+  private handleLocaleRevision(): void {
+    this.filteredList = [...this.filteredList];
   }
 
   // 从数据库加载历史记录
@@ -43,7 +72,7 @@ struct History {
     } catch (err) {
       console.error(`Failed to load history. Error: ${JSON.stringify(err)}`);
       this.getUIContext().getPromptAction().showToast({
-        message: '加载历史记录失败'
+        message: $r('app.string.error_load_failed')
       });
     }
   }
@@ -58,15 +87,22 @@ struct History {
     const days = Math.floor(diff / 86400000);
 
     if (minutes < 1) {
-      return '刚刚';
+      return this.getUIContext().getHostContext()?.resourceManager
+        .getStringSync($r('app.string.share_just_now').id) ?? '';
     } else if (minutes < 60) {
-      return `${minutes}分钟前`;
+      const resource: Resource = minutes === 1 ? $r('app.string.share_minute_ago') :
+        $r('app.string.share_minutes_ago');
+      return this.getUIContext().getHostContext()?.resourceManager.getStringSync(resource.id, minutes) ?? '';
     } else if (hours < 24) {
-      return `${hours}小时前`;
+      const resource: Resource = hours === 1 ? $r('app.string.share_hour_ago') :
+        $r('app.string.share_hours_ago');
+      return this.getUIContext().getHostContext()?.resourceManager.getStringSync(resource.id, hours) ?? '';
     } else if (days < 7) {
-      return `${days}天前`;
+      const resource: Resource = days === 1 ? $r('app.string.share_day_ago') :
+        $r('app.string.share_days_ago');
+      return this.getUIContext().getHostContext()?.resourceManager.getStringSync(resource.id, days) ?? '';
     } else {
-      return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
+      return date.toLocaleDateString();
     }
   }
 
@@ -80,7 +116,7 @@ struct History {
   copyLink(text: string) {
     if (text == "") {
       this.getUIContext().getPromptAction().showToast({
-        message: `请先转换分享链接`
+        message: $r('app.string.share_convert_first')
       });
       return;
     }
@@ -89,12 +125,12 @@ struct History {
     systemPasteboard.setData(pasteData).catch((err: BusinessError) => {
       console.error(`Failed to set paste data. Code is ${err.code}, message is ${err.message}.`);
       this.getUIContext().getPromptAction().showToast({
-        message: `复制失败, 错误信息: ${err.message}}`
+        message: $r('app.string.share_copy_failed')
       });
       return;
     });
     this.getUIContext().getPromptAction().showToast({
-      message: `复制成功`
+      message: $r('app.string.share_copy_success')
     });
   }
 
@@ -104,12 +140,12 @@ struct History {
       await this.dbUtil.deleteData('history', item.id);
       await this.loadHistory(); // 重新加载历史记录
       this.getUIContext().getPromptAction().showToast({
-        message: '删除成功'
+        message: $r('app.string.share_delete_success')
       });
     } catch (err) {
       console.error(`Failed to delete item. Error: ${JSON.stringify(err)}`);
       this.getUIContext().getPromptAction().showToast({
-        message: '删除失败'
+        message: $r('app.string.error_delete_failed')
       });
     }
   }
@@ -117,7 +153,7 @@ struct History {
   shareLink(text: string, shareLink: boolean) {
     if (text == "") {
       this.getUIContext().getPromptAction().showToast({
-        message: `请先转换分享链接`
+        message: $r('app.string.share_convert_first')
       });
       return;
     }
@@ -134,7 +170,7 @@ struct History {
     }).catch((err: BusinessError) => {
       console.error(`Failed to show share panel. Code is ${err.code}, message is ${err.message}.`);
       this.getUIContext().getPromptAction().showToast({
-        message: `分享失败, 错误信息: ${err.message}}`
+        message: $r('app.string.share_failed')
       });
     })
   }
@@ -145,9 +181,9 @@ struct History {
         // 搜索栏
         Search({
           value: this.searchText,
-          placeholder: '搜索历史记录'
+          placeholder: $r('app.string.share_history_search')
         })
-          .searchButton('搜索')
+          .searchButton($r('app.string.common_search'))
           .onChange((value: string) => {
             this.onSearchChange(value);
           })
@@ -177,7 +213,7 @@ struct History {
           .layoutWeight(1)
         } else {
           Column() {
-            Text('暂无历史记录')
+            Text($r('app.string.share_history_empty'))
               .fontSize(16)
               .fontColor('#999999')
           }
@@ -192,7 +228,7 @@ struct History {
     .titleBar({
       content: {
         title: {
-          mainTitle: '分享历史'
+          mainTitle: $r('app.string.share_history_title')
         }
       },
       enableComponentSafeArea: true,
@@ -246,20 +282,20 @@ struct History {
   @Builder
   ActionBuilder(item: HistoryItem) {
     Column() {
-      Button('复制')
+      Button($r('app.string.common_copy'))
         .type(ButtonType.Normal)
         .backgroundColor('#007DFF')
         .width(80)
         .height('33%')
         .bindMenu([
           {
-            value: '复制完整内容',
+            value: $r('app.string.share_copy_full'),
             action: () => {
               this.copyLink(item.content);
             }
           },
           {
-            value: '仅复制链接',
+            value: $r('app.string.share_copy_link'),
             action: async () => {
               const link: string = await getShareLink(item.content);
               this.copyLink(link);
@@ -267,20 +303,20 @@ struct History {
           }
         ])
 
-      Button('分享')
+      Button($r('app.string.common_share'))
         .type(ButtonType.Normal)
         .backgroundColor('#FFA500')
         .width(80)
         .height('33%')
         .bindMenu([
           {
-            value: '分享完整内容',
+            value: $r('app.string.share_full'),
             action: () => {
               this.shareLink(item.content, false);
             }
           },
           {
-            value: '仅分享链接',
+            value: $r('app.string.share_link'),
             action: async () => {
               const link: string = await getShareLink(item.content);
               this.shareLink(link, true);
@@ -288,7 +324,7 @@ struct History {
           }
         ])
 
-      Button('删除')
+      Button($r('app.string.common_delete'))
         .type(ButtonType.Normal)
         .backgroundColor('#FF3B30')
         .width(80)

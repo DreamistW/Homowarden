@@ -80,18 +80,18 @@ export struct TotpListItem {
       // 移除空格后复制
       const codeToCopy = this.currentCode.replace(/\s/g, '');
       if (codeToCopy === '------') {
-        IBestToast.show('无效的验证码');
+        IBestToast.show($r('app.string.totp_invalid'));
         return;
       }
 
       const pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, codeToCopy);
       const systemPasteboard = pasteboard.getSystemPasteboard();
       await systemPasteboard.setData(pasteData);
-      IBestToast.show('已复制');
+      IBestToast.show($r('app.string.totp_copied'));
     } catch (error) {
       const err = error as BusinessError;
       Logger.error(`Failed to copy code: ${err.message}`);
-      IBestToast.show('复制失败');
+      IBestToast.show($r('app.string.totp_copy_failed'));
     }
   }
 
@@ -141,7 +141,7 @@ export struct TotpListItem {
             .height(8)
             .fill(this.remainingSeconds > 5 ? Color.Green : Color.Red)
 
-          Text(`${this.remainingSeconds}s`)
+          Text($r('app.string.totp_seconds', this.remainingSeconds))
             .fontSize(14)
             .fontColor('#666666')
             .margin({ left: 4, right: 8 })

@@ -13,7 +13,7 @@ export struct MainBottomNavigation {
   @Prop addEnabled: boolean = false;
 
   @Builder
-  private navigationItem(tab: MainTab, label: string, icon: Resource) {
+  private navigationItem(tab: MainTab, label: ResourceStr, icon: Resource) {
     Column({ space: 3 }) {
       Image(icon)
         .width(24)
@@ -59,11 +59,11 @@ export struct MainBottomNavigation {
 
   build() {
     Row() {
-      this.navigationItem(MainTab.VAULT, '密码库', $r('app.media.icon_home'))
-      this.navigationItem(MainTab.TOTP, '验证码', $r('app.media.icon_key'))
+      this.navigationItem(MainTab.VAULT, $r('app.string.nav_vault'), $r('app.media.icon_home'))
+      this.navigationItem(MainTab.TOTP, $r('app.string.nav_totp'), $r('app.media.icon_key'))
       this.addItem()
-      this.navigationItem(MainTab.SHARE, '安心分享', $r('app.media.icon_share'))
-      this.navigationItem(MainTab.SETTINGS, '设置', $r('app.media.icon_settings'))
+      this.navigationItem(MainTab.SHARE, $r('app.string.nav_share'), $r('app.media.icon_share'))
+      this.navigationItem(MainTab.SETTINGS, $r('app.string.nav_settings'), $r('app.media.icon_settings'))
     }
     .width('100%')
     .height(64)

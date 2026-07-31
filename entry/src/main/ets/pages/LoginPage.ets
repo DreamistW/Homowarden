@@ -9,6 +9,8 @@ import { HdsNavDestination } from '@hms.hds.hdsBaseComponent';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 import { AdaptiveTextButton } from '../component/AdaptiveButton';
 import { TwoFactorProvider } from '../model/AccessToken';
+import { AppText, AppTextKey } from '../localization/AppText';
+import { AppTextResolver } from '../localization/AppTextResolver';
 
 @Builder
 export function LoginPageBuilder() {
@@ -22,11 +24,10 @@ export struct LoginPage {
   @State isNeed2FA: boolean = false;
   @State isNeedNewDevice: boolean = false;
   @State twoFactorInputError: boolean = false;
-  @State twoFactorInputHint: string = '';
+  @State twoFactorInputHint: ResourceStr = '';
   @State needToSaveEmail: boolean = false;
   @State twoFactorRemember: boolean = false;
   @State pendingEmailLogin: boolean = false;
-  serverTypeList: string[] = ["bitwarden.com", "bitwarden.eu", "Self-hosted"];
   private exitTime: number = 0;
   pathInfos: NavPathStack = new NavPathStack();
 
@@ -49,7 +50,7 @@ export struct LoginPage {
   @Builder
   twoFactorInputContent() {
     Column({ space: 20 }) {
-      Text(this.viewModel.twoFactorProvider === TwoFactorProvider.WEB_AUTHN ? '请使用系统通行密钥完成验证' : '请输入两步验证码')
+      Text(this.viewModel.twoFactorProvider === TwoFactorProvider.WEB_AUTHN ? $r('app.string.login_passkey_prompt') : $r('app.string.login_two_factor_prompt'))
         .margin(12)
 
       if (this.getVisibleTwoFactorProviders().length > 1) {
@@ -69,7 +70,7 @@ export struct LoginPage {
       }
 
       if (this.viewModel.twoFactorProvider !== TwoFactorProvider.WEB_AUTHN) {
-        TextInput({ placeholder: '请输入' })
+        TextInput({ placeholder: $r('app.string.login_enter') })
           .onChange(value => {
             this.viewModel.twoFactorToken = value;
             this.twoFactorInputError = false;
@@ -84,7 +85,7 @@ export struct LoginPage {
             this.viewModel.twoFactorRemember = this.twoFactorRemember;
           }
         })
-        Text('记住我')
+        Text($r('app.string.login_remember_me'))
           .margin(12)
       }
 
@@ -97,16 +98,17 @@ export struct LoginPage {
       }
 
       if (this.viewModel.twoFactorProvider == TwoFactorProvider.EMAIL) {
-        Button('发送验证码到邮箱')
+        Button($r('app.string.login_send_email_code'))
           .onClick(async () => {
             this.pendingEmailLogin = true;
             const result = await this.viewModel.doSendEmailLogin();
             if (!result) {
               this.twoFactorInputError = true;
-              this.twoFactorInputHint = this.viewModel.errorMessage || '发送验证码失败';
+              this.twoFactorInputHint = AppTextResolver.resource(this.viewModel.errorMessage ??
+                new AppText(AppTextKey.CODE_SEND_FAILED));
             } else {
               this.twoFactorInputError = true;
-              this.twoFactorInputHint = '已发送验证码';
+              this.twoFactorInputHint = $r('app.string.login_code_sent');
             }
             this.pendingEmailLogin = false;
           })
@@ -118,9 +120,9 @@ export struct LoginPage {
   @Builder
   newDeviceInputContent() {
     Column({ space: 20 }) {
-      Text('请输入邮件中的新设备验证码')
+      Text($r('app.string.login_new_device_prompt'))
         .margin(12)
-      TextInput({ placeholder: '请输入' })
+      TextInput({ placeholder: $r('app.string.login_enter') })
         .onChange(value => {
           this.viewModel.twoFactorToken = value;
           this.twoFactorInputError = false;
@@ -135,16 +137,17 @@ export struct LoginPage {
           .fontSize(16)
       }
 
-      Button('发送验证码到邮箱')
+      Button($r('app.string.login_send_email_code'))
         .onClick(async () => {
           this.pendingEmailLogin = true;
           const result = await this.viewModel.doResendNewDeviceOtp();
           if (!result) {
             this.twoFactorInputError = true;
-            this.twoFactorInputHint = this.viewModel.errorMessage || '发送验证码失败';
+            this.twoFactorInputHint = AppTextResolver.resource(this.viewModel.errorMessage ??
+              new AppText(AppTextKey.CODE_SEND_FAILED));
           } else {
             this.twoFactorInputError = true;
-            this.twoFactorInputHint = '已发送验证码';
+            this.twoFactorInputHint = $r('app.string.login_code_sent');
           }
           this.pendingEmailLogin = false;
         })
@@ -157,7 +160,7 @@ export struct LoginPage {
       Column() {
         // 邮箱输入框
         TextInput({
-          placeholder: '请输入邮箱',
+          placeholder: $r('app.string.login_email_placeholder'),
           text: this.viewModel.email
         })
           .type(InputType.Email)
@@ -169,7 +172,7 @@ export struct LoginPage {
 
         // 记住邮箱的开关，关联viewModel的needSaveEmail
         Row() {
-          Text('记住邮箱')
+          Text($r('app.string.login_remember_email'))
             .fontSize(16)
             .margin(12)
           IBestSwitch({
@@ -183,7 +186,7 @@ export struct LoginPage {
 
         // 密码输入框
         TextInput({
-          placeholder: '请输入密码',
+          placeholder: $r('app.string.login_password_placeholder'),
           text: this.viewModel.password
         })
           .type(InputType.Password)
@@ -195,7 +198,7 @@ export struct LoginPage {
 
         Row() {
           // 服务器选择
-          Text('选择服务器')
+          Text($r('app.string.login_select_server'))
             .fontSize(16)
             .margin({ right: 8 })
           Button(this.getServerTypeButtonText())
@@ -203,7 +206,7 @@ export struct LoginPage {
             .buttonStyle(ButtonStyleMode.TEXTUAL)
             .onClick(() => {
               IBestActionSheet.show({
-                actions: this.serverTypeList,
+                actions: this.getServerTypeList(),
                 onSelect: (position: number) => {
                   this.viewModel.serverType = position as ServerType;
                   this.viewModel.clearError();
@@ -218,7 +221,7 @@ export struct LoginPage {
               .fontSize(16)
               .margin({ right: 8 })
             TextInput({
-              placeholder: '输入域名或IP',
+              placeholder: $r('app.string.login_domain_placeholder'),
               text: this.viewModel.serverAddress
             })
               .type(InputType.Normal)
@@ -236,7 +239,7 @@ export struct LoginPage {
           // 登录按钮
           if (!this.isLoading) {
             AdaptiveTextButton({
-              text: this.isLoading ? '登录中...' : '登录',
+              text: this.isLoading ? $r('app.string.login_in_progress') : $r('app.string.login_action'),
               barWidth: 150,
               barHeight: 50,
               fontSize: 18,
@@ -245,7 +248,7 @@ export struct LoginPage {
               }
             })
           } else {
-            Button('登录中...')
+            Button($r('app.string.login_in_progress'))
               .margin(14)
               .stateEffect(!this.isLoading)
               .enabled(false)
@@ -257,7 +260,7 @@ export struct LoginPage {
 
         // 显示错误信息
         if (this.viewModel.errorMessage) {
-          Text(this.viewModel.errorMessage)
+          Text(AppTextResolver.resource(this.viewModel.errorMessage))
             .fontSize(14)
             .fontColor(Color.Red)
             .margin(12)
@@ -265,7 +268,7 @@ export struct LoginPage {
 
         // 显示成功信息
         if (this.viewModel.successMessage) {
-          Text(this.viewModel.successMessage)
+          Text(AppTextResolver.resource(this.viewModel.successMessage))
             .fontSize(14)
             .fontColor(Color.Green)
             .margin(12)
@@ -274,7 +277,7 @@ export struct LoginPage {
         // 弹出2FA输入框
         IBestDialog({
           visible: this.isNeed2FA,
-          title: '两步验证',
+          title: $r('app.string.login_two_factor_title'),
           showCancelButton: true,
           closeOnClickOverlay: false,
           defaultBuilder: (): void => this.twoFactorInputContent(),
@@ -287,23 +290,24 @@ export struct LoginPage {
               const passkeyResult = await this.viewModel.performPasskeyTwoFactor(context);
               if (!passkeyResult) {
                 this.twoFactorInputError = true;
-                this.twoFactorInputHint = this.viewModel.errorMessage || '通行密钥验证失败';
+                this.twoFactorInputHint = AppTextResolver.resource(this.viewModel.errorMessage ??
+                  new AppText(AppTextKey.PASSKEY_FAILED));
                 return false;
               }
             } else {
               const valueLength = this.viewModel.twoFactorToken.trim().length;
               this.twoFactorInputError = !valueLength;
               if (this.twoFactorInputError) {
-                this.twoFactorInputHint = '验证码不能为空';
+                this.twoFactorInputHint = $r('app.string.login_error_code_required');
                 return false;
               }
             }
             const result = await this.viewModel.continueLogin();
             if (!result) {
               this.twoFactorInputError = true;
-              this.twoFactorInputHint = this.viewModel.twoFactorProvider === TwoFactorProvider.WEB_AUTHN ?
-                (this.viewModel.errorMessage || '通行密钥验证失败') :
-                (this.viewModel.errorMessage || '无效的验证码');
+              this.twoFactorInputHint = AppTextResolver.resource(this.viewModel.errorMessage ??
+                new AppText(this.viewModel.twoFactorProvider === TwoFactorProvider.WEB_AUTHN ?
+                  AppTextKey.PASSKEY_FAILED : AppTextKey.CODE_INVALID));
               return false;
             }
             this.isNeed2FA = false;
@@ -316,7 +320,7 @@ export struct LoginPage {
         // 弹出新设备输入框
         IBestDialog({
           visible: this.isNeedNewDevice,
-          title: '新设备验证',
+          title: $r('app.string.login_new_device_title'),
           showCancelButton: true,
           closeOnClickOverlay: false,
           defaultBuilder: (): void => this.newDeviceInputContent(),
@@ -327,13 +331,14 @@ export struct LoginPage {
             const valueLength = this.viewModel.twoFactorToken.trim().length;
             this.twoFactorInputError = !valueLength;
             if (this.twoFactorInputError) {
-              this.twoFactorInputHint = '验证码不能为空';
+              this.twoFactorInputHint = $r('app.string.login_error_code_required');
               return false;
             }
             const result = await this.viewModel.continueLogin();
             if (!result) {
               this.twoFactorInputError = true;
-              this.twoFactorInputHint = this.viewModel.errorMessage || '无效的验证码';
+              this.twoFactorInputHint = AppTextResolver.resource(this.viewModel.errorMessage ??
+                new AppText(AppTextKey.CODE_INVALID));
               return false;
             }
             this.isNeedNewDevice = false;
@@ -358,7 +363,7 @@ export struct LoginPage {
     .titleBar({
       content: {
         title: {
-          mainTitle: '登录'
+          mainTitle: $r('app.string.login_action')
         }
       },
       enableComponentSafeArea: true
@@ -374,7 +379,7 @@ export struct LoginPage {
       } else {
         this.exitTime = currentTime;
         this.getUIContext().getPromptAction().showToast({
-          message: "再按一次退出"
+          message: $r('app.string.common_back_exit')
         });
       }
       return true;
@@ -384,11 +389,11 @@ export struct LoginPage {
   // 处理登录逻辑
   private async handleLogin(): Promise<void> {
     if (this.viewModel.email.length == 0 || this.viewModel.password.length == 0) {
-      IBestToast.show('邮箱和密码不能为空');
+      IBestToast.show($r('app.string.error_validation'));
       return;
     }
     if (this.viewModel.serverType == ServerType.SELF_HOSTED && this.viewModel.serverAddress == undefined) {
-      IBestToast.show('服务器地址不能为空');
+      IBestToast.show($r('app.string.error_validation'));
       return;
     }
     this.twoFactorInputError = false;
@@ -413,7 +418,7 @@ export struct LoginPage {
   private prepareTwoFactorDialog(): boolean {
     const visibleProviders = this.getVisibleTwoFactorProviders();
     if (visibleProviders.length === 0) {
-      this.viewModel.errorMessage = '当前账号启用了不受支持的两步验证方式';
+      this.viewModel.errorMessage = new AppText(AppTextKey.TWO_FACTOR_UNSUPPORTED);
       this.viewModel.needTwoFactor = false;
       return false;
     }
@@ -437,14 +442,14 @@ export struct LoginPage {
     this.viewModel = this.viewModel.clone();
   }
 
-  private getTwoFactorProviderText(provider: number): string {
+  private getTwoFactorProviderText(provider: number): ResourceStr {
     switch (provider) {
       case TwoFactorProvider.WEB_AUTHN:
-        return '通行密钥';
+        return $r('app.string.login_provider_passkey');
       case TwoFactorProvider.EMAIL:
-        return '电子邮箱';
+        return $r('app.string.login_provider_email');
       default:
-        return '验证器';
+        return $r('app.string.login_provider_authenticator');
     }
   }
 
@@ -457,14 +462,20 @@ export struct LoginPage {
   }
 
   // 获取服务器类型按钮文本
-  private getServerTypeButtonText(): string {
+  private getServerTypeButtonText(): ResourceStr {
     switch (this.viewModel.serverType) {
       case ServerType.EU:
         return 'bitwarden.eu';
       case ServerType.SELF_HOSTED:
-        return 'Self-hosted';
+        return $r('app.string.server_self_hosted');
       default:
         return 'bitwarden.com';
     }
+  }
+
+  private getServerTypeList(): string[] {
+    const selfHosted: string = this.getUIContext().getHostContext()?.resourceManager
+      .getStringSync($r('app.string.server_self_hosted')) ?? '';
+    return ['bitwarden.com', 'bitwarden.eu', selfHosted];
   }
 }

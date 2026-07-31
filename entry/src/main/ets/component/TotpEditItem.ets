@@ -40,12 +40,12 @@ export struct TotpEditItem {
               Logger.info(`TOTP secret extracted: ${parsed.secret}`);
 
               if (parsed.issuer || parsed.account) {
-                IBestToast.show(`密钥已录入${parsed.issuer ? ': ' + parsed.issuer : ''}`);
+                IBestToast.show($r('app.string.totp_scan_success', parsed.issuer ?? parsed.account ?? ''));
               } else {
-                IBestToast.show('密钥已录入');
+                IBestToast.show($r('app.string.totp_entered'));
               }
             } else {
-              IBestToast.show('无效的验证码二维码');
+              IBestToast.show($r('app.string.totp_invalid'));
             }
           }
         })
@@ -54,14 +54,14 @@ export struct TotpEditItem {
         })
     } catch (error) {
       Logger.error(`Start scan failed: ${JSON.stringify(error)}`);
-      IBestToast.show('启动扫码失败');
+      IBestToast.show($r('app.string.error_unknown'));
     }
   }
 
   build() {
     Column() {
       // 标签
-      Text('TOTP密钥')
+      Text($r('app.string.totp_title'))
         .fontSize(14)
         .fontColor('#666666')
         .alignSelf(ItemAlign.Center)
@@ -71,7 +71,7 @@ export struct TotpEditItem {
       Row() {
         TextInput({
           text: this.totpSecret,
-          placeholder: this.totpSecret ? '已录入密钥' : '请扫码录入TOTP密钥'
+          placeholder: this.totpSecret ? $r('app.string.totp_entered') : $r('app.string.totp_not_entered')
         })
           .type(InputType.Password)
           .layoutWeight(1)
@@ -92,7 +92,7 @@ export struct TotpEditItem {
               onButtonClick: () => {
                 this.totpSecret = '';
                 this.onSecretChange?.('');
-                IBestToast.show('密钥已清除');
+                IBestToast.show($r('app.string.common_success'));
               }
             })
 

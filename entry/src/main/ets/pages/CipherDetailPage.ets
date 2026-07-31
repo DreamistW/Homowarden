@@ -23,7 +23,9 @@ import { DataPreferences } from '@abner/datastore';
 import { hdsMaterial, HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
 import { AdaptiveTextButton } from '../component/AdaptiveButton';
 import { VaultChangeNotifier } from '../utils/VaultChangeNotifier';
-import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
+import { AppOptionFactory } from '../localization/AppOptionFactory';
+import { CipherDisplayMapping } from '../domain/CipherDisplayMapping';
+import { LocaleUtil } from '../localization/LocaleUtil';
 
 @Builder
 export function CipherDetailPageBuilder() {
@@ -32,6 +34,7 @@ export function CipherDetailPageBuilder() {
 
 @Component
 export struct CipherDetailPage {
+  @StorageLink('localeRevision') @Watch('handleLocaleRevision') localeRevision: number = 0;
   @State cipher: Cipher = {} as Cipher;
   @State isLoading: boolean = true;
   @State isSaving: boolean = false;
@@ -44,92 +47,46 @@ export struct CipherDetailPage {
   @State editUris: CipherUri[] = [] as CipherUri[];
   @State totpSecret: string = '';
   @State showTotpSecret: boolean = false;
+  @State formattedCreationDate: string = '';
+  @State formattedRevisionDate: string = '';
+  @State formattedDeletedDate: string = '';
   pathInfos: NavPathStack = new NavPathStack();
   private viewModel: CipherDetailViewModel = new CipherDetailViewModel();
   private identityTitleGroup: string = 'identityTitleSelector';
   private cardBrandGroup: string = 'cardBrandSelector';
   // 下拉菜单选项
-  private identityTitleOptions: IBestDropdownMenuOption[] = [
-    { text: '无', value: IdentityTitleType.NONE },
-    { text: '先生', value: IdentityTitleType.MR },
-    { text: '夫人', value: IdentityTitleType.MRS },
-    { text: '女士', value: IdentityTitleType.MISS },
-    { text: 'Mx', value: IdentityTitleType.MX },
-    { text: '博士', value: IdentityTitleType.DR }
-  ];
-  private cardBrandOptions: IBestDropdownMenuOption[] = [
-    { text: '无', value: CardBrandType.NONE },
-    { text: 'Visa', value: CardBrandType.VISA },
-    { text: 'MasterCard', value: CardBrandType.MASTER },
-    { text: 'American Express', value: CardBrandType.AME },
-    { text: 'Discover', value: CardBrandType.DISCOVER },
-    { text: 'Diners Club', value: CardBrandType.DINERS },
-    { text: 'JCB', value: CardBrandType.JCB },
-    { text: 'Maestro', value: CardBrandType.MAESTRO },
-    { text: 'UnionPay', value: CardBrandType.UNIONPAY },
-    { text: 'RuPay', value: CardBrandType.RUPAY },
-    { text: '其他', value: CardBrandType.OTHER },
-  ];
+  private identityTitleOptions: IBestDropdownMenuOption[] = AppOptionFactory.identityTitles();
+  private cardBrandOptions: IBestDropdownMenuOption[] = AppOptionFactory.cardBrands();
+
+  private handleLocaleRevision(): void {
+    this.identityTitleOptions = AppOptionFactory.identityTitles();
+    this.cardBrandOptions = AppOptionFactory.cardBrands();
+    this.refreshFormattedDates();
+  }
+
+  private refreshFormattedDates(): void {
+    this.formattedCreationDate = LocaleUtil.formatDateTime(this.cipher.creationDate);
+    this.formattedRevisionDate = LocaleUtil.formatDateTime(this.cipher.revisionDate);
+    this.formattedDeletedDate = LocaleUtil.formatDateTime(this.cipher.deletedDate);
+  }
 
   // 将身份标题文本转换为枚举值
   private getIdentityTitleEnum(title: string | null | undefined): IdentityTitleType {
-    if (!title) {
-      return IdentityTitleType.NONE;
-    }
-    switch (title) {
-      case '先生':
-        return IdentityTitleType.MR;
-      case '夫人':
-        return IdentityTitleType.MRS;
-      case '女士':
-        return IdentityTitleType.MISS;
-      case 'Mx':
-        return IdentityTitleType.MX;
-      case '博士':
-        return IdentityTitleType.DR;
-      default:
-        return IdentityTitleType.NONE;
-    }
+    return CipherDisplayMapping.readIdentityTitle(title).type;
   }
 
   // 将卡品牌文本转换为枚举值
   private getCardBrandEnum(brand: string | null | undefined): CardBrandType {
-    if (!brand) {
-      return CardBrandType.NONE;
-    }
-    switch (brand) {
-      case 'Visa':
-        return CardBrandType.VISA;
-      case 'MasterCard':
-        return CardBrandType.MASTER;
-      case 'American Express':
-        return CardBrandType.AME;
-      case 'Discover':
-        return CardBrandType.DISCOVER;
-      case 'Diners Club':
-        return CardBrandType.DINERS;
-      case 'JCB':
-        return CardBrandType.JCB;
-      case 'Maestro':
-        return CardBrandType.MAESTRO;
-      case 'UnionPay':
-        return CardBrandType.UNIONPAY;
-      case 'RuPay':
-        return CardBrandType.RUPAY;
-      case '其他':
-        return CardBrandType.OTHER;
-      default:
-        return CardBrandType.NONE;
-    }
+    return CipherDisplayMapping.readCardBrand(brand).type;
   }
 
   EditItemBtn: HdsNavigationBadgeIconOptions = {
     content: {
-      label: '编辑',
+      label: $r('app.string.common_edit'),
       icon: $r('app.media.icon_edit'),
       action: () => {
         if (!this.isDetailLoaded) {
-          IBestToast.show('密码项尚未成功解密，无法编辑');
+          IBestToast.show($r('app.string.error_encryption'));
           return;
         }
         this.isEditable = true;
@@ -138,7 +95,7 @@ export struct CipherDetailPage {
   }
   DeleteItemBtn: HdsNavigationBadgeIconOptions = {
     content: {
-      label: '删除',
+      label: $r('app.string.common_delete'),
       icon: $r('app.media.icon_delete'),
       action: () => {
         this.deleteCipher();
@@ -147,7 +104,7 @@ export struct CipherDetailPage {
   }
   ConfirmEditBtn: HdsNavigationBadgeIconOptions = {
     content: {
-      label: '确认',
+      label: $r('app.string.common_confirm'),
       icon: $r('app.media.icon_confirm'),
       action: async () => {
         if (this.isSaving) {
@@ -159,7 +116,7 @@ export struct CipherDetailPage {
   }
   CancelEditBtn: HdsNavigationBadgeIconOptions = {
     content: {
-      label: '取消',
+      label: $r('app.string.common_cancel'),
       icon: $r('app.media.icon_cancel'),
       action: () => {
         if (this.isSaving) {
@@ -172,7 +129,7 @@ export struct CipherDetailPage {
   }
   RestoreItemBtn: HdsNavigationBadgeIconOptions = {
     content: {
-      label: '还原',
+      label: $r('app.string.common_restore'),
       icon: $r('app.media.icon_restore'),
       action: async () => {
         await this.restoreCipher();
@@ -184,11 +141,11 @@ export struct CipherDetailPage {
   deleteCipherConfirmDialogContent() {
     Column() {
       if (this.cipher.deletedDate) {
-        Text(`确定要彻底删除密码项"${this.cipher.name}"吗?`)
+        Text($r('app.string.cipher_delete_forever_confirm', this.cipher.name))
           .fontSize(16)
           .margin(12)
       } else {
-        Text(`确定要将密码项"${this.cipher.name}"送至回收站吗?`)
+        Text($r('app.string.cipher_move_trash_confirm', this.cipher.name))
           .fontSize(16)
           .margin(12)
       }
@@ -205,6 +162,7 @@ export struct CipherDetailPage {
       const cipherDetail = await this.viewModel.getCipherDetail(this.cipher);
       if (cipherDetail) {
         this.cipher = cipherDetail;
+        this.refreshFormattedDates();
         if (this.cipher.type === CipherItemType.LOGIN && this.cipher.login) {
           this.editUris = this.cipher.login.uris;
         }
@@ -226,7 +184,7 @@ export struct CipherDetailPage {
     } catch (error) {
       Logger.error('Failed to load cipher detail:', error);
       this.isEditable = false;
-      IBestToast.show(`加载密码项失败, 错误信息: ${ErrorMessageUtil.getMessage(error as Object)}`);
+      IBestToast.show($r('app.string.error_load_failed'));
     } finally {
       this.isLoading = false;
     }
@@ -254,12 +212,12 @@ export struct CipherDetailPage {
       // 保存成功，退出编辑模式
       this.isEditable = false;
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
-      IBestToast.show(`保存成功`);
+      IBestToast.show($r('app.string.common_success'));
       // 重新加载密码项
       await this.loadCipherDetail();
     } catch (error) {
       Logger.error('Failed to save cipher:', error);
-      IBestToast.show(`编辑失败, 错误信息: ${ErrorMessageUtil.getMessage(error as Object)}`);
+      IBestToast.show($r('app.string.error_save_failed'));
     } finally {
       this.isSaving = false;
     }
@@ -268,7 +226,7 @@ export struct CipherDetailPage {
   private getConfirmEditBtn(): HdsNavigationBadgeIconOptions {
     return {
       content: {
-        label: this.isSaving ? '保存中' : '确认',
+        label: this.isSaving ? $r('app.string.common_saving') : $r('app.string.common_confirm'),
         icon: $r('app.media.icon_confirm'),
         action: async () => {
           if (this.isSaving) {
@@ -300,13 +258,14 @@ export struct CipherDetailPage {
     try {
       VaultChangeNotifier.markLocalChangePending();
       this.cipher = await this.viewModel.restoreCipher(this.cipher);
+      this.refreshFormattedDates();
       VaultChangeNotifier.setUpdatedCipher(this.cipher);
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
       // 显示成功提示
-      IBestToast.show('还原成功');
+      IBestToast.show($r('app.string.common_success'));
     } catch (error) {
       Logger.error('Failed to restore cipher:', error);
-      IBestToast.show(`还原失败, 错误信息: ${ErrorMessageUtil.getMessage(error as Object)}`);
+      IBestToast.show($r('app.string.error_save_failed'));
     }
   }
 
@@ -331,7 +290,7 @@ export struct CipherDetailPage {
             LoadingProgress()
               .width(40)
               .height(40)
-            Text('加载中...')
+            Text($r('app.string.common_loading'))
               .fontSize(14)
               .fontColor(Color.Gray)
               .margin({ top: 8 })
@@ -350,7 +309,7 @@ export struct CipherDetailPage {
               Row() {
                 // 项目名称
                 CipherDetailTextItem({
-                  label: '项目名称',
+                  label: $r('app.string.cipher_item_name'),
                   content: this.cipher.name,
                   isEditable: this.isEditable,
                   showCopyButton: false,
@@ -390,7 +349,7 @@ export struct CipherDetailPage {
 
               // 备注
               Column() {
-                Text('备注')
+                Text($r('app.string.cipher_notes'))
                   .fontSize(16)
                   .fontWeight(FontWeight.Medium)
                   .margin({ bottom: 12 })
@@ -415,7 +374,7 @@ export struct CipherDetailPage {
               if (this.isEditable) {
                 IBestCheckbox({
                   value: this.cipher.reprompt == 1 ? true : false,
-                  label: '主密码重新提示',
+                  label: $r('app.string.cipher_reprompt'),
                   onChange: (checked: boolean | IBestStringNumber) => {
                     if (checked) {
                       this.cipher.reprompt = 1;
@@ -428,18 +387,18 @@ export struct CipherDetailPage {
 
               // 元数据
               Column() {
-                Text('元数据')
+                Text($r('app.string.cipher_metadata'))
                   .fontSize(16)
                   .fontWeight(FontWeight.Medium)
                   .margin({ bottom: 12 })
 
                 Row() {
-                  Text('创建时间')
+                  Text($r('app.string.cipher_created'))
                     .fontSize(14)
                     .fontColor('#666666')
                     .width(80)
 
-                  Text(this.cipher.creationDate)
+                  Text(this.formattedCreationDate)
                     .fontSize(14)
                     .layoutWeight(1)
                 }
@@ -447,17 +406,32 @@ export struct CipherDetailPage {
                 .padding({ top: 8, bottom: 8 })
 
                 Row() {
-                  Text('修改时间')
+                  Text($r('app.string.cipher_modified'))
                     .fontSize(14)
                     .fontColor('#666666')
                     .width(80)
 
-                  Text(this.cipher.revisionDate)
+                  Text(this.formattedRevisionDate)
                     .fontSize(14)
                     .layoutWeight(1)
                 }
                 .width('100%')
                 .padding({ top: 8, bottom: 8 })
+
+                if (this.cipher.deletedDate) {
+                  Row() {
+                    Text($r('app.string.cipher_deleted'))
+                      .fontSize(14)
+                      .fontColor('#666666')
+                      .width(80)
+
+                    Text(this.formattedDeletedDate)
+                      .fontSize(14)
+                      .layoutWeight(1)
+                  }
+                  .width('100%')
+                  .padding({ top: 8, bottom: 8 })
+                }
               }
               .width('100%')
               .padding(16)
@@ -478,7 +452,7 @@ export struct CipherDetailPage {
           visible: this.showDeleteDialog,
           showCancelButton: true,
           closeOnClickOverlay: false,
-          title: '删除密码项',
+          title: $r('app.string.cipher_delete_title'),
           defaultBuilder: () => this.deleteCipherConfirmDialogContent(),
           onConfirm: async () => {
             return await this.doDeleteCipher();
@@ -495,7 +469,7 @@ export struct CipherDetailPage {
     .titleBar({
       content: {
         title: {
-          mainTitle: '详情'
+          mainTitle: $r('app.string.cipher_detail_title')
         },
         menu: {
           value: this.getTitleMenu()
@@ -523,14 +497,14 @@ export struct CipherDetailPage {
   @Builder
   buildLoginSection() {
     Column() {
-      Text('登录信息')
+      Text($r('app.string.cipher_login_info'))
         .fontSize(16)
         .fontWeight(FontWeight.Medium)
         .margin({ bottom: 12 })
 
       // 用户名
       CipherDetailTextItem({
-        label: '用户名',
+        label: $r('app.string.cipher_username'),
         content: this.cipher.login?.username ?? '',
         isEditable: this.isEditable,
         onValueChange: (value: string) => {
@@ -542,7 +516,7 @@ export struct CipherDetailPage {
 
       // 密码
       CipherDetailTextItem({
-        label: '密码',
+        label: $r('app.string.cipher_password'),
         content: this.cipher.login?.password ?? '',
         showContent: this.showHideField,
         showHideButton: true,
@@ -558,7 +532,7 @@ export struct CipherDetailPage {
       if (this.cipher.login?.uris && this.cipher.login.uris.length > 0 && !this.isEditable) {
         ForEach(this.editUris, (uri: CipherUri, index: number) => {
           CipherDetailTextItem({
-            label: '网站',
+            label: $r('app.string.cipher_website'),
             content: uri.uri,
             isEditable: this.isEditable,
             isUri: true,
@@ -572,7 +546,7 @@ export struct CipherDetailPage {
       if (this.isEditable) {
         ForEach(this.editUris, (uri: CipherUri) => {
           CipherDetailTextItem({
-            label: '网站',
+            label: $r('app.string.cipher_website'),
             content: uri.uri,
             isEditable: this.isEditable,
             isUri: true,
@@ -584,7 +558,7 @@ export struct CipherDetailPage {
 
         Row() {
           AdaptiveTextButton({
-            text: '添加网站',
+            text: $r('app.string.cipher_add_website'),
             barWidth: 150,
             barHeight: 50,
             fontSize: 18,
@@ -636,14 +610,14 @@ export struct CipherDetailPage {
   @Builder
   buildCardSection() {
     Column() {
-      Text('卡片信息')
+      Text($r('app.string.cipher_card_info'))
         .fontSize(16)
         .fontWeight(FontWeight.Medium)
         .margin({ bottom: 12 })
 
       // 持卡人姓名
       CipherDetailTextItem({
-        label: '持卡人姓名',
+        label: $r('app.string.cipher_cardholder'),
         content: this.cipher.card?.cardholderName ?? '',
         isEditable: this.isEditable,
         onValueChange: (value: string) => {
@@ -655,7 +629,7 @@ export struct CipherDetailPage {
 
       // 卡号
       CipherDetailTextItem({
-        label: '号码',
+        label: $r('app.string.cipher_number'),
         content: this.cipher.card?.number ?? '',
         showContent: this.showHideField,
         showHideButton: true,
@@ -669,47 +643,15 @@ export struct CipherDetailPage {
 
       // 品牌
       CipherDetailDropdownItem({
-        label: '品牌',
-        content: this.cipher.card?.brand ?? '',
+        label: $r('app.string.cipher_brand'),
+        content: CipherDisplayMapping.cardBrandLabel(this.cipher.card?.brand),
         dropdownOptions: this.cardBrandOptions,
         groupId: this.cardBrandGroup,
         selectedValue: this.selectedCardBrand,
         onValueChange: (value) => {
           this.selectedCardBrand = value as CardBrandType;
-          switch (value) {
-            case CardBrandType.NONE:
-              this.cipher.card!.brand = '';
-              break;
-            case CardBrandType.VISA:
-              this.cipher.card!.brand = 'Visa';
-              break;
-            case CardBrandType.MASTER:
-              this.cipher.card!.brand = 'MasterCard';
-              break;
-            case CardBrandType.AME:
-              this.cipher.card!.brand = 'American Express';
-              break;
-            case CardBrandType.DISCOVER:
-              this.cipher.card!.brand = 'Discover';
-              break;
-            case CardBrandType.DINERS:
-              this.cipher.card!.brand = 'Diners Club';
-              break;
-            case CardBrandType.JCB:
-              this.cipher.card!.brand = 'JCB';
-              break;
-            case CardBrandType.MAESTRO:
-              this.cipher.card!.brand = 'Maestro';
-              break;
-            case CardBrandType.UNIONPAY:
-              this.cipher.card!.brand = 'UnionPay';
-              break;
-            case CardBrandType.RUPAY:
-              this.cipher.card!.brand = 'RuPay';
-              break;
-            case CardBrandType.OTHER:
-              this.cipher.card!.brand = '其他';
-              break;
+          if (this.cipher.card) {
+            this.cipher.card.brand = CipherDisplayMapping.writeCardBrand(value as CardBrandType);
           }
         },
         isEditable: this.isEditable
@@ -717,7 +659,7 @@ export struct CipherDetailPage {
 
       // 过期月份
       CipherDetailTextItem({
-        label: '过期月份',
+        label: $r('app.string.cipher_exp_month'),
         content: this.cipher.card?.expMonth ?? '',
         isEditable: this.isEditable,
         isNumberOnly: true,
@@ -734,7 +676,7 @@ export struct CipherDetailPage {
 
       // 过期年份
       CipherDetailTextItem({
-        label: '过期年份',
+        label: $r('app.string.cipher_exp_year'),
         content: this.cipher.card?.expYear ?? '',
         isEditable: this.isEditable,
         isNumberOnly: true,
@@ -751,7 +693,7 @@ export struct CipherDetailPage {
 
       // 安全码
       CipherDetailTextItem({
-        label: '安全码',
+        label: $r('app.string.cipher_security_code'),
         content: this.cipher.card?.code ?? '',
         showContent: this.showHideField,
         showHideButton: true,
@@ -771,39 +713,22 @@ export struct CipherDetailPage {
   @Builder
   buildIdentitySection() {
     Column() {
-      Text('身份信息')
+      Text($r('app.string.vault_type_identity'))
         .fontSize(16)
         .fontWeight(FontWeight.Medium)
         .margin({ bottom: 12 })
 
       // 称呼
       CipherDetailDropdownItem({
-        label: '称呼',
-        content: this.cipher.identity?.title ?? '',
+        label: $r('app.string.cipher_identity_title'),
+        content: CipherDisplayMapping.identityTitleLabel(this.cipher.identity?.title),
         dropdownOptions: this.identityTitleOptions,
         groupId: this.identityTitleGroup,
         selectedValue: this.selectedIdentityTitle,
         onValueChange: (value) => {
           this.selectedIdentityTitle = value as IdentityTitleType;
-          switch (value) {
-            case IdentityTitleType.NONE:
-              this.cipher.identity!.title = '';
-              break;
-            case IdentityTitleType.MR:
-              this.cipher.identity!.title = '先生';
-              break;
-            case IdentityTitleType.MRS:
-              this.cipher.identity!.title = '夫人';
-              break;
-            case IdentityTitleType.MISS:
-              this.cipher.identity!.title = '女士';
-              break;
-            case IdentityTitleType.MX:
-              this.cipher.identity!.title = 'Mx';
-              break;
-            case IdentityTitleType.DR:
-              this.cipher.identity!.title = '博士';
-              break;
+          if (this.cipher.identity) {
+            this.cipher.identity.title = CipherDisplayMapping.writeIdentityTitle(value as IdentityTitleType);
           }
         },
         isEditable: this.isEditable
@@ -811,7 +736,7 @@ export struct CipherDetailPage {
 
       // 名
       CipherDetailTextItem({
-        label: '名',
+        label: $r('app.string.cipher_first_name'),
         content: this.cipher.identity?.firstName ?? '',
         isEditable: this.isEditable,
         onValueChange: (value: string) => {
@@ -823,7 +748,7 @@ export struct CipherDetailPage {
 
       // 中间名
       CipherDetailTextItem({
-        label: '中间名',
+        label: $r('app.string.cipher_middle_name'),
         content: this.cipher.identity?.middleName ?? '',
         isEditable: this.isEditable,
         onValueChange: (value: string) => {
@@ -835,7 +760,7 @@ export struct CipherDetailPage {
 
       // 姓
       CipherDetailTextItem({
-        label: '姓',
+        label: $r('app.string.cipher_last_name'),
         content: this.cipher.identity?.lastName ?? '',
         isEditable: this.isEditable,
         onValueChange: (value: string) => {
@@ -847,7 +772,7 @@ export struct CipherDetailPage {
 
       // 用户名
       CipherDetailTextItem({
-        label: '用户名',
+        label: $r('app.string.cipher_username'),
         content: this.cipher.identity?.username ?? '',
         isEditable: this.isEditable,
         onValueChange: (value: string) => {
@@ -859,7 +784,7 @@ export struct CipherDetailPage {
 
       // 公司
       CipherDetailTextItem({
-        label: '公司',
+        label: $r('app.string.cipher_company'),
         content: this.cipher.identity?.company ?? '',
         isEditable: this.isEditable,
         onValueChange: (value: string) => {
@@ -871,7 +796,7 @@ export struct CipherDetailPage {
 
       // 社会保障号码
       CipherDetailTextItem({
-        label: '社会保障号码',
+        label: $r('app.string.cipher_ssn'),
         content: this.cipher.identity?.ssn ?? '',
         showContent: this.showHideField,
         showHideButton: true,
@@ -885,7 +810,7 @@ export struct CipherDetailPage {
 
       // 护照号码
       CipherDetailTextItem({
-        label: '护照号码',
+        label: $r('app.string.cipher_passport'),
         content: this.cipher.identity?.passportNumber ?? '',
         showContent: this.showHideField,
         showHideButton: true,
@@ -899,7 +824,7 @@ export struct CipherDetailPage {
 
       // 许可证号码
       CipherDetailTextItem({
-        label: '许可证号码',
+        label: $r('app.string.cipher_license'),
         content: this.cipher.identity?.licenseNumber ?? '',
         isEditable: this.isEditable,
         onValueChange: (value: string) => {
@@ -911,7 +836,7 @@ export struct CipherDetailPage {
 
       // 电子邮箱
       CipherDetailTextItem({
-        label: '电子邮箱',
+        label: $r('app.string.cipher_email'),
         content: this.cipher.identity?.email ?? '',
         isEditable: this.isEditable,
         onValueChange: (value: string) => {
@@ -923,7 +848,7 @@ export struct CipherDetailPage {
 
       // 电话
       CipherDetailTextItem({
-        label: '电话',
+        label: $r('app.string.cipher_phone'),
         content: this.cipher.identity?.phone ?? '',
         isEditable: this.isEditable,
         onValueChange: (value: string) => {
@@ -935,7 +860,7 @@ export struct CipherDetailPage {
 
       // 地址1
       CipherDetailTextItem({
-        label: '地址 1',
+        label: $r('app.string.cipher_address1'),
         content: this.cipher.identity?.address1 ?? '',
         isEditable: this.isEditable,
         onValueChange: (value: string) => {
@@ -947,7 +872,7 @@ export struct CipherDetailPage {
 
       // 地址2
       CipherDetailTextItem({
-        label: '地址 2',
+        label: $r('app.string.cipher_address2'),
         content: this.cipher.identity?.address2 ?? '',
         isEditable: this.isEditable,
         onValueChange: (value: string) => {
@@ -959,7 +884,7 @@ export struct CipherDetailPage {
 
       // 地址3
       CipherDetailTextItem({
-        label: '地址 3',
+        label: $r('app.string.cipher_address3'),
         content: this.cipher.identity?.address3 ?? '',
         isEditable: this.isEditable,
         onValueChange: (value: string) => {
@@ -971,7 +896,7 @@ export struct CipherDetailPage {
 
       // 市/镇
       CipherDetailTextItem({
-        label: '市/镇',
+        label: $r('app.string.cipher_city'),
         content: this.cipher.identity?.city ?? '',
         isEditable: this.isEditable,
         onValueChange: (value: string) => {
@@ -983,7 +908,7 @@ export struct CipherDetailPage {
 
       // 州/省
       CipherDetailTextItem({
-        label: '州/省',
+        label: $r('app.string.cipher_state'),
         content: this.cipher.identity?.state ?? '',
         isEditable: this.isEditable,
         onValueChange: (value: string) => {
@@ -995,7 +920,7 @@ export struct CipherDetailPage {
 
       // 邮政编码
       CipherDetailTextItem({
-        label: '邮政编码',
+        label: $r('app.string.cipher_postal_code'),
         content: this.cipher.identity?.postalCode ?? '',
         isEditable: this.isEditable,
         onValueChange: (value: string) => {
@@ -1007,7 +932,7 @@ export struct CipherDetailPage {
 
       // 国家
       CipherDetailTextItem({
-        label: '国家',
+        label: $r('app.string.cipher_country'),
         content: this.cipher.identity?.country ?? '',
         isEditable: this.isEditable,
         onValueChange: (value: string) => {
@@ -1025,7 +950,7 @@ export struct CipherDetailPage {
   @Builder
   buildSecureNoteSection() {
     Column() {
-      Text('安全笔记')
+      Text($r('app.string.vault_type_note'))
         .fontSize(16)
         .fontWeight(FontWeight.Medium)
         .margin({ bottom: 12 })
@@ -1038,7 +963,7 @@ export struct CipherDetailPage {
   @Builder
   buildCustomFieldsSection() {
     Column() {
-      Text('自定义字段')
+      Text($r('app.string.cipher_custom_fields'))
         .fontSize(16)
         .fontWeight(FontWeight.Medium)
         .margin({ bottom: 12 })
@@ -1073,7 +998,7 @@ export struct CipherDetailPage {
       Logger.info(`Cipher ${this.cipher.id} deleted successfully`);
 
       // 显示成功提示
-      IBestToast.show('删除成功');
+      IBestToast.show($r('app.string.common_success'));
 
       if (changedCipher) {
         VaultChangeNotifier.setUpdatedCipher(changedCipher);
@@ -1089,7 +1014,7 @@ export struct CipherDetailPage {
       Logger.error('Failed to delete cipher:', error);
 
       // 显示失败提示
-      IBestToast.show(`删除失败, 错误信息: ${ErrorMessageUtil.getMessage(error as Object)}`);
+      IBestToast.show($r('app.string.error_delete_failed'));
 
       this.showDeleteDialog = false;
       return false;
@@ -1099,7 +1024,9 @@ export struct CipherDetailPage {
   private getFieldValue(field: CipherField): string {
     let returnStr: string = '';
     if (field.type == CipherFieldType.BOOL) {
-      (field.value == 'true') ? returnStr = '是' : returnStr = '否';
+      returnStr = field.value == 'true' ?
+        (this.getUIContext().getHostContext()?.resourceManager.getStringSync($r('app.string.common_yes')) ?? '') :
+        (this.getUIContext().getHostContext()?.resourceManager.getStringSync($r('app.string.common_no')) ?? '');
     } else {
       returnStr = field.value;
     }

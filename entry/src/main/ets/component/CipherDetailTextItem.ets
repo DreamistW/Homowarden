@@ -7,7 +7,7 @@ import { AdaptiveIconButton } from './AdaptiveButton';
 @Component
 export struct CipherDetailTextItem {
   // 文本标题
-  @Prop label: string;
+  @Prop label: ResourceStr;
   // 显示文本内容
   @Prop content: string;
   // 是否显示敏感信息（控制明文/星号切换）
@@ -17,7 +17,7 @@ export struct CipherDetailTextItem {
   // 是否显示复制按钮
   @Prop showCopyButton: boolean = true;
   // 占位符样式
-  @Prop placeholder: string = '••••••••';
+  @Prop placeholder: ResourceStr = '••••••••';
   // 是否编辑模式
   @Prop isEditable: boolean = false;
   // 是否只能输入数字
@@ -32,7 +32,7 @@ export struct CipherDetailTextItem {
       Text(this.label)
         .fontSize(14)
         .fontColor('#666666')
-        .width(80)
+        .width(112)
 
       if (this.isEditable) {
         TextInput({ text: this.content })
@@ -148,7 +148,7 @@ export struct CipherDetailTextItem {
       const pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, text);
       const systemPasteboard = pasteboard.getSystemPasteboard();
       await systemPasteboard.setData(pasteData);
-      IBestToast.show('已复制');
+      IBestToast.show($r('app.string.totp_copied'));
     } catch (error) {
       const err = error as BusinessError;
       Logger.error(`Failed to paste, error message: ${err.message}}`);
@@ -159,7 +159,7 @@ export struct CipherDetailTextItem {
     try {
       const context = getContext(this) as common.UIAbilityContext;
       if (!context) {
-        IBestToast.show('无法跳转到网站');
+        IBestToast.show($r('app.string.error_open_website'));
         return;
       }
 
@@ -175,11 +175,11 @@ export struct CipherDetailTextItem {
       };
       context.startAbility(want).catch((err: Error) => {
         Logger.error(`Failed to open uri. Error: ${err.message}`);
-        IBestToast.show(`无法跳转到网站, 错误信息: ${err.message}`);
+        IBestToast.show($r('app.string.error_open_website'));
       });
     } catch (err) {
       Logger.error(`Failed to open uri. Error: ${JSON.stringify(err)}`);
-      IBestToast.show(`无法跳转到网站, 错误信息: ${JSON.stringify(err)}`);
+      IBestToast.show($r('app.string.error_open_website'));
     }
   }
 

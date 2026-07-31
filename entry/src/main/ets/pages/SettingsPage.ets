@@ -22,6 +22,7 @@ import { AntiPeepUtil } from '../utils/AntiPeepUtil';
 
 @Component
 export struct SettingsPage {
+  @StorageLink('localeRevision') @Watch('handleLocaleRevision') localeRevision: number = 0;
   @Prop @Watch('handleActiveChanged') isActive: boolean = false;
   @State autoLockEnabled: boolean = true;
   @State biometricEnabled: boolean = false;
@@ -78,7 +79,7 @@ export struct SettingsPage {
       }
     } catch (err) {
       Logger.error(`Failed to get version name. Error: ${JSON.stringify(err)}`);
-      IBestToast.show(`获取应用版本号失败, 错误信息: ${JSON.stringify(err)}`);
+      IBestToast.show($r('app.string.error_unknown'));
     }
   }
 
@@ -88,13 +89,13 @@ export struct SettingsPage {
           Column() {
             // 安全设置
             Column() {
-              Text('安全设置')
+              Text($r('app.string.settings_security'))
                 .fontSize(16)
                 .fontWeight(FontWeight.Medium)
                 .margin({ bottom: 12 })
 
               Row() {
-                Text('生物识别')
+                Text($r('app.string.settings_biometrics'))
                   .fontSize(16)
 
                 Blank()
@@ -115,13 +116,13 @@ export struct SettingsPage {
               .width('100%')
               .padding({ top: 12, bottom: 12 })
 
-              Text('开启后, 可以使用锁屏密码/指纹/人脸解锁密码库')
+              Text($r('app.string.settings_biometrics_desc'))
                 .fontSize(12)
                 .fontColor('#666666')
                 .alignSelf(ItemAlign.Start)
 
               Row() {
-                Text('自动锁定')
+                Text($r('app.string.settings_auto_lock'))
                   .fontSize(16)
 
                 Blank()
@@ -135,13 +136,13 @@ export struct SettingsPage {
               .width('100%')
               .padding({ top: 12, bottom: 12 })
 
-              Text('开启后, 应用置于后台两分钟会自动锁定密码库')
+              Text($r('app.string.settings_auto_lock_desc'))
                 .fontSize(12)
                 .fontColor('#666666')
                 .alignSelf(ItemAlign.Start)
 
               Row() {
-                Text('禁止截图和录屏')
+                Text($r('app.string.settings_block_capture'))
                   .fontSize(16)
 
                 Blank()
@@ -151,20 +152,20 @@ export struct SettingsPage {
                     this.screenCaptureProtectionEnabled = isOn;
                     const applied = await WindowPrivacyUtil.setScreenCaptureProtectionEnabled(isOn);
                     if (!applied) {
-                      IBestToast.show('截图录屏保护设置失败');
+                      IBestToast.show($r('app.string.error_save_failed'));
                     }
                   })
               }
               .width('100%')
               .padding({ top: 12, bottom: 12 })
 
-              Text('开启后, 登录态下所有页面会禁止截图和录屏')
+              Text($r('app.string.settings_block_capture_desc'))
                 .fontSize(12)
                 .fontColor('#666666')
                 .alignSelf(ItemAlign.Start)
 
               Row() {
-                Text('防窥保护')
+                Text($r('app.string.settings_anti_peep'))
                   .fontSize(16)
 
                 Blank()
@@ -182,14 +183,14 @@ export struct SettingsPage {
                     const enabled = await AntiPeepUtil.setProtectionEnabled(true, context);
                     this.antiPeepProtectionEnabled = enabled;
                     if (!enabled) {
-                      IBestToast.show('防窥保护设置失败');
+                      IBestToast.show($r('app.string.error_save_failed'));
                     }
                   })
               }
               .width('100%')
               .padding({ top: 12, bottom: 12 })
 
-              Text('开启后, 检测到窥屏风险时会拉起系统防窥蒙层')
+              Text($r('app.string.settings_anti_peep_desc'))
                 .fontSize(12)
                 .fontColor('#666666')
                 .alignSelf(ItemAlign.Start)
@@ -225,7 +226,7 @@ export struct SettingsPage {
 
             // 账户设置
             Column() {
-              Text('账户设置')
+              Text($r('app.string.settings_account'))
                 .fontSize(16)
                 .fontWeight(FontWeight.Medium)
                 .margin({ bottom: 12 })
@@ -255,7 +256,7 @@ export struct SettingsPage {
               // })
 
               Row() {
-                Text('已登录: ')
+                Text($r('app.string.settings_logged_in_as'))
                   .fontSize(16)
 
                 Blank()
@@ -268,7 +269,7 @@ export struct SettingsPage {
               .padding({ top: 12, bottom: 12 })
 
               Row() {
-                Text('服务器: ')
+                Text($r('app.string.settings_server'))
                   .fontSize(16)
 
                 Blank()
@@ -284,7 +285,7 @@ export struct SettingsPage {
 
               Column() {
                 AdaptiveTextButton({
-                  text: '立即锁定',
+                  text: $r('app.string.common_lock_now'),
                   barWidth: 150,
                   barHeight: 50,
                   fontSize: 18,
@@ -295,12 +296,12 @@ export struct SettingsPage {
 
                 Blank()
 
-                Text('卸载本应用前请务必注销登录, 切记')
+                Text($r('app.string.settings_logout_warning'))
                   .fontSize(12)
                   .fontColor('#666666')
 
                 AdaptiveTextButton({
-                  text: '注销',
+                  text: $r('app.string.unlock_logout'),
                   barWidth: 150,
                   barHeight: 50,
                   fontSize: 18,
@@ -329,13 +330,13 @@ export struct SettingsPage {
 
             // 关于
             Column() {
-              Text('关于')
+              Text($r('app.string.settings_about'))
                 .fontSize(16)
                 .fontWeight(FontWeight.Medium)
                 .margin({ bottom: 12 })
 
               Row() {
-                Text('版本')
+                Text($r('app.string.common_version'))
                   .fontSize(16)
 
                 Blank()
@@ -348,7 +349,7 @@ export struct SettingsPage {
               .padding({ top: 12, bottom: 12 })
 
               Row() {
-                Text('作者邮箱')
+                Text($r('app.string.settings_author_email'))
                   .fontSize(16)
 
                 Blank()
@@ -365,12 +366,12 @@ export struct SettingsPage {
               .padding({ top: 12, bottom: 12 })
 
               Row() {
-                Text('ICP备案号')
+                Text($r('app.string.settings_registration'))
                   .fontSize(16)
 
                 Blank()
 
-                Text('粤ICP备2021153836号-4A')
+                Text($r('app.string.settings_registration_value'))
                   .fontSize(16)
                   .fontColor('#007DFF')
                   .decoration({ type: TextDecorationType.Underline })
@@ -399,7 +400,7 @@ export struct SettingsPage {
     try {
       const context = getContext(this) as common.UIAbilityContext;
       if (!context) {
-        IBestToast.show('无法打开页面');
+        IBestToast.show($r('app.string.error_open_website'));
         return;
       }
       const want: Want = {
@@ -407,11 +408,11 @@ export struct SettingsPage {
       };
       context.startAbility(want).catch((err: Error) => {
         Logger.error(`Failed to open page. Error: ${err.message}`);
-        IBestToast.show(`无法打开页面, 错误信息: ${err.message}`);
+        IBestToast.show($r('app.string.error_open_website'));
       });
     } catch (err) {
       Logger.error(`Failed to open page. Error: ${JSON.stringify(err)}`);
-      IBestToast.show(`无法打开页面, 错误信息: ${JSON.stringify(err)}`);
+      IBestToast.show($r('app.string.error_open_website'));
     }
   }
 
@@ -419,7 +420,7 @@ export struct SettingsPage {
     try {
       const context = getContext(this) as common.UIAbilityContext;
       if (!context) {
-        IBestToast.show('无法打开邮箱');
+        IBestToast.show($r('app.string.error_unknown'));
         return;
       }
       const want: Want = {
@@ -427,11 +428,11 @@ export struct SettingsPage {
       };
       context.startAbility(want).catch((err: Error) => {
         Logger.error(`Failed to open email. Error: ${err.message}`);
-        IBestToast.show(`无法打开邮箱, 错误信息: ${err.message}`);
+        IBestToast.show($r('app.string.error_unknown'));
       });
     } catch (err) {
       Logger.error(`Failed to open email. Error: ${JSON.stringify(err)}`);
-      IBestToast.show(`无法打开邮箱, 错误信息: ${JSON.stringify(err)}`);
+      IBestToast.show($r('app.string.error_unknown'));
     }
   }
 
@@ -470,6 +471,10 @@ export struct SettingsPage {
     }
   }
 
+  private handleLocaleRevision(): void {
+    this.loadServerAddress();
+  }
+
   private getServerAddressText(serverType: ServerType, serverAddress: string): string {
     if (serverType === ServerType.EU) {
       return SERVER_BASE_URL_EU;
@@ -477,7 +482,8 @@ export struct SettingsPage {
 
     if (serverType === ServerType.SELF_HOSTED) {
       const normalizedAddress = this.normalizeSelfHostedAddress(serverAddress);
-      return normalizedAddress.length > 0 ? normalizedAddress : '自托管服务器';
+      return normalizedAddress.length > 0 ? normalizedAddress :
+        (this.getUIContext().getHostContext()?.resourceManager.getStringSync($r('app.string.server_self_hosted')) ?? '');
     }
 
     return SERVER_BASE_URL_US;
@@ -505,7 +511,7 @@ export struct SettingsPage {
         retryCount++;
       }
       if (!randData) {
-        IBestToast.show('生物识别初始化失败');
+        IBestToast.show($r('app.string.unlock_biometric_start_failed'));
         this.biometricEnabled = false;
         return;
       }
@@ -518,8 +524,10 @@ export struct SettingsPage {
       };
 
       // 配置认证界面
+      const authTitle: string = this.getUIContext().getHostContext()?.resourceManager
+        .getStringSync($r('app.string.unlock_auth_title')) ?? '';
       const widgetParam: userAuth.WidgetParam = {
-        title: '请进行身份认证',
+        title: authTitle,
       };
 
       // 获取认证对象
@@ -537,11 +545,11 @@ export struct SettingsPage {
             // 认证成功，更新状态
             this.biometricEnabled = true;
             this.updateBiometricAuthStatus(true);
-            IBestToast.show('生物识别已启用');
+            IBestToast.show($r('app.string.common_success'));
           } else {
             // 认证失败，关闭开关
             this.biometricEnabled = false;
-            IBestToast.show('认证失败, 生物识别未启用');
+            IBestToast.show($r('app.string.unlock_biometric_failed'));
           }
         }
       });
@@ -552,14 +560,14 @@ export struct SettingsPage {
       const err = error as BusinessError;
       Logger.error(`Failed to start biometric auth. Error: ${JSON.stringify(err)}`);
       this.biometricEnabled = false;
-      IBestToast.show(`生物识别启动失败, 错误信息: ${err.message}`);
+      IBestToast.show($r('app.string.unlock_biometric_start_failed'));
     }
   }
 
   private logout() {
     IBestDialogUtil.open({
-      title: '确认',
-      message: '确定要注销登录吗?',
+      title: $r('app.string.common_confirm'),
+      message: $r('app.string.settings_logout_confirm'),
       showCancelButton: true,
       onCancel: () => {
         return;

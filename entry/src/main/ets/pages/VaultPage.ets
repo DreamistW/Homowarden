@@ -26,6 +26,8 @@ import { MainBottomNavigation, MainTab } from '../component/MainBottomNavigation
 import { TotpListPage } from './TotpListPage';
 import { Sure2SharePage } from './Sure2Share';
 import { SettingsPage } from './SettingsPage';
+import { AppText, AppTextKey } from '../localization/AppText';
+import { AppTextResolver } from '../localization/AppTextResolver';
 
 @Builder
 export function VaultPageBuilder() {
@@ -34,6 +36,7 @@ export function VaultPageBuilder() {
 
 @Component
 struct VaultContent {
+  @StorageLink('localeRevision') @Watch('handleLocaleRevision') localeRevision: number = 0;
   @Prop @Watch('handleActivationRevision') activationRevision: number = 0;
   onVaultDataChanged: (ciphers: Cipher[], symmetricKey: string) => void = () => {};
   onNavigateToDetail: (params: CipherDetailParams) => void = () => {};
@@ -47,7 +50,7 @@ struct VaultContent {
   @State isLoading: boolean = false;
   @State showPasswordDialog: boolean = false;
   @State passwordInput: string = '';
-  @State passwordError: string = '';
+  @State passwordError: ResourceStr = '';
   @State pendingCipher: Cipher | null = null;
   groupId: string = 'filter_menu';
 
@@ -61,6 +64,12 @@ struct VaultContent {
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 0);
       void this.handleLocalVaultChange(VaultChangeNotifier.consumeChange());
     }
+  }
+
+  private handleLocaleRevision(): void {
+    this.viewModel.refreshLocale();
+    this.viewModel.filterCiphers(this.selectedType, this.searchText);
+    this.publishVaultData();
   }
 
   private publishVaultData(): void {
@@ -78,7 +87,7 @@ struct VaultContent {
       // 第一步：先加载本地数据库
       const localResult = await this.viewModel.loadCiphers(false);
       if (!localResult) {
-        IBestToast.show(this.viewModel.errorMessage);
+        IBestToast.show($r('app.string.error_load_failed'));
       }
 
       this.viewModel.filterCiphers(this.selectedType, this.searchText);
@@ -88,7 +97,7 @@ struct VaultContent {
       if (this.viewModel.allCiphers.length === 0) {
         const syncResult = await this.viewModel.loadCiphers(true);
         if (!syncResult && !this.needReLogin) {
-          IBestToast.show(this.viewModel.errorMessage);
+          IBestToast.show($r('app.string.error_load_failed'));
         }
         this.viewModel.filterCiphers(this.selectedType, this.searchText);
         this.publishVaultData();
@@ -115,7 +124,7 @@ struct VaultContent {
     } else {
       // 后台同步失败时，不影响已显示的本地数据
       if (!this.needReLogin && this.viewModel.errorMessage) {
-        IBestToast.show(`已显示本地数据，${this.viewModel.errorMessage}`);
+        IBestToast.show($r('app.string.vault_sync_failed_local'));
       }
     }
   }
@@ -126,7 +135,7 @@ struct VaultContent {
       this.viewModel.filterCiphers(this.selectedType, this.searchText);
       this.publishVaultData();
     } else {
-      IBestToast.show(this.viewModel.errorMessage);
+      IBestToast.show($r('app.string.error_load_failed'));
     }
     void this.doBackgroundSync();
   }
@@ -156,7 +165,7 @@ struct VaultContent {
     this.isLoading = true;
     const result = await this.viewModel.loadCiphers(forceSync);
     if (!result && !this.needReLogin) {
-      IBestToast.show(this.viewModel.errorMessage);
+      IBestToast.show($r('app.string.error_validation'));
     }
     this.viewModel.filterCiphers(this.selectedType, this.searchText);
     this.publishVaultData();
@@ -166,7 +175,7 @@ struct VaultContent {
   @Builder
   reLoginDialogContent() {
     Column() {
-      Text(this.viewModel.errorMessage)
+      Text($r('app.string.vault_relogin_message'))
         .margin(12)
     }
   }
@@ -174,10 +183,10 @@ struct VaultContent {
   @Builder
   passwordVerifyDialogContent() {
     Column({ space: 16 }) {
-      Text('请输入主密码以查看此密码项')
+      Text($r('app.string.totp_master_prompt'))
         .fontSize(16)
         .fontWeight(FontWeight.Medium)
-      TextInput({ placeholder: '主密码', text: this.passwordInput })
+      TextInput({ placeholder: $r('app.string.unlock_enter_master_password'), text: this.passwordInput })
         .type(InputType.Password)
         .onChange((value: string) => {
           this.passwordInput = value;
@@ -200,7 +209,7 @@ struct VaultContent {
       LoadingProgress()
         .width(40)
         .height(40)
-      Text('加载中...')
+      Text($r('app.string.common_loading'))
         .fontSize(14)
         .fontColor(Color.Gray)
         .margin({ top: 8 })
@@ -213,7 +222,7 @@ struct VaultContent {
   @Builder
   emptyContent() {
     Column() {
-      Text('无项目')
+      Text($r('app.string.vault_empty'))
         .fontSize(16)
         .fontColor(Color.Gray)
     }
@@ -276,7 +285,7 @@ struct VaultContent {
 
               IBestField({
                 value: this.searchText,
-                placeholder: "搜索密码项...",
+                placeholder: $r('app.string.vault_search_placeholder'),
                 showLabel: false,
                 hasBorder: false,
                 clearable: true,
@@ -303,7 +312,7 @@ struct VaultContent {
           // 重新登录弹框
           IBestDialog({
             visible: this.needReLogin,
-            title: '重新登录',
+            title: $r('app.string.vault_relogin_title'),
             showCancelButton: false,
             closeOnClickOverlay: false,
             defaultBuilder: (): void => this.reLoginDialogContent(),
@@ -318,7 +327,7 @@ struct VaultContent {
           // 主密码验证弹框
           IBestDialog({
             visible: this.showPasswordDialog,
-            title: '主密码验证',
+            title: $r('app.string.totp_master_title'),
             showCancelButton: true,
             closeOnClickOverlay: false,
             defaultBuilder: (): void => this.passwordVerifyDialogContent(),
@@ -384,7 +393,8 @@ struct VaultContent {
       this.showPasswordDialog = false;
       return true;
     } else {
-      this.passwordError = this.viewModel.errorMessage;
+      this.passwordError = AppTextResolver.resource(this.viewModel.errorMessage ??
+        new AppText(AppTextKey.VERIFICATION_FAILED));
       return false;
     }
   }
@@ -392,6 +402,7 @@ struct VaultContent {
 
 @Component
 export struct VaultPage {
+  @StorageLink('localeRevision') localeRevision: number = 0;
   @State selectedMainTab: MainTab = MainTab.VAULT;
   @State sharedCiphers: Cipher[] = [];
   @State sharedSymmetricKey: string = '';
@@ -402,7 +413,7 @@ export struct VaultPage {
   @State pathInfos: NavPathStack = new NavPathStack();
   historyBtn: HdsNavigationBadgeIconOptions = {
     content: {
-      label: '历史',
+      label: $r('app.string.common_history'),
       icon: $r('app.media.icon_history'),
       action: () => {
         this.pathInfos.pushPath({ name: EntryRouter.ShareHistoryPage });
@@ -410,17 +421,17 @@ export struct VaultPage {
     }
   };
 
-  private getTitle(): string {
+  private getTitle(): ResourceStr {
     if (this.selectedMainTab === MainTab.TOTP) {
-      return '验证码';
+      return $r('app.string.nav_totp');
     }
     if (this.selectedMainTab === MainTab.SHARE) {
-      return '安心分享';
+      return $r('app.string.nav_share');
     }
     if (this.selectedMainTab === MainTab.SETTINGS) {
-      return '设置';
+      return $r('app.string.nav_settings');
     }
-    return '密码库';
+    return $r('app.string.nav_vault');
   }
 
   private selectTab(tab: MainTab): void {
@@ -443,7 +454,7 @@ export struct VaultPage {
 
   private addCipher(): void {
     if (this.sharedSymmetricKey.length === 0) {
-      this.getUIContext().getPromptAction().showToast({ message: '密码库仍在加载，请稍候' });
+      this.getUIContext().getPromptAction().showToast({ message: $r('app.string.common_loading') });
       return;
     }
     this.pathInfos.pushPath({ name: EntryRouter.AddCipherPage, param: this.sharedSymmetricKey });
@@ -558,7 +569,7 @@ export struct VaultPage {
         (this.getUIContext().getHostContext() as common.UIAbilityContext)?.terminateSelf();
       } else {
         this.exitTime = currentTime;
-        this.getUIContext().getPromptAction().showToast({ message: '再按一次退出' });
+        this.getUIContext().getPromptAction().showToast({ message: $r('app.string.common_back_exit') });
       }
       return true;
     })

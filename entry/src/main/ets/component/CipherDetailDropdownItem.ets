@@ -3,9 +3,9 @@ import { IBestDropdownItem, IBestDropdownMenu, IBestDropdownMenuOption } from '@
 @Component
 export struct CipherDetailDropdownItem {
   // 文本标题
-  @Prop label: string;
+  @Prop label: ResourceStr;
   // 显示文本内容
-  @Prop content: string;
+  @Prop content: ResourceStr;
   // 下拉菜单选项
   @Prop dropdownOptions: IBestDropdownMenuOption[];
   // 下拉菜单组ID
@@ -22,7 +22,7 @@ export struct CipherDetailDropdownItem {
       Text(this.label)
         .fontSize(14)
         .fontColor('#666666')
-        .width(80)
+        .width(112)
 
       if (this.isEditable) {
         // 编辑模式：显示下拉菜单
@@ -40,7 +40,7 @@ export struct CipherDetailDropdownItem {
             })
           }
         }
-        .width('75%')
+        .layoutWeight(1)
       } else {
         // 非编辑模式：显示文本
         Text(this.content)

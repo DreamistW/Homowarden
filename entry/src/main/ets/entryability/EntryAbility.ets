@@ -1,4 +1,4 @@
-import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
+import { AbilityConstant, Configuration, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { IBestInit } from '@ibestservices/ibest-ui';
@@ -6,10 +6,16 @@ import { DataPreferences } from '@abner/datastore';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
 import { ShareDatabaseUtil } from '../utils/ShareDatabaseUtil';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
+import { LocaleState } from '../localization/LocaleState';
 
 const DOMAIN = 0x0000;
 export default class EntryAbility extends UIAbility {
+  onConfigurationUpdate(newConfig: Configuration): void {
+    hilog.info(DOMAIN, 'locale', 'Configuration changed: %{public}s', newConfig.language ?? '');
+    LocaleState.notifyChanged();
+  }
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+    LocaleState.initialize();
     this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
     DataPreferences.getInstance().init(this.context);

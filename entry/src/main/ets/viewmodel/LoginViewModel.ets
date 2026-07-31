@@ -36,6 +36,7 @@ import { PasskeyTwoFactorUtil } from '../utils/PasskeyTwoFactorUtil';
 import { common } from '@kit.AbilityKit';
 import { getServerEndpoints } from '../network/ServerEndpointResolver';
 import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
+import { AppText, AppTextKey } from '../localization/AppText';
 
 interface LoginErrorModel {
   Message?: string;
@@ -56,6 +57,7 @@ interface LoginErrorResponseData {
 
 interface LoginErrorResponse {
   data?: LoginErrorResponseData;
+  status?: number;
 }
 
 interface LoginRequestError {
@@ -73,8 +75,8 @@ export class LoginViewModel {
   password: string = '';
   serverAddress: string = '';
   serverType: ServerType = ServerType.US;
-  errorMessage: string = '';
-  successMessage: string = '';
+  errorMessage: AppText | undefined = undefined;
+  successMessage: AppText | undefined = undefined;
   needTwoFactor: boolean = false;
   needNewDevice: boolean = false;
   twoFactorToken: string = '';
@@ -132,17 +134,17 @@ export class LoginViewModel {
   // 验证输入
   validateInput(): boolean {
     if (!this.email || !this.email.trim()) {
-      this.errorMessage = '请输入邮箱地址';
+      this.errorMessage = new AppText(AppTextKey.EMAIL_REQUIRED);
       return false;
     }
 
     if (!this.password || !this.password.trim()) {
-      this.errorMessage = '请输入密码';
+      this.errorMessage = new AppText(AppTextKey.PASSWORD_REQUIRED);
       return false;
     }
 
     if (this.serverType === ServerType.SELF_HOSTED && !this.getNormalizedServerAddress()) {
-      this.errorMessage = '请输入自托管服务器地址';
+      this.errorMessage = new AppText(AppTextKey.SERVER_REQUIRED);
       return false;
     }
 
@@ -174,7 +176,7 @@ export class LoginViewModel {
       return true;
     } catch (error) {
       Logger.error(`Prelogin failed: ${error}`);
-      this.errorMessage = '预登录失败，请检查网络连接和服务器地址';
+      this.errorMessage = new AppText(AppTextKey.PRELOGIN_FAILED);
       return false;
     }
   }
@@ -203,7 +205,7 @@ export class LoginViewModel {
           32
         );
       } else {
-        this.errorMessage = '不支持的KDF类型';
+        this.errorMessage = new AppText(AppTextKey.KDF_UNSUPPORTED);
         return false;
       }
 
@@ -211,7 +213,7 @@ export class LoginViewModel {
       return true;
     } catch (error) {
       Logger.error(`Master key derivation failed: ${error}`);
-      this.errorMessage = '主密钥派生失败';
+      this.errorMessage = new AppText(AppTextKey.MASTER_KEY_FAILED);
       return false;
     }
   }
@@ -231,7 +233,7 @@ export class LoginViewModel {
       return true;
     } catch (error) {
       Logger.error(`Master key hash failed: ${error}`);
-      this.errorMessage = '主密钥哈希失败';
+      this.errorMessage = new AppText(AppTextKey.MASTER_KEY_FAILED);
       return false;
     }
   }
@@ -255,7 +257,7 @@ export class LoginViewModel {
       this.applyRememberedTwoFactor(request);
 
       this.accessTokenResponse = await accessToken(request);
-      this.successMessage = '登录成功！';
+      this.successMessage = new AppText(AppTextKey.LOGIN_SUCCESS);
       Logger.info('Login successful, tokens received');
       return true;
     } catch (error) {
@@ -272,7 +274,8 @@ export class LoginViewModel {
       }
       const errorMessage = this.extractLoginErrorMessage(loginError);
       Logger.error(`Login failed: ${errorMessage}`);
-      this.errorMessage = `登录失败，错误信息：${errorMessage}`;
+      this.errorMessage = new AppText(errorMessage === 'invalid_credentials' ?
+        AppTextKey.INVALID_CREDENTIALS : AppTextKey.LOGIN_FAILED);
       return false;
     }
   }
@@ -295,13 +298,14 @@ export class LoginViewModel {
       };
 
       this.accessTokenResponse = await accessToken(request);
-      this.successMessage = '登录成功！';
+      this.successMessage = new AppText(AppTextKey.LOGIN_SUCCESS);
       Logger.info('Login successful, tokens received');
       return true;
     } catch (error) {
-      const errorMessage = this.extractLoginErrorMessage(error as LoginRequestError);
+      const loginError = error as LoginRequestError;
+      const errorMessage = this.extractLoginErrorMessage(loginError);
       Logger.error(`Login with 2FA failed: ${errorMessage}`);
-      this.errorMessage = `登录失败，错误信息：${errorMessage}`;
+      this.errorMessage = this.getContinuationError(loginError);
       return false;
     }
   }
@@ -322,13 +326,14 @@ export class LoginViewModel {
       };
 
       this.accessTokenResponse = await accessToken(request);
-      this.successMessage = '登录成功！';
+      this.successMessage = new AppText(AppTextKey.LOGIN_SUCCESS);
       Logger.info('Login successful, tokens received');
       return true;
     } catch (error) {
-      const errorMessage = this.extractLoginErrorMessage(error as LoginRequestError);
+      const loginError = error as LoginRequestError;
+      const errorMessage = this.extractLoginErrorMessage(loginError);
       Logger.error(`Login with new device failed: ${errorMessage}`);
-      this.errorMessage = `登录失败，错误信息：${errorMessage}`;
+      this.errorMessage = this.getContinuationError(loginError);
       return false;
     }
   }
@@ -366,7 +371,7 @@ export class LoginViewModel {
     this.twoFactorProvidersData = errorData?.TwoFactorProviders2 ?? null;
     this.availableTwoFactorProviders = this.parseSupportedTwoFactorProviders(errorData);
     if (this.availableTwoFactorProviders.length === 0) {
-      this.errorMessage = '当前账号启用了不受支持的两步验证方式';
+      this.errorMessage = new AppText(AppTextKey.TWO_FACTOR_UNSUPPORTED);
       this.needTwoFactor = false;
       return;
     }
@@ -473,12 +478,12 @@ export class LoginViewModel {
 
   async performPasskeyTwoFactor(context: common.Context): Promise<boolean> {
     if (this.twoFactorProvider !== TwoFactorProvider.WEB_AUTHN) {
-      this.errorMessage = '当前两步验证方式不是通行密钥';
+      this.errorMessage = new AppText(AppTextKey.PASSKEY_FAILED);
       return false;
     }
 
     if (!this.twoFactorProviderData) {
-      this.errorMessage = '服务端未返回可用的通行密钥验证数据';
+      this.errorMessage = new AppText(AppTextKey.PASSKEY_FAILED);
       return false;
     }
 
@@ -491,7 +496,7 @@ export class LoginViewModel {
       return true;
     } catch (error) {
       Logger.error(`Passkey two factor failed: ${error}`);
-      this.errorMessage = '通行密钥验证失败，请改用验证码或重试';
+      this.errorMessage = new AppText(AppTextKey.PASSKEY_FAILED);
       return false;
     }
   }
@@ -505,8 +510,8 @@ export class LoginViewModel {
   // 登录流程
   async login(): Promise<boolean> {
     // 清除之前的错误信息
-    this.errorMessage = '';
-    this.successMessage = '';
+    this.errorMessage = undefined;
+    this.successMessage = undefined;
 
     // 验证输入
     if (!this.validateInput()) {
@@ -551,13 +556,13 @@ export class LoginViewModel {
       return false;
     } catch (error) {
       Logger.error(`Login process failed: ${error}`);
-      this.errorMessage = '登录过程中发生未知错误';
+      this.errorMessage = new AppText(AppTextKey.LOGIN_FAILED);
       return false;
     }
   }
 
   async continueLogin(): Promise<boolean> {
-    this.errorMessage = '';
+    this.errorMessage = undefined;
     try {
       let loginSuccess: boolean = false;
       if (this.needTwoFactor) {
@@ -565,7 +570,7 @@ export class LoginViewModel {
       } else if (this.needNewDevice) {
         loginSuccess = await this.performLoginWithNewDevice();
       } else {
-        this.errorMessage = '当前没有待完成的登录验证';
+        this.errorMessage = new AppText(AppTextKey.VERIFICATION_REQUIRED);
         return false;
       }
       if (!loginSuccess) {
@@ -576,7 +581,7 @@ export class LoginViewModel {
     } catch (error) {
       const errorMessage = ErrorMessageUtil.getMessage(error as Object);
       Logger.error(`Login continuation failed: ${errorMessage}`);
-      this.errorMessage = `登录失败，错误信息：${errorMessage}`;
+      this.errorMessage = new AppText(AppTextKey.LOGIN_FAILED);
       return false;
     }
   }
@@ -647,7 +652,7 @@ export class LoginViewModel {
   private extractLoginErrorMessage(error: LoginRequestError): string {
     const errorData = error.response?.data;
     if (errorData?.error_description === 'invalid_username_or_password') {
-      return '用户名或密码不正确，请重试';
+      return 'invalid_credentials';
     }
 
     const serverMessage = this.getErrorModelMessage(errorData) || errorData?.message || errorData?.error_description;
@@ -659,7 +664,34 @@ export class LoginViewModel {
       return error.message;
     }
 
-    return '请检查邮箱、密码和服务器连接后重试';
+    return 'login_failed';
+  }
+
+  private getContinuationError(error: LoginRequestError): AppText {
+    const status: number | undefined = error.response?.status;
+    const message: string = error.message?.toLowerCase() ?? '';
+    if (message.includes('timeout')) {
+      return new AppText(AppTextKey.TIMEOUT_ERROR);
+    }
+    if (error.response === undefined) {
+      return new AppText(AppTextKey.NETWORK_ERROR);
+    }
+    const errorData: LoginErrorResponseData | undefined = error.response.data;
+    if (errorData?.error_description === 'invalid_username_or_password') {
+      return new AppText(AppTextKey.INVALID_CREDENTIALS);
+    }
+    if (this.isInvalidVerificationCodeError(errorData)) {
+      return new AppText(AppTextKey.CODE_INVALID);
+    }
+    return new AppText(AppTextKey.LOGIN_FAILED);
+  }
+
+  private isInvalidVerificationCodeError(errorData: LoginErrorResponseData | undefined): boolean {
+    const serverMessage: string = (this.getErrorModelMessage(errorData) || errorData?.message ||
+      errorData?.error_description || '').toLowerCase();
+    return serverMessage.includes('verification code') || serverMessage.includes('two-factor token') ||
+      serverMessage.includes('two factor token') || serverMessage.includes('new device otp') ||
+      serverMessage.includes('invalid otp');
   }
 
   private getErrorModelMessage(errorData?: LoginErrorResponseData): string {
@@ -672,12 +704,12 @@ export class LoginViewModel {
 
   // 清除错误信息
   clearError(): void {
-    this.errorMessage = '';
+    this.errorMessage = undefined;
   }
 
   // 清除成功信息
   clearSuccess(): void {
-    this.successMessage = '';
+    this.successMessage = undefined;
   }
 
   // 复制当前状态到新的实例
@@ -719,8 +751,8 @@ export class LoginViewModel {
     this.password = '';
     this.serverAddress = '';
     this.serverType = ServerType.US;
-    this.errorMessage = '';
-    this.successMessage = '';
+    this.errorMessage = undefined;
+    this.successMessage = undefined;
     this.kdfType = 0;
     this.kdfIterations = 0;
     this.kdfMemory = 0;
@@ -795,7 +827,8 @@ export class LoginViewModel {
       return await sendEmailLogin(request);
     } catch (error) {
       const errorMessage = ErrorMessageUtil.getMessage(error as Object);
-      this.errorMessage = `发送验证码失败，错误信息：${errorMessage}`;
+      Logger.error(`Send email login failed: ${errorMessage}`);
+      this.errorMessage = new AppText(AppTextKey.CODE_SEND_FAILED);
       return false;
     }
   }
@@ -809,7 +842,8 @@ export class LoginViewModel {
       return await resendNewDeviceOtp(request);
     } catch (error) {
       const errorMessage = ErrorMessageUtil.getMessage(error as Object);
-      this.errorMessage = `发送验证码失败，错误信息：${errorMessage}`;
+      Logger.error(`Resend new device OTP failed: ${errorMessage}`);
+      this.errorMessage = new AppText(AppTextKey.CODE_SEND_FAILED);
       return false;
     }
   }

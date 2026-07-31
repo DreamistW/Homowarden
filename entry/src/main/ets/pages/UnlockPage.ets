@@ -53,7 +53,7 @@ export struct UnlockPage {
         //   .fontWeight(FontWeight.Medium)
         //   .margin({ bottom: 80 })
 
-        Text('密码库已锁定, 请输入主密码')
+        Text($r('app.string.unlock_locked_prompt'))
           .fontSize(14)
           .fontColor('#666666')
           .margin({
@@ -74,8 +74,8 @@ export struct UnlockPage {
         Column({ space: 6 }) {
           // 密码解锁
           AdaptiveTextButton({
-            text: '主密码解锁',
-            barWidth: 150,
+            text: $r('app.string.unlock_master_password'),
+            barWidth: 240,
             barHeight: 50,
             fontSize: 18,
             contentPadding: 6,
@@ -86,8 +86,8 @@ export struct UnlockPage {
 
           // 生物识别解锁
           AdaptiveTextButton({
-            text: '生物识别解锁',
-            barWidth: 150,
+            text: $r('app.string.unlock_biometrics'),
+            barWidth: 240,
             barHeight: 50,
             fontSize: 18,
             contentPadding: 6,
@@ -96,15 +96,15 @@ export struct UnlockPage {
                 // 点击解锁按钮拉起生物认证
                 this.startBiometricAuth();
               } else {
-                IBestToast.show('未开启生物识别');
+                IBestToast.show($r('app.string.unlock_biometrics_disabled'));
               }
             }
           })
 
           // 注销
           AdaptiveTextButton({
-            text: '注销',
-            barWidth: 150,
+            text: $r('app.string.unlock_logout'),
+            barWidth: 240,
             barHeight: 50,
             fontSize: 18,
             contentPadding: 6,
@@ -183,7 +183,7 @@ export struct UnlockPage {
       } else {
         this.exitTime = currentTime;
         this.getUIContext().getPromptAction().showToast({
-          message: "再按一次退出"
+          message: $r('app.string.common_back_exit')
         });
       }
       return true;
@@ -192,7 +192,7 @@ export struct UnlockPage {
 
   async startPasswordAuth() {
     if (!this.masterPassword || this.masterPassword.length === 0) {
-      IBestToast.show('请输入主密码');
+      IBestToast.show($r('app.string.unlock_enter_master_password'));
       return;
     }
 
@@ -201,7 +201,7 @@ export struct UnlockPage {
       const kdfParamStr: string = queryAssetSync(KDF_PARAM_KEY);
 
       if (!kdfParamStr) {
-        IBestToast.show('获取参数失败, 请重新登录');
+        IBestToast.show($r('app.string.unlock_parameters_failed'));
         this.pathInfos.replacePath({ name: "LoginPage" });
       }
 
@@ -209,7 +209,7 @@ export struct UnlockPage {
       const storedMasterKey = queryAssetSync(MASTER_KEY);
       const email = queryAssetSync(EMAIL_KEY);
       if (!storedMasterKey) {
-        IBestToast.show('获取参数失败, 请重新登录');
+        IBestToast.show($r('app.string.unlock_parameters_failed'));
         this.pathInfos.replacePath({ name: "LoginPage" });
       }
 
@@ -236,7 +236,7 @@ export struct UnlockPage {
           32
         );
       } else {
-        IBestToast.show('获取参数失败, 请重新登录');
+        IBestToast.show($r('app.string.unlock_parameters_failed'));
         this.pathInfos.replacePath({ name: "LoginPage" });
       }
 
@@ -253,12 +253,12 @@ export struct UnlockPage {
           this.pathInfos.pop();
         }
       } else {
-        IBestToast.show('主密码错误');
+        IBestToast.show($r('app.string.unlock_wrong_password'));
         return;
       }
     } catch (error) {
       Logger.error(`Master password verification failed: ${error}`);
-      IBestToast.show('验证失败，请重试');
+      IBestToast.show($r('app.string.unlock_verification_failed'));
       return;
     }
   }
@@ -278,7 +278,7 @@ export struct UnlockPage {
         retryCount++;
       }
       if (!randData) {
-        IBestToast.show('生物识别初始化失败');
+        IBestToast.show($r('app.string.unlock_biometric_start_failed'));
         return;
       }
 
@@ -290,8 +290,10 @@ export struct UnlockPage {
       };
 
       // 配置认证界面
+      const authTitle: string = this.getUIContext().getHostContext()?.resourceManager
+        .getStringSync($r('app.string.unlock_auth_title')) ?? '';
       const widgetParam: userAuth.WidgetParam = {
-        title: '请进行身份认证',
+        title: authTitle,
       };
 
       // 获取认证对象
@@ -318,7 +320,7 @@ export struct UnlockPage {
             }
           } else {
             // 认证失败，显示提示
-            IBestToast.show('生物认证失败');
+            IBestToast.show($r('app.string.unlock_biometric_failed'));
           }
         }
       });
@@ -328,7 +330,7 @@ export struct UnlockPage {
     } catch (error) {
       const err = error as BusinessError;
       Logger.error(`Failed to start biometric auth. Error: ${JSON.stringify(err)}`);
-      IBestToast.show('生物识别启动失败');
+      IBestToast.show($r('app.string.unlock_biometric_start_failed'));
     }
   }
 }

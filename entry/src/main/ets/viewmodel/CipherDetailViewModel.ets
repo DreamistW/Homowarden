@@ -218,7 +218,7 @@ export class CipherDetailViewModel {
   async updateCipher(cipher: Cipher): Promise<Cipher> {
     try {
       if (!this.isCipherDecrypted) {
-        throw new Error('密码项尚未成功解密，禁止保存');
+        throw new Error('cipher_not_decrypted');
       }
       // 构建加密的密码项
       const encryptedCipher = await this.buildEncryptedCipher(cipher);
@@ -283,29 +283,15 @@ export class CipherDetailViewModel {
 
   private applyUpdatedCipherMetadata(cipher: Cipher, updatedCipher: Cipher): void {
     cipher.lastKnownRevisionDate = updatedCipher.revisionDate;
-    cipher.revisionDate = this.formatDateTime(updatedCipher.revisionDate);
+    cipher.revisionDate = updatedCipher.revisionDate;
     if (updatedCipher.creationDate) {
-      cipher.creationDate = this.formatDateTime(updatedCipher.creationDate);
+      cipher.creationDate = updatedCipher.creationDate;
     }
-    cipher.deletedDate = updatedCipher.deletedDate ? this.formatDateTime(updatedCipher.deletedDate) : null;
+    cipher.deletedDate = updatedCipher.deletedDate || null;
     cipher.archivedDate = updatedCipher.archivedDate || null;
     cipher.folderId = updatedCipher.folderId;
     cipher.organizationId = updatedCipher.organizationId;
     cipher.collectionIds = updatedCipher.collectionIds || cipher.collectionIds || [];
-  }
-
-  private formatDateTime(dateStr: string): string {
-    if (!dateStr) {
-      return '---';
-    }
-    const date = new Date(dateStr);
-    const year = date.getFullYear();
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const day = date.getDate().toString().padStart(2, '0');
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    const seconds = date.getSeconds().toString().padStart(2, '0');
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
   }
 
   /**
@@ -535,7 +521,7 @@ export class CipherDetailViewModel {
       await moveCipherToRecycler(cipher.id);
       const deletedDate = DeviceUtil.getISOTimestamp();
       await this.updateSoftDeletedCipherInLocalDatabase(cipher.id, deletedDate);
-      cipher.deletedDate = this.formatDateTime(deletedDate);
+      cipher.deletedDate = deletedDate;
       return cipher;
     } catch (error) {
       const errorMessage = ErrorMessageUtil.getMessage(error as Object);
@@ -647,10 +633,10 @@ export class CipherDetailViewModel {
     cipher.deletedDate = null;
     if (restoredCipher.revisionDate) {
       cipher.lastKnownRevisionDate = restoredCipher.revisionDate;
-      cipher.revisionDate = this.formatDateTime(restoredCipher.revisionDate);
+      cipher.revisionDate = restoredCipher.revisionDate;
     }
     if (restoredCipher.creationDate) {
-      cipher.creationDate = this.formatDateTime(restoredCipher.creationDate);
+      cipher.creationDate = restoredCipher.creationDate;
     }
     cipher.archivedDate = restoredCipher.archivedDate === undefined ? cipher.archivedDate || null : restoredCipher.archivedDate;
     cipher.folderId = restoredCipher.folderId === undefined ? cipher.folderId : restoredCipher.folderId;

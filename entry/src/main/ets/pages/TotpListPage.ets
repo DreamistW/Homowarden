@@ -1,6 +1,8 @@
 import { Cipher, CipherDetailParams } from '../model/CipherModels';
 import { TotpListItem } from '../component/TotpListItem';
 import { TotpListViewModel } from '../viewmodel/TotpListViewModel';
+import { AppText, AppTextKey } from '../localization/AppText';
+import { AppTextResolver } from '../localization/AppTextResolver';
 import { IBestDialog } from '@ibestservices/ibest-ui';
 
 @Component
@@ -15,7 +17,7 @@ export struct TotpListPage {
   @State isLoading: boolean = true;
   @State showPasswordDialog: boolean = false;
   @State passwordInput: string = '';
-  @State passwordError: string = '';
+  @State passwordError: ResourceStr = '';
   @State pendingCipher: Cipher | null = null;
   private timerId: number = -1;
   private loadedRevision: number = -1;
@@ -97,7 +99,7 @@ export struct TotpListPage {
     Column() {
       if (this.isLoading) {
         Column() {
-          Text('加载中...')
+          Text($r('app.string.common_loading'))
             .fontSize(16)
             .fontColor('#666666')
         }
@@ -111,7 +113,7 @@ export struct TotpListPage {
             .height(80)
             .fillColor('#CCCCCC')
             .margin({ bottom: 16 })
-          Text('暂无验证码')
+          Text($r('app.string.totp_empty'))
             .fontSize(16)
             .fontColor('#999999')
             .textAlign(TextAlign.Center)
@@ -141,7 +143,7 @@ export struct TotpListPage {
 
       IBestDialog({
         visible: this.showPasswordDialog,
-        title: '主密码验证',
+        title: $r('app.string.totp_master_title'),
         showCancelButton: true,
         closeOnClickOverlay: false,
         defaultBuilder: (): void => this.passwordVerifyDialogContent(),
@@ -170,17 +172,18 @@ export struct TotpListPage {
       this.showPasswordDialog = false;
       return true;
     }
-    this.passwordError = this.viewModel.errorMessage;
+    this.passwordError = AppTextResolver.resource(this.viewModel.errorMessage ??
+      new AppText(AppTextKey.VERIFICATION_FAILED));
     return false;
   }
 
   @Builder
   passwordVerifyDialogContent() {
     Column({ space: 16 }) {
-      Text('请输入主密码以查看此密码项')
+      Text($r('app.string.totp_master_prompt'))
         .fontSize(16)
         .fontWeight(FontWeight.Medium)
-      TextInput({ placeholder: '主密码', text: this.passwordInput })
+      TextInput({ placeholder: $r('app.string.unlock_enter_master_password'), text: this.passwordInput })
         .type(InputType.Password)
         .onChange((value: string) => {
           this.passwordInput = value;

@@ -5,6 +5,7 @@ import { queryAssetSync } from '../utils/AssetUtil';
 import { CipherItemType, DBTableName, EMAIL_KEY, KDF_PARAM_KEY, MASTER_KEY } from '../utils/Constants';
 import { CryptoUtil } from '../utils/CryptoUtil';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
+import { AppText, AppTextKey } from '../localization/AppText';
 
 export class TotpListViewModel {
   allCiphers: Cipher[] = [];
@@ -13,7 +14,7 @@ export class TotpListViewModel {
   // 对称密钥
   symmetricKey: string = '';
   // 错误信息
-  errorMessage: string = '';
+  errorMessage: AppText | undefined = undefined;
 
   async loadLogins() {
     // 遍历所有密码项
@@ -28,7 +29,7 @@ export class TotpListViewModel {
 
   async verifyMasterPassword(passwordInput: string): Promise<boolean> {
     if (!passwordInput || passwordInput.length === 0) {
-      this.errorMessage = '请输入主密码';
+      this.errorMessage = new AppText(AppTextKey.MASTER_PASSWORD_REQUIRED);
       return false;
     }
 
@@ -36,7 +37,7 @@ export class TotpListViewModel {
       // 获取存储的 KDF 参数
       const kdfParamStr: string = queryAssetSync(KDF_PARAM_KEY);
       if (!kdfParamStr) {
-        this.errorMessage = '无法获取 KDF 参数，请重新登录';
+        this.errorMessage = new AppText(AppTextKey.PARAMETERS_FAILED);
         return false;
       }
 
@@ -45,7 +46,7 @@ export class TotpListViewModel {
       const email = queryAssetSync(EMAIL_KEY);
 
       if (!storedMasterKey) {
-        this.errorMessage = '无法获取主密钥，请重新登录';
+        this.errorMessage = new AppText(AppTextKey.PARAMETERS_FAILED);
         return false;
       }
 
@@ -72,7 +73,7 @@ export class TotpListViewModel {
           32
         );
       } else {
-        this.errorMessage = '不支持的 KDF 类型';
+        this.errorMessage = new AppText(AppTextKey.KDF_UNSUPPORTED);
         return false;
       }
 
@@ -80,12 +81,12 @@ export class TotpListViewModel {
       if (derivedMasterKey === storedMasterKey) {
         return true;
       } else {
-        this.errorMessage = '主密码错误';
+        this.errorMessage = new AppText(AppTextKey.MASTER_PASSWORD_WRONG);
         return false;
       }
     } catch (error) {
       Logger.error(`Master password verification failed: ${error}`);
-      this.errorMessage = '验证失败，请重试';
+      this.errorMessage = new AppText(AppTextKey.VERIFICATION_FAILED);
       return false;
     }
   }

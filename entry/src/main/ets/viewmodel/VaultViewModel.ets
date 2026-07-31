@@ -1,5 +1,5 @@
 import { getAllCiphers } from '../network/CipherApi';
-import { Cipher } from '../model/CipherModels';
+import { Cipher, CipherDisplayNameKind, CipherDisplaySubtitleKind } from '../model/CipherModels';
 import { Logger } from '@nzy/logger';
 import {
   CipherItemType,
@@ -19,6 +19,9 @@ import { util } from '@kit.ArkTS';
 import { CryptoUtil } from '../utils/CryptoUtil';
 import { PreloginResponse } from '../model/Prelogin';
 import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
+import { AppOptionFactory } from '../localization/AppOptionFactory';
+import { AppText, AppTextKey } from '../localization/AppText';
+import { LocaleUtil } from '../localization/LocaleUtil';
 
 /**
  * 密码库ViewModel
@@ -32,7 +35,7 @@ export class VaultViewModel {
   // 加载状态
   isLoading: boolean = false;
   // 错误信息
-  errorMessage: string = '';
+  errorMessage: AppText | undefined = undefined;
   // 重新登录回调
   onReLoginRequired?: () => void;
   // 类型统计
@@ -47,7 +50,7 @@ export class VaultViewModel {
    */
   async loadCiphers(forceSync: boolean = false): Promise<boolean> {
     try {
-      this.errorMessage = '';
+      this.errorMessage = undefined;
 
       if (forceSync) {
         this.isLoading = true;
@@ -60,7 +63,7 @@ export class VaultViewModel {
       return true;
     } catch (error) {
       Logger.error(`Failed to load ciphers: ${error}`);
-      this.errorMessage = `加载密码项失败, 错误信息: ${error.message}`;
+      this.errorMessage = new AppText(AppTextKey.LOAD_FAILED);
       return false;
     } finally {
       this.isLoading = false;
@@ -119,11 +122,11 @@ export class VaultViewModel {
       const businessError = error as BusinessError;
       const errorMessage = ErrorMessageUtil.getMessage(error as Object);
       Logger.error(`Failed to sync ciphers from server: ${errorMessage}`);
-      this.errorMessage = `获取密码项失败, 错误信息: ${errorMessage}`;
+      this.errorMessage = new AppText(AppTextKey.LOAD_FAILED);
 
       // 检查是否是认证错误（需要重新登录）
       if (businessError.message.includes('401') || businessError.message.includes('403')) {
-        this.errorMessage = '登录已过期，请重新登录';
+        this.errorMessage = new AppText(AppTextKey.AUTH_EXPIRED);
         this.handleReLoginRequired();
       }
       return false;
@@ -158,7 +161,7 @@ export class VaultViewModel {
    */
   async syncCiphersInBackground(shouldApplyResult?: () => boolean): Promise<boolean> {
     try {
-      this.errorMessage = '';
+      this.errorMessage = undefined;
       const didApplySync = await this.syncCiphersFromServer(shouldApplyResult);
       if (!didApplySync) {
         if (shouldApplyResult && !shouldApplyResult()) {
@@ -177,7 +180,7 @@ export class VaultViewModel {
     } catch (error) {
       const errorMessage = ErrorMessageUtil.getMessage(error as Object);
       Logger.error(`Background sync failed: ${errorMessage}`);
-      this.errorMessage = `加载同步结果失败, 错误信息: ${errorMessage}`;
+      this.errorMessage = new AppText(AppTextKey.LOAD_FAILED);
       return false;
     }
   }
@@ -213,21 +216,22 @@ export class VaultViewModel {
         secureNote: null,
         card: null
       };
-      // 格式化日期时间
-      cipher.creationDate = this.formatDateTime(cipher.creationDate);
-      cipher.revisionDate = this.formatDateTime(cipher.revisionDate);
-      if (cipher.deletedDate != null) {
-        cipher.deletedDate = this.formatDateTime(cipher.deletedDate);
-      }
+      cipher.displayNameKind = CipherDisplayNameKind.USER_VALUE;
+      cipher.displaySubtitleKind = CipherDisplaySubtitleKind.USER_VALUE;
       try {
         const cipherKey = await CryptoUtil.decryptCipherKey(cipher.key, this.symmetricKey);
         cipher.name = await CryptoUtil.decryptField(cipher.name, cipherKey);
         cipher.subtitle = await this.getSubtitle(cipher, cipherKey);
+        if (!cipher.subtitle) {
+          cipher.displaySubtitleKind = this.getTypeSubtitleKind(cipher.type);
+        }
         cipher.notes = await CryptoUtil.decryptField(cipher.notes as string, cipherKey);
       } catch (error) {
         Logger.error(`Failed to decrypt cipher ${cipher.id}: ${error}`);
-        cipher.name = '无法解密的条目';
-        cipher.subtitle = '解密失败';
+        cipher.name = '';
+        cipher.subtitle = '';
+        cipher.displayNameKind = CipherDisplayNameKind.DECRYPTION_FAILED;
+        cipher.displaySubtitleKind = CipherDisplaySubtitleKind.DECRYPTION_FAILED;
         cipher.notes = null;
         cipher.edit = false;
       }
@@ -244,7 +248,7 @@ export class VaultViewModel {
       if (!b.name) {
         return -1;
       }
-      return a.name.localeCompare(b.name, 'zh-CN');
+      return a.name.localeCompare(b.name, LocaleUtil.getLanguage());
     })
 
     return ciphers;
@@ -406,7 +410,7 @@ export class VaultViewModel {
       Logger.info(`Cipher stats: ${JSON.stringify(stats)}`);
     } catch (error) {
       Logger.error(`Failed to get cipher stats: ${error}`);
-      this.errorMessage = `获取密码项统计失败, 错误信息: ${JSON.stringify(error)}`;
+      this.errorMessage = new AppText(AppTextKey.LOAD_FAILED);
       Promise.reject(error);
     }
     return stats;
@@ -452,6 +456,9 @@ export class VaultViewModel {
   }
 
   private buildListCipherFromPlainCipher(cipher: Cipher): Cipher {
+    const identityFirstName: string = cipher.identity?.firstName ?? '';
+    const identityLastName: string = cipher.identity?.lastName ?? '';
+    const subtitle: string = this.getPlainSubtitle(cipher);
     return {
       id: cipher.id,
       type: cipher.type,
@@ -483,7 +490,12 @@ export class VaultViewModel {
       key: cipher.key || null,
       encryptedFor: cipher.encryptedFor || null,
       reprompt: cipher.reprompt,
-      subtitle: this.getPlainSubtitle(cipher)
+      subtitle: subtitle,
+      displayNameKind: CipherDisplayNameKind.USER_VALUE,
+      displaySubtitleKind: subtitle.length > 0 ? CipherDisplaySubtitleKind.USER_VALUE :
+        this.getTypeSubtitleKind(cipher.type),
+      identityFirstName: identityFirstName,
+      identityLastName: identityLastName
     };
   }
 
@@ -497,10 +509,9 @@ export class VaultViewModel {
     if (cipher.type == CipherItemType.IDENTITY) {
       const firstName = cipher.identity?.firstName || '';
       const lastName = cipher.identity?.lastName || '';
-      const fullName = `${firstName} ${lastName}`.trim();
-      return fullName || this.getTypeName(cipher);
+      return LocaleUtil.formatIdentityName(firstName, lastName);
     }
-    return this.getTypeName(cipher);
+    return '';
   }
 
   private sortCiphersByName(ciphers: Cipher[]): Cipher[] {
@@ -514,38 +525,15 @@ export class VaultViewModel {
       if (!b.name) {
         return -1;
       }
-      return a.name.localeCompare(b.name, 'zh-CN');
+      return a.name.localeCompare(b.name, LocaleUtil.getLanguage());
     });
     return ciphers;
   }
 
   // 构建筛选选项
   buildFilterOptions() {
-    this.filterOptions = [];
-    // 基础类型，包括全部、登录项、安全笔记、卡片、联系人、收藏、回收站
-    this.filterOptions.push({ text: '全部(' + this.stats.total + ')', value: FilterType.ALL });
-    this.filterOptions.push({ text: '登录(' + this.stats.login + ')', value: FilterType.LOGINS });
-    this.filterOptions.push({ text: '笔记(' + this.stats.note + ')', value: FilterType.NOTES });
-    this.filterOptions.push({ text: '支付卡(' + this.stats.card + ')', value: FilterType.CARDS });
-    this.filterOptions.push({ text: '身份(' + this.stats.identity + ')', value: FilterType.IDENTITIES });
-    this.filterOptions.push({ text: '收藏(' + this.stats.favorite + ')', value: FilterType.FAVORITE });
-    this.filterOptions.push({ text: '回收站(' + this.stats.deleted + ')', value: FilterType.DELETED });
-    // TODO: 添加文件夹筛选
-  }
-
-  // 格式化日期时间
-  private formatDateTime(dateStr: string): string {
-    if (!dateStr) {
-      return '---';
-    }
-    const date = new Date(dateStr);
-    const year = date.getFullYear();
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const day = date.getDate().toString().padStart(2, '0');
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    const seconds = date.getSeconds().toString().padStart(2, '0');
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    this.filterOptions = AppOptionFactory.vaultFilters(this.stats.total, this.stats.login, this.stats.note,
+      this.stats.card, this.stats.identity, this.stats.favorite, this.stats.deleted);
   }
 
   // 写入密码项副标题
@@ -570,34 +558,48 @@ export class VaultViewModel {
         DatabaseUtil.getInstance().querySingleData(DBTableName.IDENTITIES, 'cipher_id', cipher.id, 'first_name');
       const encLastName =
         DatabaseUtil.getInstance().querySingleData(DBTableName.IDENTITIES, 'cipher_id', cipher.id, 'last_name');
-      if (encFirstName != '' && encLastName != '') {
-        const firstName = await CryptoUtil.decryptField(encFirstName as string, cipherKey);
-        const lastName = await CryptoUtil.decryptField(encLastName as string, cipherKey);
-        return `${firstName} ${lastName}`;
+      if (encFirstName != '' || encLastName != '') {
+        const firstName = encFirstName != '' ? await CryptoUtil.decryptField(encFirstName as string, cipherKey) : '';
+        const lastName = encLastName != '' ? await CryptoUtil.decryptField(encLastName as string, cipherKey) : '';
+        cipher.identityFirstName = firstName;
+        cipher.identityLastName = lastName;
+        return LocaleUtil.formatIdentityName(firstName, lastName);
       }
     }
-    return this.getTypeName(cipher);
+    return '';
   }
 
   // 返回类型名称
-  getTypeName(cipher: Cipher): string {
-    switch (cipher.type) {
+  private getTypeSubtitleKind(type: CipherItemType): CipherDisplaySubtitleKind {
+    switch (type) {
       case CipherItemType.LOGIN:
-        return '登录';
+        return CipherDisplaySubtitleKind.LOGIN;
       case CipherItemType.NOTE:
-        return '安全笔记';
+        return CipherDisplaySubtitleKind.NOTE;
       case CipherItemType.CARD:
-        return '卡片';
+        return CipherDisplaySubtitleKind.CARD;
       case CipherItemType.IDENTITY:
-        return '身份信息';
+        return CipherDisplaySubtitleKind.IDENTITY;
       default:
-        return '未知';
+        return CipherDisplaySubtitleKind.UNKNOWN;
     }
+  }
+
+  refreshLocale(): void {
+    for (const cipher of this.allCiphers) {
+      if (cipher.type === CipherItemType.IDENTITY &&
+        cipher.displaySubtitleKind === CipherDisplaySubtitleKind.USER_VALUE &&
+        cipher.identityFirstName !== undefined && cipher.identityLastName !== undefined) {
+        cipher.subtitle = LocaleUtil.formatIdentityName(cipher.identityFirstName, cipher.identityLastName);
+      }
+    }
+    this.allCiphers = this.sortCiphersByName([...this.allCiphers]);
+    this.buildFilterOptions();
   }
 
   async verifyMasterPassword(passwordInput: string): Promise<boolean> {
     if (!passwordInput || passwordInput.length === 0) {
-      this.errorMessage = '请输入主密码';
+      this.errorMessage = new AppText(AppTextKey.MASTER_PASSWORD_REQUIRED);
       return false;
     }
 
@@ -605,7 +607,7 @@ export class VaultViewModel {
       // 获取存储的 KDF 参数
       const kdfParamStr: string = queryAssetSync(KDF_PARAM_KEY);
       if (!kdfParamStr) {
-        this.errorMessage = '无法获取 KDF 参数，请重新登录';
+        this.errorMessage = new AppText(AppTextKey.PARAMETERS_FAILED);
         return false;
       }
 
@@ -614,7 +616,7 @@ export class VaultViewModel {
       const email = queryAssetSync(EMAIL_KEY);
 
       if (!storedMasterKey) {
-        this.errorMessage = '无法获取主密钥，请重新登录';
+        this.errorMessage = new AppText(AppTextKey.PARAMETERS_FAILED);
         return false;
       }
 
@@ -641,7 +643,7 @@ export class VaultViewModel {
           32
         );
       } else {
-        this.errorMessage = '不支持的 KDF 类型';
+        this.errorMessage = new AppText(AppTextKey.KDF_UNSUPPORTED);
         return false;
       }
 
@@ -649,12 +651,12 @@ export class VaultViewModel {
       if (derivedMasterKey === storedMasterKey) {
         return true;
       } else {
-        this.errorMessage = '主密码错误';
+        this.errorMessage = new AppText(AppTextKey.MASTER_PASSWORD_WRONG);
         return false;
       }
     } catch (error) {
       Logger.error(`Master password verification failed: ${error}`);
-      this.errorMessage = '验证失败，请重试';
+      this.errorMessage = new AppText(AppTextKey.VERIFICATION_FAILED);
       return false;
     }
   }

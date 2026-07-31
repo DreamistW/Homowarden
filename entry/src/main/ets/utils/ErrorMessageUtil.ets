@@ -24,7 +24,7 @@ interface ErrorLike {
 }
 
 export class ErrorMessageUtil {
-  static getMessage(error: Object | string | null | undefined, fallback: string = '未知错误'): string {
+  static getMessage(error: Object | string | null | undefined, fallback: string = 'error_unknown'): string {
     if (error === null || error === undefined) {
       return fallback;
     }

@@ -6,6 +6,8 @@ import { DeviceUtil } from '../utils/DeviceUtil';
 import { IBestDropdownMenuOption } from '@ibestservices/ibest-ui';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
 import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
+import { AppOptionFactory } from '../localization/AppOptionFactory';
+import { CipherDisplayMapping } from '../domain/CipherDisplayMapping';
 
 export class AddCipherViewModel {
   type: CipherItemType = CipherItemType.LOGIN;
@@ -22,29 +24,21 @@ export class AddCipherViewModel {
   // 页面状态
   submitting: boolean = false;
   errorMessage: string = '';
-  identityTitleOptions: IBestDropdownMenuOption[] =
-    [
-      { text: '无', value: IdentityTitleType.NONE },
-      { text: '先生', value: IdentityTitleType.MR },
-      { text: '夫人', value: IdentityTitleType.MRS },
-      { text: '女士', value: IdentityTitleType.MISS },
-      { text: 'Mx', value: IdentityTitleType.MX },
-      { text: '博士', value: IdentityTitleType.DR }
-    ];
-  cardBrandOptions: IBestDropdownMenuOption[] =
-    [
-      { text: '无', value: CardBrandType.NONE },
-      { text: 'Visa', value: CardBrandType.VISA },
-      { text: 'MasterCard', value: CardBrandType.MASTER },
-      { text: 'American Express', value: CardBrandType.AME },
-      { text: 'Discover', value: CardBrandType.DISCOVER },
-      { text: 'Diners Club', value: CardBrandType.DINERS },
-      { text: 'JCB', value: CardBrandType.JCB },
-      { text: 'Maestro', value: CardBrandType.MAESTRO },
-      { text: 'UnionPay', value: CardBrandType.UNIONPAY },
-      { text: 'RuPay', value: CardBrandType.RUPAY },
-      { text: '其他', value: CardBrandType.OTHER },
-    ];
+  identityTitleOptions: IBestDropdownMenuOption[] = AppOptionFactory.identityTitles();
+  cardBrandOptions: IBestDropdownMenuOption[] = AppOptionFactory.cardBrands();
+
+  refreshLocalizedOptions(): void {
+    this.identityTitleOptions = AppOptionFactory.identityTitles();
+    this.cardBrandOptions = AppOptionFactory.cardBrands();
+  }
+
+  setIdentityTitle(type: IdentityTitleType): void {
+    this.identityItem.title = CipherDisplayMapping.writeIdentityTitle(type);
+  }
+
+  setCardBrand(type: CardBrandType): void {
+    this.cardItem.brand = CipherDisplayMapping.writeCardBrand(type);
+  }
 
   canSave(): boolean {
     return this.name.trim().length > 0;
@@ -262,8 +256,8 @@ export class AddCipherViewModel {
       viewPassword: createdCipher.viewPassword,
       folderId: createdCipher.folderId,
       organizationId: createdCipher.organizationId,
-      creationDate: this.formatDateTime(createdCipher.creationDate),
-      revisionDate: this.formatDateTime(revisionDate),
+      creationDate: createdCipher.creationDate,
+      revisionDate: revisionDate,
       lastKnownRevisionDate: revisionDate,
       deletedDate: null,
       archivedDate: createdCipher.archivedDate || null,
@@ -334,25 +328,11 @@ export class AddCipherViewModel {
     };
   }
 
-  private formatDateTime(dateStr: string): string {
-    if (!dateStr) {
-      return '---';
-    }
-    const date = new Date(dateStr);
-    const year = date.getFullYear();
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const day = date.getDate().toString().padStart(2, '0');
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    const seconds = date.getSeconds().toString().padStart(2, '0');
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-  }
-
   // 提交新建密码项
   async submitCreate(): Promise<Cipher | null> {
     this.errorMessage = '';
     if (!this.canSave()) {
-      this.errorMessage = '请填写名称';
+      this.errorMessage = 'cipher_name_required';
       return null;
     }
     try {
@@ -362,7 +342,9 @@ export class AddCipherViewModel {
       await DatabaseUtil.getInstance().saveCipherToDatabase(createdCipher);
       return this.buildCreatedPlainCipher(createdCipher);
     } catch (err) {
-      this.errorMessage = `创建失败, 错误信息: ${ErrorMessageUtil.getMessage(err as Object)}`;
+      const diagnosticMessage = ErrorMessageUtil.getMessage(err as Object);
+      console.error(`Create cipher failed: ${diagnosticMessage}`);
+      this.errorMessage = 'error_save_failed';
       return null;
     } finally {
       this.submitting = false;

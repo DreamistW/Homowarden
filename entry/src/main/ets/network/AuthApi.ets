@@ -119,7 +119,7 @@ export async function sendEmailLogin(request: SendEmailLoginRequest): Promise<bo
     if (response.status === 200) {
       return true;
     }
-    throw new Error(`发送验证码失败，HTTP ${response.status}`);
+    throw new Error(`send_email_login_failed_http_${response.status}`);
   }).catch((error: BusinessError) => {
     Logger.error("Failed to send email request, error message: " + error.message);
     return Promise.reject(error);
@@ -139,7 +139,7 @@ export async function resendNewDeviceOtp(request: ResendNewDeviceOtpRequest): Pr
     if (response.status === 200) {
       return true;
     }
-    throw new Error(`发送验证码失败，HTTP ${response.status}`);
+    throw new Error(`resend_new_device_otp_failed_http_${response.status}`);
   }).catch((error: BusinessError) => {
     Logger.error("Failed to resend new device OTP, error message: " + error.message);
     return Promise.reject(error);

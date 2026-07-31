@@ -1,5 +1,20 @@
 import { CipherFieldType, CipherItemType } from '../utils/Constants';
 
+export enum CipherDisplayNameKind {
+  USER_VALUE = 0,
+  DECRYPTION_FAILED = 1
+}
+
+export enum CipherDisplaySubtitleKind {
+  USER_VALUE = 0,
+  DECRYPTION_FAILED = 1,
+  LOGIN = 2,
+  NOTE = 3,
+  CARD = 4,
+  IDENTITY = 5,
+  UNKNOWN = 6
+}
+
 /**
  * 密码项（Cipher）数据模型
  */
@@ -35,6 +50,10 @@ export interface Cipher {
   encryptedFor?: string | null; // 被加密目标用户
   reprompt: number; // 是否需要验证主密码才能查看
   subtitle?: string; // 副标题，显示在密码库界面
+  displayNameKind?: CipherDisplayNameKind;
+  displaySubtitleKind?: CipherDisplaySubtitleKind;
+  identityFirstName?: string;
+  identityLastName?: string;
 }
 
 /**
