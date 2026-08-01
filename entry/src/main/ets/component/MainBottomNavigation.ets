@@ -1,3 +1,4 @@
+/** 主页面底部导航对应的固定页签。 */
 export enum MainTab {
   VAULT = 0,
   TOTP = 1,
@@ -5,6 +6,7 @@ export enum MainTab {
   SETTINGS = 3
 }
 
+/** 展示主页面固定页签并向父组件回传选择结果。 */
 @Component
 export struct MainBottomNavigation {
   @Prop selectedMainTab: MainTab = MainTab.VAULT;

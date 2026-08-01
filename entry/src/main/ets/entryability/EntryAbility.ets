@@ -11,9 +11,11 @@ const DOMAIN = 0x0000;
 export default class EntryAbility extends UIAbility {
   onConfigurationUpdate(newConfig: Configuration): void {
     hilog.info(DOMAIN, 'locale', 'Configuration changed: %{public}s', newConfig.language ?? '');
+    // 系统资源会自行切换语言，修订号用于通知已挂载页面重新解析派生文案。
     LocaleState.notifyChanged();
   }
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+    // 必须先创建全局语言修订状态，页面的 @StorageLink 才能稳定订阅。
     LocaleState.initialize();
     this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');

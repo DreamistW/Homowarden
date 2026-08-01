@@ -1,5 +1,6 @@
 import { i18n } from '@kit.LocalizationKit';
 
+/** 提供与当前系统语言相关的请求头、日期和姓名格式化能力。 */
 export class LocaleUtil {
   static getLanguage(): string {
     const language: string = i18n.System.getSystemLanguage();
@@ -10,6 +11,7 @@ export class LocaleUtil {
     const language: string = LocaleUtil.getLanguage();
     const separator: number = language.indexOf('-');
     if (separator > 0) {
+      // 同时携带完整语言标签和较低权重的基础语言，便于服务端降级匹配。
       const baseLanguage: string = language.substring(0, separator);
       return `${language},${baseLanguage};q=0.9`;
     }
@@ -39,6 +41,7 @@ export class LocaleUtil {
 
   static formatIdentityName(firstName: string, lastName: string): string {
     const language: string = LocaleUtil.getLanguage().toLowerCase();
+    // 中日韩姓名通常姓在前，其他语言沿用名在前的顺序。
     if (language.startsWith('zh') || language.startsWith('ja') || language.startsWith('ko')) {
       return `${lastName}${firstName}`.trim();
     }

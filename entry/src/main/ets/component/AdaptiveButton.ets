@@ -11,6 +11,7 @@ function getButtonContainerHeight(buttonHeight: number, contentPadding: number =
   return getButtonContainerSize(buttonHeight, contentPadding) + barBottomMargin;
 }
 
+/** 使用应用主题色的自适应文本按钮。 */
 @Component
 export struct AdaptiveTextButton {
   text: ResourceStr = '';
@@ -43,6 +44,7 @@ export struct AdaptiveTextButton {
   }
 }
 
+/** 使用应用主题色并提供无障碍标签的圆形图标按钮。 */
 @Component
 export struct AdaptiveIconButton {
   icon: Resource = $r('app.media.icon_add');
@@ -82,6 +84,7 @@ export struct AdaptiveIconButton {
   }
 }
 
+/** 绑定菜单选项的自适应文本按钮。 */
 @Component
 export struct AdaptiveMenuTextButton {
   text: ResourceStr = '';
@@ -112,6 +115,7 @@ export struct AdaptiveMenuTextButton {
   }
 }
 
+/** 通过系统安全控件读取剪贴板内容的自适应粘贴按钮。 */
 @Component
 export struct AdaptivePasteButton {
   barWidth: number = 150;
@@ -138,6 +142,7 @@ export struct AdaptivePasteButton {
         .width(this.barWidth)
         .height(this.barHeight)
         .onClick((event: ClickEvent, result: PasteButtonOnClickResult) => {
+          // 仅在系统安全控件授权成功后读取剪贴板。
           if (PasteButtonOnClickResult.SUCCESS === result) {
             pasteboard.getSystemPasteboard()
               .getData((err: BusinessError, pasteData: pasteboard.PasteData) => {

@@ -101,6 +101,7 @@ export struct LoginPage {
       if (this.viewModel.twoFactorProvider == TwoFactorProvider.EMAIL) {
         Button($r('app.string.login_send_email_code'))
           .onClick(async () => {
+            // 请求未结束前禁用按钮，避免并发发送多个邮箱验证码。
             this.pendingEmailLogin = true;
             const result = await this.viewModel.doSendEmailLogin();
             if (!result) {
@@ -140,6 +141,7 @@ export struct LoginPage {
 
       Button($r('app.string.login_send_email_code'))
         .onClick(async () => {
+          // 新设备验证码重发与 2FA 邮件发送共享防重入状态。
           this.pendingEmailLogin = true;
           const result = await this.viewModel.doResendNewDeviceOtp();
           if (!result) {
@@ -292,6 +294,7 @@ export struct LoginPage {
               return true;
             }
             if (this.viewModel.twoFactorProvider === TwoFactorProvider.WEB_AUTHN) {
+              // Passkey 必须先完成系统认证，再继续服务端 2FA 登录流程。
               const context = this.getUIContext().getHostContext() as common.Context;
               const passkeyResult = await this.viewModel.performPasskeyTwoFactor(context);
               if (!passkeyResult) {
@@ -317,6 +320,7 @@ export struct LoginPage {
               return false;
             }
             this.isNeed2FA = false;
+            // 异步校验和导航成功后才允许 AppDialog 真正关闭。
             this.updateUI();
             await this.navigateToVault();
             return true;
@@ -348,6 +352,7 @@ export struct LoginPage {
               return false;
             }
             this.isNeedNewDevice = false;
+            // 保持弹窗直到验证码校验及密码库导航均完成。
             this.updateUI();
             await this.navigateToVault();
             return true;

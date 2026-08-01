@@ -57,6 +57,7 @@ struct VaultContent {
   }
 
   private handleActivationRevision(): void {
+    // 页面重新激活时消费一次本地变更，避免返回列表后重复应用同一通知。
     const result = DataPreferences.getInstance().getSync<number>(NEED_RELOAD_CIPHERS);
     if (result === 1) {
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 0);
@@ -65,6 +66,7 @@ struct VaultContent {
   }
 
   private handleLocaleRevision(): void {
+    // 语言变化后重排身份姓名并重建带数量的筛选文案。
     this.viewModel.refreshLocale();
     this.refreshFilterOptions();
     this.viewModel.filterCiphers(this.selectedType, this.searchText);
@@ -79,6 +81,7 @@ struct VaultContent {
     this.filterOptions = this.viewModel.filterOptions.slice();
   }
 
+  /** 优先展示本地数据，并按是否为空选择前台或后台同步策略。 */
   private async loadCiphersWithBackgroundSync() {
     // 设置重新登录回调
     this.viewModel.onReLoginRequired = () => {
@@ -116,6 +119,7 @@ struct VaultContent {
     }
   }
 
+  /** 静默同步服务器数据，并丢弃本地编辑发生前启动的过期结果。 */
   private async doBackgroundSync() {
     const changeRevision = VaultChangeNotifier.getChangeRevision();
     const result = await this.viewModel.syncCiphersInBackground(() => {
@@ -148,6 +152,7 @@ struct VaultContent {
   }
 
   private async handleLocalVaultChange(change: VaultLocalChange | null): Promise<void> {
+    // 先更新内存列表保证返回页面即时可见，再以数据库和后台同步结果校准。
     if (change?.type === VaultLocalChangeType.UPSERT && change.cipher) {
       this.viewModel.applyLocalCipherChange(change.cipher, this.selectedType, this.searchText);
       void this.reloadCiphersAfterLocalChange();
@@ -435,6 +440,7 @@ struct VaultContent {
   }
 }
 
+/** 承载密码库、TOTP、分享与设置页签的主页面。 */
 @Component
 export struct VaultPage {
   @StorageLink('localeRevision') localeRevision: number = 0;
@@ -498,6 +504,7 @@ export struct VaultPage {
   private updateVaultData(ciphers: Cipher[], symmetricKey: string): void {
     this.sharedCiphers = ciphers;
     this.sharedSymmetricKey = symmetricKey;
+    // 修订号让已挂载的 TOTP 页感知数组内容更新，而不依赖引用比较。
     this.vaultDataRevision++;
   }
 
@@ -611,6 +618,7 @@ export struct VaultPage {
       this.pathInfos = ctx.pathStack;
     })
     .onActive(() => {
+      // NavDestination 返回前台时通知密码库内容消费本地增删改。
       this.vaultActivationRevision++;
     })
     .onBackPressed(() => {

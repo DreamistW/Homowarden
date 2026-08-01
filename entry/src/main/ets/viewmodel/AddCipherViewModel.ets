@@ -7,6 +7,7 @@ import { DatabaseUtil } from '../utils/DatabaseUtil';
 import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
 import { CipherDisplayMapping } from '../domain/CipherDisplayMapping';
 
+/** 负责新建 Cipher 的表单状态、字段加密及本地持久化。 */
 export class AddCipherViewModel {
   type: CipherItemType = CipherItemType.LOGIN;
   // 对称密钥
@@ -196,6 +197,7 @@ export class AddCipherViewModel {
   private buildCreatedEncryptedCipher(payload: Cipher, createdCipher: Cipher): Cipher {
     const revisionDate = createdCipher.revisionDate || payload.revisionDate;
 
+    // 服务端可能只返回部分字段，缺失值必须回退到已发送的加密载荷。
     return {
       id: createdCipher.id || payload.id,
       type: createdCipher.type || payload.type,
@@ -237,6 +239,7 @@ export class AddCipherViewModel {
     const revisionDate = createdCipher.revisionDate;
     const notes = this.notes && this.notes.trim().length > 0 ? this.notes.trim() : null;
 
+    // 列表通知使用明文副本，禁止把服务端返回的密文直接展示到 UI。
     return {
       id: createdCipher.id,
       type: this.type,
@@ -318,7 +321,7 @@ export class AddCipherViewModel {
     };
   }
 
-  // 提交新建密码项
+  /** 加密并提交新条目，服务端成功后先落库再返回明文列表副本。 */
   async submitCreate(): Promise<Cipher | null> {
     this.errorMessage = '';
     if (!this.canSave()) {

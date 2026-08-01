@@ -27,6 +27,7 @@ import { LocaleUtil } from '../localization/LocaleUtil';
  * 密码库ViewModel
  */
 export class VaultViewModel {
+  // 所有实例共享同一同步 Promise，避免并发请求交错覆盖数据库。
   private static activeSyncPromise: Promise<boolean> | null = null;
   // 所有密码项
   allCiphers: Cipher[] = [];
@@ -96,6 +97,7 @@ export class VaultViewModel {
       Logger.info('Starting to sync ciphers from server...');
 
       const response = await getAllCiphers();
+      // 调用方可用修订号判定结果是否已被本地编辑淘汰。
       if (shouldApplyResult && !shouldApplyResult()) {
         Logger.info('Skip stale vault sync response');
         return false;
@@ -104,7 +106,7 @@ export class VaultViewModel {
       if (response && response.ciphers && Array.isArray(response.ciphers)) {
         Logger.info(`Received ${response.ciphers.length} ciphers from server`);
 
-        // 启用数据库外键
+        // 全量替换必须置于同一事务，任何条目失败都回滚旧密码库。
         const enableForeignKeys = `PRAGMA foreign_keys = ON`;
         await DatabaseUtil.getInstance().executeSql(enableForeignKeys);
 
@@ -234,6 +236,7 @@ export class VaultViewModel {
         Logger.error(`Failed to decrypt cipher ${cipher.id}: ${error}`);
         cipher.name = '';
         cipher.subtitle = '';
+        // 解密失败文案由 UI 按当前语言解析，不能写回为用户字段。
         cipher.displayNameKind = CipherDisplayNameKind.DECRYPTION_FAILED;
         cipher.displaySubtitleKind = CipherDisplaySubtitleKind.DECRYPTION_FAILED;
         cipher.notes = null;
@@ -463,6 +466,7 @@ export class VaultViewModel {
     const identityFirstName: string = cipher.identity?.firstName ?? '';
     const identityLastName: string = cipher.identity?.lastName ?? '';
     const subtitle: string = this.getPlainSubtitle(cipher);
+    // 本地变更传入明文对象；列表副本移除详情结构，避免与加密数据库模型混用。
     return {
       id: cipher.id,
       type: cipher.type,
@@ -534,13 +538,13 @@ export class VaultViewModel {
     return ciphers;
   }
 
-  // 构建筛选选项
+  /** 根据当前统计值重建本地化筛选选项。 */
   buildFilterOptions() {
     this.filterOptions = AppOptionFactory.vaultFilters(this.stats.total, this.stats.login, this.stats.note,
       this.stats.card, this.stats.identity, this.stats.favorite, this.stats.deleted);
   }
 
-  // 写入密码项副标题
+  /** 解密列表副标题，并保留身份姓名分量供语言切换时重排。 */
   async getSubtitle(cipher: Cipher, cipherKey: string): Promise<string> {
     // 根据不同的项目类型返回对应的副标题
     if (cipher.type == CipherItemType.LOGIN) {
@@ -573,7 +577,7 @@ export class VaultViewModel {
     return '';
   }
 
-  // 返回类型名称
+  /** 返回无用户副标题时应展示的本地化类型语义。 */
   private getTypeSubtitleKind(type: CipherItemType): CipherDisplaySubtitleKind {
     switch (type) {
       case CipherItemType.LOGIN:
@@ -589,6 +593,7 @@ export class VaultViewModel {
     }
   }
 
+  /** 刷新所有依赖语言环境的派生字段和筛选选项。 */
   refreshLocale(): void {
     for (const cipher of this.allCiphers) {
       if (cipher.type === CipherItemType.IDENTITY &&
@@ -601,6 +606,7 @@ export class VaultViewModel {
     this.buildFilterOptions();
   }
 
+  /** 使用持久化 KDF 参数重新派生主密钥，验证受保护条目的访问权限。 */
   async verifyMasterPassword(passwordInput: string): Promise<boolean> {
     if (!passwordInput || passwordInput.length === 0) {
       this.errorMessage = new AppText(AppTextKey.MASTER_PASSWORD_REQUIRED);
@@ -666,6 +672,7 @@ export class VaultViewModel {
   }
 }
 
+/** 密码库筛选菜单使用的条目数量统计。 */
 export interface CipherStats {
   total: number,
   login: number,

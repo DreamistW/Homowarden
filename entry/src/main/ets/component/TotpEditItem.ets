@@ -31,7 +31,7 @@ export struct TotpEditItem {
           if (result && result.originalValue) {
             Logger.info(`Scan result: ${result.originalValue}`);
 
-            // 尝试解析otpauth URL
+            // 只从标准 otpauth URL 提取密钥，不把完整扫码内容直接写入密码项。
             const parsed = TOTPUtil.parseOtpAuthUrl(result.originalValue);
 
             if (parsed.secret) {

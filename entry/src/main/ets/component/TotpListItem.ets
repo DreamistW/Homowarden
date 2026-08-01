@@ -20,6 +20,7 @@ export struct TotpListItem {
 
   async aboutToAppear() {
     await this.updateCode();
+    // 定时器仅属于当前组件实例，组件销毁时由 aboutToDisappear 对称释放。
     this.startTimer();
   }
 
@@ -77,7 +78,7 @@ export struct TotpListItem {
    */
   private async copyCode() {
     try {
-      // 移除空格后复制
+      // 验证码属于短期敏感数据，仅在用户主动操作时写入系统剪贴板。
       const codeToCopy = this.currentCode.replace(/\s/g, '');
       if (codeToCopy === '------') {
         AppToast.show(this.getUIContext(), $r('app.string.totp_invalid'));

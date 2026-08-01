@@ -7,6 +7,9 @@ import { CryptoUtil } from '../utils/CryptoUtil';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
 import { AppText, AppTextKey } from '../localization/AppText';
 
+/**
+ * 解密包含 TOTP 的登录项，并在查看详情前重新验证主密码。
+ */
 export class TotpListViewModel {
   allCiphers: Cipher[] = [];
   // 筛选后的密码项
@@ -16,6 +19,9 @@ export class TotpListViewModel {
   // 错误信息
   errorMessage: AppText | undefined = undefined;
 
+  /**
+   * 逐项解密登录信息，完成后仅暴露配置了 TOTP 的条目。
+   */
   async loadLogins() {
     // 遍历所有密码项
     for (const cipher of this.allCiphers) {
@@ -27,6 +33,9 @@ export class TotpListViewModel {
     this.filteredCiphers = this.allCiphers.filter(cipher => cipher.type == CipherItemType.LOGIN && cipher.login?.totp)
   }
 
+  /**
+   * 按登录时保存的 KDF 参数重新派生主密钥，不直接保存或比较主密码明文。
+   */
   async verifyMasterPassword(passwordInput: string): Promise<boolean> {
     if (!passwordInput || passwordInput.length === 0) {
       this.errorMessage = new AppText(AppTextKey.MASTER_PASSWORD_REQUIRED);

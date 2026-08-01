@@ -21,6 +21,9 @@ import { DeviceUtil } from '../utils/DeviceUtil';
 import { relationalStore } from '@kit.ArkData';
 import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
 
+/**
+ * 负责密码项详情的本地解密、远端变更及加密数据落库。
+ */
 export class CipherDetailViewModel {
   symmetricKey: string = '';
   private cipherKey: string = '';
@@ -31,6 +34,7 @@ export class CipherDetailViewModel {
    */
   async getCipherDetail(cipher: Cipher): Promise<Cipher> {
     this.isCipherDecrypted = false;
+    // 从此处开始填充供界面使用的明文对象，完成前禁止进入编辑保存流程。
     this.cipherKey = await CryptoUtil.decryptCipherKey(cipher.key, this.symmetricKey);
     // 根据类型获取详细信息
     switch (cipher.type) {
@@ -225,7 +229,7 @@ export class CipherDetailViewModel {
       // 调用 API 更新
       const updatedCipher = await updateCipherApi(cipher.id, encryptedCipher);
       Logger.info(`Cipher ${cipher.id} updated successfully`);
-      // 将更新的密码项写入数据库
+      // 本地数据库只接收加密对象，当前界面继续保留原明文对象。
       const cipherForDatabase = this.buildUpdatedEncryptedCipher(encryptedCipher, updatedCipher);
       await DatabaseUtil.getInstance().updateCipherToDatabase(cipherForDatabase);
       this.applyUpdatedCipherMetadata(cipher, cipherForDatabase);
@@ -238,6 +242,7 @@ export class CipherDetailViewModel {
   }
 
   private buildUpdatedEncryptedCipher(encryptedCipher: Cipher, updatedCipher: Cipher): Cipher {
+    // 更新接口可能只回传部分字段，缺失值必须沿用本次提交的密文而非界面明文。
     const revisionDate = updatedCipher.revisionDate || encryptedCipher.revisionDate;
     const reprompt = updatedCipher.reprompt === undefined || updatedCipher.reprompt === null
       ? encryptedCipher.reprompt
@@ -300,6 +305,7 @@ export class CipherDetailViewModel {
    * @returns 加密后的密码项
    */
   private async buildEncryptedCipher(cipher: Cipher): Promise<Cipher> {
+    // 参数 cipher 是界面编辑后的明文；返回值才允许发送到服务端或写入数据库。
     this.cipherKey = await CryptoUtil.decryptCipherKey(cipher.key, this.symmetricKey);
     // 加密名称和备注
     const encName = await CryptoUtil.encryptField(cipher.name, this.cipherKey);
@@ -544,6 +550,7 @@ export class CipherDetailViewModel {
   private async deleteFromLocalDatabase(cipherId: string): Promise<void> {
     try {
       const escapedCipherId = cipherId.replace(/'/g, "''");
+      // executeSql 无绑定参数接口，此处先转义引号以守住 SQL 文本边界。
       await DatabaseUtil.getInstance().executeSql(
         `DELETE FROM ${DBTableName.KEYS} WHERE cipher_id = '${escapedCipherId}'`
       );

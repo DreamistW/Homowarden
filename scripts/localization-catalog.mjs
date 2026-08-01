@@ -1,3 +1,5 @@
+// 此脚本会根据 base 目录生成并覆盖 en 与 zh_Hans 目录下的 string.json。
+// 缺失的中文翻译会回退到 base 文案；键一致性校验仅比较生成结果，无法发现中文漏译或译文错误。
 import fs from 'node:fs';
 import path from 'node:path';
 

@@ -41,6 +41,7 @@ export struct SettingsPage {
 
   private handleActiveChanged(): void {
     if (this.isActive) {
+      // Tabs 页面重新激活时不会重建组件，需要主动同步可能由其他页面修改的设置。
       this.refreshSettings();
     }
   }
@@ -153,6 +154,7 @@ export struct SettingsPage {
                   .accessibilityText($r('app.string.settings_block_capture'))
                   .onChange(async (isOn: boolean) => {
                     this.screenCaptureProtectionEnabled = isOn;
+                    // 先保存用户选择并尝试应用窗口属性；系统调用失败时提示用户，开关状态不回滚。
                     const applied = await WindowPrivacyUtil.setScreenCaptureProtectionEnabled(isOn);
                     if (!applied) {
                       AppToast.show(this.getUIContext(), $r('app.string.error_save_failed'));
@@ -500,7 +502,9 @@ export struct SettingsPage {
     return value;
   }
 
-  // 发起生物识别认证
+  /**
+   * 先完成一次系统认证，再持久化生物识别开关，防止未授权启用。
+   */
   startBiometricAuth() {
     try {
       const rand = cryptoFramework.createRandom();
@@ -542,7 +546,7 @@ export struct SettingsPage {
       userAuthInstance.on('result', {
         onResult: (result) => {
           Logger.info(`userAuthInstance callback result: ${JSON.stringify(result)}`);
-          // 取消订阅认证结果
+          // 结果监听为一次性订阅，及时解除可避免后续认证重复回调当前页面。
           userAuthInstance.off('result');
 
           if (result.result === userAuth.UserAuthResultCode.SUCCESS) {
@@ -579,6 +583,7 @@ export struct SettingsPage {
       primaryButton: {
         value: $r('app.string.common_confirm'),
         action: () => {
+          // 注销先清理关键资产，再按清理后的登录状态恢复窗口隐私策略。
           clearAssetAndPreferences();
           void WindowPrivacyUtil.applyForCurrentState();
           this.onLogout();

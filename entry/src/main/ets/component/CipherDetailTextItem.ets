@@ -158,6 +158,7 @@ export struct CipherDetailTextItem {
       return;
     }
     try {
+      // 密码等明文只在用户点击复制时进入系统剪贴板。
       const pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, text);
       const systemPasteboard = pasteboard.getSystemPasteboard();
       await systemPasteboard.setData(pasteData);
@@ -176,7 +177,7 @@ export struct CipherDetailTextItem {
         return;
       }
 
-      // 检查网址是否有前缀
+      // Want 需要完整 URI；兼容历史数据中未保存协议前缀的网址。
       let uri = this.content;
       if (!this.content.startsWith('http://') && !this.content.startsWith('https://')) {
         // 如果没有协议前缀，添加前缀

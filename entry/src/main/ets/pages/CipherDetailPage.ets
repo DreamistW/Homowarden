@@ -199,6 +199,7 @@ export struct CipherDetailPage {
     this.isLoading = true;
     this.isDetailLoaded = false;
     try {
+      // cipher 初始值是列表精简模型，详情加载完成后才替换为可编辑的完整明文数据。
       const cipherDetail = await this.viewModel.getCipherDetail(this.cipher);
       if (cipherDetail) {
         this.cipher = cipherDetail;
@@ -245,7 +246,7 @@ export struct CipherDetailPage {
         this.cipher.login.uris = filteredUris;
       }
 
-      // 调用 ViewModel 的 updateCipher 方法
+      // ViewModel 在内部完成明文到密文的转换，页面对象仍保持明文供后续展示。
       VaultChangeNotifier.markLocalChangePending();
       this.cipher = await this.viewModel.updateCipher(this.cipher);
       VaultChangeNotifier.setUpdatedCipher(this.cipher);
@@ -521,6 +522,7 @@ export struct CipherDetailPage {
       }
     })
     .onReady((ctx: NavDestinationContext) => {
+      // NavDestination 就绪后才能取得当前页面栈和调用方传入的密钥上下文。
       this.pathInfos = ctx.pathStack;
       const param = ctx.pathInfo.param as CipherDetailParams;
       if (param.cipher && param.cipher.id) {
@@ -1029,6 +1031,7 @@ export struct CipherDetailPage {
    */
   private async doDeleteCipher(): Promise<boolean> {
     try {
+      // 已在回收站中的条目再次删除时才执行永久删除。
       const isRealDelete = this.cipher.deletedDate ? true : false;
       VaultChangeNotifier.markLocalChangePending();
       const changedCipher = await this.viewModel.deleteCipher(this.cipher, isRealDelete);

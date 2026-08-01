@@ -5,6 +5,7 @@ import { AppText, AppTextKey } from '../localization/AppText';
 import { AppTextResolver } from '../localization/AppTextResolver';
 import { AppDialog, AppDialogAction } from '../component/AppDialog';
 
+/** 从密码库共享数据中筛选并展示 TOTP 条目的页签内容。 */
 @Component
 export struct TotpListPage {
   @Prop ciphers: Cipher[] = [];
@@ -29,6 +30,7 @@ export struct TotpListPage {
   }
 
   aboutToDisappear(): void {
+    // 页签不可见后停止秒级刷新，避免后台持续触发 UI 更新。
     this.stopTimer();
   }
 
@@ -47,6 +49,7 @@ export struct TotpListPage {
   }
 
   private async activate(): Promise<void> {
+    // 仅在密码库数据修订变化时重新解密，普通页签切换只恢复计时器。
     if (this.loadedRevision !== this.dataRevision) {
       await this.reloadCiphers();
     }
@@ -58,6 +61,7 @@ export struct TotpListPage {
     this.viewModel.allCiphers = this.ciphers;
     this.viewModel.symmetricKey = this.symmetricKey;
     await this.viewModel.loadLogins();
+    // 加载结束后记录当前修订号，避免普通页签切换重复解密同一批数据。
     this.loadedRevision = this.dataRevision;
     this.isLoading = false;
   }
@@ -80,6 +84,7 @@ export struct TotpListPage {
   }
 
   private navigateToDetail(cipher: Cipher): void {
+    // 受 reprompt 保护的条目必须先验证主密码，不能直接携带密钥进入详情页。
     if (cipher.reprompt === 1) {
       this.pendingCipher = cipher;
       this.passwordInput = '';

@@ -1,5 +1,6 @@
 import { CardBrandType, IdentityTitleType } from '../utils/Constants';
 
+/** 卡片品牌解析结果，保留无法识别的原始值以兼容历史数据。 */
 export class CardBrandMappingResult {
   type: CardBrandType;
   originalValue: string;
@@ -12,6 +13,7 @@ export class CardBrandMappingResult {
   }
 }
 
+/** 身份称谓解析结果，保留无法识别的原始值以兼容历史数据。 */
 export class IdentityTitleMappingResult {
   type: IdentityTitleType;
   originalValue: string;
@@ -24,6 +26,7 @@ export class IdentityTitleMappingResult {
   }
 }
 
+/** 在持久化字符串、业务枚举与本地化显示文本之间转换 Cipher 字段。 */
 export class CipherDisplayMapping {
   static cardBrandLabel(value: string | null | undefined): ResourceStr {
     const mapping: CardBrandMappingResult = CipherDisplayMapping.readCardBrand(value);
@@ -62,6 +65,7 @@ export class CipherDisplayMapping {
 
   static readCardBrand(value: string | null | undefined): CardBrandMappingResult {
     const original: string = value ?? '';
+    // 兼容不同客户端写入的空格、连字符、别名及旧中文值。
     const normalized: string = original.trim().toLowerCase().replace(new RegExp('[ _-]', 'g'), '');
     switch (normalized) {
       case '': return new CardBrandMappingResult(CardBrandType.NONE, original, true);
@@ -83,6 +87,7 @@ export class CipherDisplayMapping {
   }
 
   static writeCardBrand(type: CardBrandType, originalValue: string = '', changed: boolean = true): string {
+    // 未编辑时回写原值，避免把未知品牌破坏性归一化为 Other。
     if (!changed) {
       return originalValue;
     }
@@ -103,6 +108,7 @@ export class CipherDisplayMapping {
 
   static readIdentityTitle(value: string | null | undefined): IdentityTitleMappingResult {
     const original: string = value ?? '';
+    // 服务端字段可能来自其他客户端，需同时接受规范缩写和旧中文值。
     const normalized: string = original.trim().toUpperCase();
     switch (normalized) {
       case '': return new IdentityTitleMappingResult(IdentityTitleType.NONE, original, true);
@@ -121,6 +127,7 @@ export class CipherDisplayMapping {
   }
 
   static writeIdentityTitle(type: IdentityTitleType, originalValue: string = '', changed: boolean = true): string {
+    // 未编辑时保留未知称谓，确保跨客户端数据可无损往返。
     if (!changed) {
       return originalValue;
     }

@@ -33,7 +33,7 @@ export struct UnlockPage {
 
   aboutToAppear() {
     if (DataPreferences.getInstance().getSync<number>(BIOMETRIC_AUTH) == 1) {
-      // 自动拉起生物认证
+      // 页面每次出现都可能来自后台锁定，仅在已授权时自动拉起系统认证。
       this.startBiometricAuth();
     }
   }
@@ -189,6 +189,9 @@ export struct UnlockPage {
     })
   }
 
+  /**
+   * 使用保存的 KDF 参数重新派生主密钥，验证通过后按原页面栈恢复导航。
+   */
   async startPasswordAuth() {
     if (!this.masterPassword || this.masterPassword.length === 0) {
       AppToast.show(this.getUIContext(), $r('app.string.unlock_enter_master_password'));
@@ -241,6 +244,7 @@ export struct UnlockPage {
 
       // 验证派生的主密钥是否与存储的匹配
       if (derivedMasterKey === storedMasterKey) {
+        // 解锁只更新时间戳和导航状态，不把输入的主密码持久化。
         DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
         const info: NavPathInfo[] = this.pathInfos.getPathStack();
         const pathName = info[0].name;
@@ -262,7 +266,9 @@ export struct UnlockPage {
     }
   }
 
-  // 发起生物识别认证
+  /**
+   * 使用一次性随机挑战发起系统级认证，成功后恢复被锁定前的页面栈。
+   */
   startBiometricAuth() {
     try {
       const rand = cryptoFramework.createRandom();
@@ -303,7 +309,7 @@ export struct UnlockPage {
       userAuthInstance.on('result', {
         onResult: (result) => {
           Logger.info(`userAuthInstance callback result: ${JSON.stringify(result)}`);
-          // 取消订阅认证结果
+          // 结果监听为一次性订阅，页面复用时不能残留旧回调。
           userAuthInstance.off('result');
 
           if (result.result === userAuth.UserAuthResultCode.SUCCESS) {

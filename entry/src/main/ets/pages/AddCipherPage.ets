@@ -683,12 +683,16 @@ export struct AddCipherPage {
     this.allowSave = this.viewModel.canSave();
   }
 
+  /**
+   * 提交明文表单，由 ViewModel 完成加密与远端创建后再通知密码库刷新。
+   */
   private async saveCipher() {
     if (!this.allowSave) {
       AppToast.show(this.getUIContext(), $r('app.string.cipher_name_required'));
       return;
     }
     this.isSubmitting = true;
+    // 在异步创建开始前标记本地变更，避免后台同步覆盖尚未回写的结果。
     VaultChangeNotifier.markLocalChangePending();
     const createdCipher = await this.viewModel.submitCreate();
     this.isSubmitting = false;

@@ -31,7 +31,9 @@ export async function prelogin(request: PreloginRequest): Promise<PreloginRespon
 }
 
 
-// 登录接口
+/**
+ * 按身份服务约定组装表单并换取访问令牌。
+ */
 export async function accessToken(request: AccessTokenRequest): Promise<AccessTokenResponse> {
   const endpoints = await getServerEndpoints();
   const baseURL = endpoints.identityBaseUrl;
@@ -49,6 +51,7 @@ export async function accessToken(request: AccessTokenRequest): Promise<AccessTo
   ] as (keyof AccessTokenRequest)[];
 
   if (request.twoFactorToken) {
+    // 二次验证字段必须成组提交，避免服务端把空字段识别为一次无效验证。
     fields.push('twoFactorToken' as keyof AccessTokenRequest);
     fields.push('twoFactorProvider' as keyof AccessTokenRequest);
     fields.push('twoFactorRemember' as keyof AccessTokenRequest);
@@ -64,6 +67,7 @@ export async function accessToken(request: AccessTokenRequest): Promise<AccessTo
     {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
+        // auth-email 仅做协议要求的 Base64 编码，不代表对邮箱进行了加密。
         'auth-email': encodeStringToBase64(request.username),
         'origin': endpoints.vaultBaseUrl
       }

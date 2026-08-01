@@ -23,7 +23,9 @@ interface ErrorLike {
   response?: ErrorHttpResponse | null;
 }
 
+/** 从不同网络错误结构中提取诊断信息和候选用户消息。 */
 export class ErrorMessageUtil {
+  /** 提取供 UI 展示的候选消息并限制长度，不序列化完整响应对象。 */
   static getUserMessage(error: Object | string | null | undefined, fallback: string = ''): string {
     if (error === null || error === undefined) {
       return fallback;
@@ -42,6 +44,7 @@ export class ErrorMessageUtil {
     return fallback;
   }
 
+  /** 提取完整诊断消息，供日志记录使用。 */
   static getMessage(error: Object | string | null | undefined, fallback: string = 'error_unknown'): string {
     if (error === null || error === undefined) {
       return fallback;

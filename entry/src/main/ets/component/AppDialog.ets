@@ -1,8 +1,10 @@
+/** 应用弹窗支持的关闭动作。 */
 export enum AppDialogAction {
   CANCEL,
   CONFIRM
 }
 
+/** 提供异步关闭校验和重复提交保护的通用模态弹窗。 */
 @Component
 export struct AppDialog {
   @Link visible: boolean;
@@ -14,6 +16,7 @@ export struct AppDialog {
   @State submitting: boolean = false;
 
   private async close(action: AppDialogAction): Promise<void> {
+    // 异步校验完成前禁止再次关闭，避免确认操作被并发执行。
     if (this.submitting) {
       return;
     }
@@ -24,6 +27,7 @@ export struct AppDialog {
         this.visible = false;
       }
     } catch (error) {
+      // 关闭钩子异常时保留弹窗，由调用方继续展示原有输入和错误状态。
       return;
     } finally {
       this.submitting = false;
@@ -80,6 +84,7 @@ export struct AppDialog {
       .bindContentCover($$this.visible, this.modalContent(), {
         modalTransition: ModalTransition.NONE,
         onWillDismiss: (action: DismissContentCoverAction) => {
+          // 系统侧滑等 dismiss 动作也必须经过统一的取消校验。
           if (this.showCancelButton) {
             void this.close(AppDialogAction.CANCEL);
           }

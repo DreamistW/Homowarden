@@ -29,6 +29,7 @@ struct History {
     this.appearanceGeneration++;
     const currentGeneration: number = this.appearanceGeneration;
     await this.loadHistory();
+    // 异步查询返回时页面可能已离开或再次进入，旧生命周期不得启动计时器。
     if (!this.isPageActive || currentGeneration !== this.appearanceGeneration) {
       return;
     }
@@ -36,11 +37,13 @@ struct History {
       clearInterval(this.refreshTimer);
     }
     this.refreshTimer = setInterval(() => {
+      // 相对时间依赖当前时刻，通过替换数组引用触发列表每分钟重绘。
       this.filteredList = [...this.filteredList];
     }, 60000);
   }
 
   aboutToDisappear(): void {
+    // 递增代次同时使尚未结束的 aboutToAppear 异步流程失效。
     this.isPageActive = false;
     this.appearanceGeneration++;
     if (this.refreshTimer !== -1) {

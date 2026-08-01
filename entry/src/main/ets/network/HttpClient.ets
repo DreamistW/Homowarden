@@ -15,6 +15,9 @@ import { util } from '@kit.ArkTS';
 import { ServerConfig } from '../model/ServerConfig';
 import { LocaleUtil } from '../localization/LocaleUtil';
 
+/**
+ * 创建带客户端标识、语言协商和统一错误日志的 HTTP 客户端。
+ */
 export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
   const instance = axios.create({
     baseURL,
@@ -33,6 +36,7 @@ export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
       config.headers['Accept-Language'] = LocaleUtil.getAcceptLanguage();
       // config.headers['accept'] = 'application/json';
       // config.headers['origin'] = config.baseURL
+      // 正常请求日志不记录可能包含凭据的请求头和请求体。
       Logger.info(`[HTTP] Request ${config.method?.toUpperCase()} ${config.baseURL ||
         baseURL}${config.url}`);
       // Logger.info(`[HTTP] ${config.method?.toUpperCase()} ${config.baseURL ||
@@ -77,7 +81,9 @@ export async function getServerConfig(): Promise<ServerConfig> {
   return serverConfig;
 }
 
-// 处理表单内容
+/**
+ * 仅序列化白名单字段，避免把请求模型中的非协议字段一并发送。
+ */
 export function toFormUrlEncoded<T extends object>(data: T, keys: (keyof T)[]): string {
   return keys
     .map(key => {
