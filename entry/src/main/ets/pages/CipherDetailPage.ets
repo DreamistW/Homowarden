@@ -11,13 +11,9 @@ import { CipherDetailTextItem } from '../component/CipherDetailTextItem';
 import { CipherDetailDropdownItem } from '../component/CipherDetailDropdownItem';
 import { TotpDisplayItem } from '../component/TotpDisplayItem';
 import { TotpEditItem } from '../component/TotpEditItem';
-import {
-  IBestCheckbox,
-  IBestDialog,
-  IBestDropdownMenuOption,
-  IBestStringNumber,
-  IBestToast
-} from '@ibestservices/ibest-ui';
+import { AppDropdownOption } from '../model/AppUiModels';
+import { AppToast } from '../utils/AppToast';
+import { AppDialog, AppDialogAction } from '../component/AppDialog';
 import { Logger } from '@nzy/logger';
 import { DataPreferences } from '@abner/datastore';
 import { hdsMaterial, HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
@@ -42,8 +38,8 @@ export struct CipherDetailPage {
   @State isEditable: boolean = false;
   @State isDetailLoaded: boolean = false;
   @State showDeleteDialog: boolean = false;
-  @State selectedCardBrand: CardBrandType | string = CardBrandType.NONE;
-  @State selectedIdentityTitle: IdentityTitleType | string = IdentityTitleType.NONE;
+  @State selectedCardBrand: CardBrandType = CardBrandType.NONE;
+  @State selectedIdentityTitle: IdentityTitleType = IdentityTitleType.NONE;
   @State editUris: CipherUri[] = [] as CipherUri[];
   @State totpSecret: string = '';
   @State showTotpSecret: boolean = false;
@@ -55,8 +51,8 @@ export struct CipherDetailPage {
   private identityTitleGroup: string = 'identityTitleSelector';
   private cardBrandGroup: string = 'cardBrandSelector';
   // 下拉菜单选项
-  private identityTitleOptions: IBestDropdownMenuOption[] = AppOptionFactory.identityTitles();
-  private cardBrandOptions: IBestDropdownMenuOption[] = AppOptionFactory.cardBrands();
+  private identityTitleOptions: AppDropdownOption[] = AppOptionFactory.identityTitles();
+  private cardBrandOptions: AppDropdownOption[] = AppOptionFactory.cardBrands();
 
   private handleLocaleRevision(): void {
     this.identityTitleOptions = AppOptionFactory.identityTitles();
@@ -80,13 +76,57 @@ export struct CipherDetailPage {
     return CipherDisplayMapping.readCardBrand(brand).type;
   }
 
+  private identityTitleFromValue(value: number): IdentityTitleType {
+    switch (value) {
+      case IdentityTitleType.MR:
+        return IdentityTitleType.MR;
+      case IdentityTitleType.MRS:
+        return IdentityTitleType.MRS;
+      case IdentityTitleType.MISS:
+        return IdentityTitleType.MISS;
+      case IdentityTitleType.MX:
+        return IdentityTitleType.MX;
+      case IdentityTitleType.DR:
+        return IdentityTitleType.DR;
+      default:
+        return IdentityTitleType.NONE;
+    }
+  }
+
+  private cardBrandFromValue(value: number): CardBrandType {
+    switch (value) {
+      case CardBrandType.VISA:
+        return CardBrandType.VISA;
+      case CardBrandType.MASTER:
+        return CardBrandType.MASTER;
+      case CardBrandType.AME:
+        return CardBrandType.AME;
+      case CardBrandType.DISCOVER:
+        return CardBrandType.DISCOVER;
+      case CardBrandType.DINERS:
+        return CardBrandType.DINERS;
+      case CardBrandType.JCB:
+        return CardBrandType.JCB;
+      case CardBrandType.MAESTRO:
+        return CardBrandType.MAESTRO;
+      case CardBrandType.UNIONPAY:
+        return CardBrandType.UNIONPAY;
+      case CardBrandType.RUPAY:
+        return CardBrandType.RUPAY;
+      case CardBrandType.OTHER:
+        return CardBrandType.OTHER;
+      default:
+        return CardBrandType.NONE;
+    }
+  }
+
   EditItemBtn: HdsNavigationBadgeIconOptions = {
     content: {
       label: $r('app.string.common_edit'),
       icon: $r('app.media.icon_edit'),
       action: () => {
         if (!this.isDetailLoaded) {
-          IBestToast.show($r('app.string.error_encryption'));
+          AppToast.show(this.getUIContext(), $r('app.string.error_encryption'));
           return;
         }
         this.isEditable = true;
@@ -184,7 +224,7 @@ export struct CipherDetailPage {
     } catch (error) {
       Logger.error('Failed to load cipher detail:', error);
       this.isEditable = false;
-      IBestToast.show($r('app.string.error_load_failed'));
+      AppToast.show(this.getUIContext(), $r('app.string.error_load_failed'));
     } finally {
       this.isLoading = false;
     }
@@ -212,12 +252,12 @@ export struct CipherDetailPage {
       // 保存成功，退出编辑模式
       this.isEditable = false;
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
-      IBestToast.show($r('app.string.common_success'));
+      AppToast.show(this.getUIContext(), $r('app.string.common_success'));
       // 重新加载密码项
       await this.loadCipherDetail();
     } catch (error) {
       Logger.error('Failed to save cipher:', error);
-      IBestToast.show($r('app.string.error_save_failed'));
+      AppToast.show(this.getUIContext(), $r('app.string.error_save_failed'));
     } finally {
       this.isSaving = false;
     }
@@ -262,10 +302,10 @@ export struct CipherDetailPage {
       VaultChangeNotifier.setUpdatedCipher(this.cipher);
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
       // 显示成功提示
-      IBestToast.show($r('app.string.common_success'));
+      AppToast.show(this.getUIContext(), $r('app.string.common_success'));
     } catch (error) {
       Logger.error('Failed to restore cipher:', error);
-      IBestToast.show($r('app.string.error_save_failed'));
+      AppToast.show(this.getUIContext(), $r('app.string.error_save_failed'));
     }
   }
 
@@ -373,17 +413,14 @@ export struct CipherDetailPage {
 
               // 主密码重新提示
               if (this.isEditable) {
-                IBestCheckbox({
-                  value: this.cipher.reprompt == 1 ? true : false,
-                  label: $r('app.string.cipher_reprompt'),
-                  onChange: (checked: boolean | IBestStringNumber) => {
-                    if (checked) {
-                      this.cipher.reprompt = 1;
-                    } else {
-                      this.cipher.reprompt = 0;
-                    }
-                  }
-                })
+                Row({ space: 8 }) {
+                  Checkbox({ name: 'reprompt', group: 'cipher' })
+                    .select(this.cipher.reprompt === 1)
+                    .onChange((checked: boolean) => {
+                      this.cipher.reprompt = checked ? 1 : 0;
+                    })
+                  Text($r('app.string.cipher_reprompt'))
+                }
               }
 
               // 元数据
@@ -449,18 +486,17 @@ export struct CipherDetailPage {
         }
 
         // 删除确认对话框
-        IBestDialog({
-          visible: this.showDeleteDialog,
+        AppDialog({
+          visible: $showDeleteDialog,
           showCancelButton: true,
           closeOnClickOverlay: false,
           title: $r('app.string.cipher_delete_title'),
-          defaultBuilder: () => this.deleteCipherConfirmDialogContent(),
-          onConfirm: async () => {
+          defaultBuilder: (): void => this.deleteCipherConfirmDialogContent(),
+          beforeClose: async (action: AppDialogAction) => {
+            if (action === AppDialogAction.CANCEL) {
+              return true;
+            }
             return await this.doDeleteCipher();
-          },
-          onCancel: () => {
-            this.showDeleteDialog = false;
-            return true;
           }
         })
       }
@@ -649,10 +685,10 @@ export struct CipherDetailPage {
         dropdownOptions: this.cardBrandOptions,
         groupId: this.cardBrandGroup,
         selectedValue: this.selectedCardBrand,
-        onValueChange: (value) => {
-          this.selectedCardBrand = value as CardBrandType;
+        onValueChange: (value: number) => {
+          this.selectedCardBrand = this.cardBrandFromValue(value);
           if (this.cipher.card) {
-            this.cipher.card.brand = CipherDisplayMapping.writeCardBrand(value as CardBrandType);
+            this.cipher.card.brand = CipherDisplayMapping.writeCardBrand(this.selectedCardBrand);
           }
         },
         isEditable: this.isEditable
@@ -726,10 +762,10 @@ export struct CipherDetailPage {
         dropdownOptions: this.identityTitleOptions,
         groupId: this.identityTitleGroup,
         selectedValue: this.selectedIdentityTitle,
-        onValueChange: (value) => {
-          this.selectedIdentityTitle = value as IdentityTitleType;
+        onValueChange: (value: number) => {
+          this.selectedIdentityTitle = this.identityTitleFromValue(value);
           if (this.cipher.identity) {
-            this.cipher.identity.title = CipherDisplayMapping.writeIdentityTitle(value as IdentityTitleType);
+            this.cipher.identity.title = CipherDisplayMapping.writeIdentityTitle(this.selectedIdentityTitle);
           }
         },
         isEditable: this.isEditable
@@ -999,7 +1035,7 @@ export struct CipherDetailPage {
       Logger.info(`Cipher ${this.cipher.id} deleted successfully`);
 
       // 显示成功提示
-      IBestToast.show($r('app.string.common_success'));
+      AppToast.show(this.getUIContext(), $r('app.string.common_success'));
 
       if (changedCipher) {
         VaultChangeNotifier.setUpdatedCipher(changedCipher);
@@ -1015,7 +1051,7 @@ export struct CipherDetailPage {
       Logger.error('Failed to delete cipher:', error);
 
       // 显示失败提示
-      IBestToast.show($r('app.string.error_delete_failed'));
+      AppToast.show(this.getUIContext(), $r('app.string.error_delete_failed'));
 
       this.showDeleteDialog = false;
       return false;

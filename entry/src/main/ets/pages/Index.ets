@@ -11,7 +11,7 @@ import {
 import { common, Want } from '@kit.AbilityKit';
 import { EntryRouter } from '../../../../EntryRouter';
 import { Logger } from '@nzy/logger';
-import { IBestToast } from '@ibestservices/ibest-ui';
+import { AppToast } from '../utils/AppToast';
 import { HdsNavigation } from '@kit.UIDesignKit';
 import { window } from '@kit.ArkUI';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
@@ -45,7 +45,7 @@ struct PrivacyDialogContent {
             };
             context.startAbility(want).catch((err: Error) => {
               Logger.error(`Failed to open url. Error: ${err.message}`);
-              IBestToast.show($r('app.string.error_open_website'));
+              AppToast.show(this.getUIContext(), $r('app.string.error_open_website'));
             });
           })
       }

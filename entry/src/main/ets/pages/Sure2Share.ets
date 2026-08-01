@@ -5,7 +5,7 @@ import { common } from '@kit.AbilityKit';
 import { inputMethod } from '@kit.IMEKit';
 import { getFullLink, getShareLink, replaceOutputText } from '../utils/ParseLinkUtil';
 import { Logger } from '@nzy/logger';
-import { IBestToast } from '@ibestservices/ibest-ui';
+import { AppToast } from '../utils/AppToast';
 import { ShareDatabaseUtil } from '../utils/ShareDatabaseUtil';
 import { AdaptiveMenuTextButton, AdaptivePasteButton, AdaptiveTextButton } from '../component/AdaptiveButton';
 
@@ -17,20 +17,20 @@ export struct Sure2SharePage {
   async convertLink() {
     const shareLink = await getShareLink(this.inputText);
     if (shareLink == "") {
-      IBestToast.show($r('app.string.share_no_link'));
+      AppToast.show(this.getUIContext(), $r('app.string.share_no_link'));
       return;
     }
     const fullLink = await getFullLink(shareLink);
     if (fullLink == "") {
-      IBestToast.show($r('app.string.error_network'));
+      AppToast.show(this.getUIContext(), $r('app.string.error_network'));
       return;
     }
     this.outputText = await replaceOutputText(this.inputText, fullLink);
     if (this.outputText == "") {
-      IBestToast.show($r('app.string.error_unknown'));
+      AppToast.show(this.getUIContext(), $r('app.string.error_unknown'));
       return;
     }
-    IBestToast.show($r('app.string.share_convert_success'));
+    AppToast.show(this.getUIContext(), $r('app.string.share_convert_success'));
     // 写入记录到数据库
     const dbUtil = ShareDatabaseUtil.getInstance();
     const item: relationalStore.ValuesBucket = {
@@ -41,24 +41,25 @@ export struct Sure2SharePage {
     dbUtil.insertData('history', item);
   }
 
-  copyLink(text: string) {
+  async copyLink(text: string): Promise<void> {
     if (text == "") {
-      IBestToast.show($r('app.string.share_convert_first'));
+      AppToast.show(this.getUIContext(), $r('app.string.share_convert_first'));
       return;
     }
     let pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, text);
     const systemPasteboard: pasteboard.SystemPasteboard = pasteboard.getSystemPasteboard();
-    systemPasteboard.setData(pasteData).catch((err: BusinessError) => {
-      Logger.error(`Failed to set paste data. Code is ${err.code}, message is ${err.message}.`);
-      IBestToast.show($r('app.string.share_copy_failed'));
-      return;
-    });
-    IBestToast.show($r('app.string.share_copy_success'));
+    try {
+      await systemPasteboard.setData(pasteData);
+      AppToast.show(this.getUIContext(), $r('app.string.share_copy_success'));
+    } catch (err) {
+      Logger.error(`Failed to set paste data: ${err}`);
+      AppToast.show(this.getUIContext(), $r('app.string.share_copy_failed'));
+    }
   }
 
   shareLink(text: string, shareLink: boolean) {
     if (text == "") {
-      IBestToast.show($r('app.string.share_convert_first'));
+      AppToast.show(this.getUIContext(), $r('app.string.share_convert_first'));
       return;
     }
     let shareData: systemShare.SharedData = new systemShare.SharedData({
@@ -73,7 +74,7 @@ export struct Sure2SharePage {
       previewMode: systemShare.SharePreviewMode.DETAIL
     }).catch((err: BusinessError) => {
       Logger.error(`Failed to show share panel. Code is ${err.code}, message is ${err.message}.`);
-      IBestToast.show($r('app.string.share_failed'));
+      AppToast.show(this.getUIContext(), $r('app.string.share_failed'));
     })
   }
 

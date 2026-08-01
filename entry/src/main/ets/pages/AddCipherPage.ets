@@ -1,5 +1,6 @@
 import { DataPreferences } from '@abner/datastore';
-import { IBestDropdownItem, IBestDropdownMenu, IBestToast } from '@ibestservices/ibest-ui';
+import { AppDropdown } from '../component/AppDropdown';
+import { AppToast } from '../utils/AppToast';
 import { TotpEditItem } from '../component/TotpEditItem';
 import {
   CardBrandType,
@@ -10,7 +11,6 @@ import {
 import { AddCipherViewModel } from '../viewmodel/AddCipherViewModel';
 import { hdsMaterial, HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
 import { VaultChangeNotifier } from '../utils/VaultChangeNotifier';
-import { CipherDisplayMapping } from '../domain/CipherDisplayMapping';
 import { AppOptionFactory } from '../localization/AppOptionFactory';
 
 @Builder
@@ -23,8 +23,8 @@ export struct AddCipherPage {
   @State viewModel: AddCipherViewModel = new AddCipherViewModel();
   @State cipherType: CipherItemType = CipherItemType.LOGIN;
   @State isSubmitting: boolean = false;
-  @State identityTitle: IdentityTitleType | string = IdentityTitleType.NONE;
-  @State cardBrand: CardBrandType | string = CardBrandType.NONE;
+  @State identityTitle: IdentityTitleType = IdentityTitleType.NONE;
+  @State cardBrand: CardBrandType = CardBrandType.NONE;
   @State totpSecret: string = '';
   allowSave: boolean = false;
   pathInfos: NavPathStack = new NavPathStack();
@@ -39,8 +39,50 @@ export struct AddCipherPage {
     }
   }
   itemTypeGroup: string = 'itemTypeSelector';
-  identityTitleGroup: string = 'identityTitleSelector';
-  cardBrandGroup: string = 'cardBrandSelector';
+
+  private identityTitleFromValue(value: number): IdentityTitleType {
+    switch (value) {
+      case IdentityTitleType.MR:
+        return IdentityTitleType.MR;
+      case IdentityTitleType.MRS:
+        return IdentityTitleType.MRS;
+      case IdentityTitleType.MISS:
+        return IdentityTitleType.MISS;
+      case IdentityTitleType.MX:
+        return IdentityTitleType.MX;
+      case IdentityTitleType.DR:
+        return IdentityTitleType.DR;
+      default:
+        return IdentityTitleType.NONE;
+    }
+  }
+
+  private cardBrandFromValue(value: number): CardBrandType {
+    switch (value) {
+      case CardBrandType.VISA:
+        return CardBrandType.VISA;
+      case CardBrandType.MASTER:
+        return CardBrandType.MASTER;
+      case CardBrandType.AME:
+        return CardBrandType.AME;
+      case CardBrandType.DISCOVER:
+        return CardBrandType.DISCOVER;
+      case CardBrandType.DINERS:
+        return CardBrandType.DINERS;
+      case CardBrandType.JCB:
+        return CardBrandType.JCB;
+      case CardBrandType.MAESTRO:
+        return CardBrandType.MAESTRO;
+      case CardBrandType.UNIONPAY:
+        return CardBrandType.UNIONPAY;
+      case CardBrandType.RUPAY:
+        return CardBrandType.RUPAY;
+      case CardBrandType.OTHER:
+        return CardBrandType.OTHER;
+      default:
+        return CardBrandType.NONE;
+    }
+  }
 
   @Builder
   private cipherTypeOption(type: CipherItemType, label: Resource) {
@@ -179,19 +221,16 @@ export struct AddCipherPage {
                 top: 12,
                 bottom: 4
               })
-            IBestDropdownMenu({ groupId: this.identityTitleGroup }) {
-              IBestDropdownItem({
-                groupId: this.identityTitleGroup,
-                options: AppOptionFactory.identityTitles(),
-                value: this.identityTitle,
-                onChange: value => {
-                  this.identityTitle = value;
-                  this.viewModel.identityItem.title =
-                    CipherDisplayMapping.writeIdentityTitle(this.identityTitle as IdentityTitleType);
-                }
-              })
-                .accessibilityText($r('app.string.cipher_identity_title'))
-            }
+            AppDropdown({
+              options: AppOptionFactory.identityTitles(),
+              value: this.identityTitle,
+              accessibilityLabel: $r('app.string.cipher_identity_title'),
+              onChange: (value: number) => {
+                this.identityTitle = this.identityTitleFromValue(value);
+                this.viewModel.setIdentityTitle(this.identityTitle);
+              }
+            })
+              .margin({ left: 16, right: 16 })
 
             // 名
             Text($r('app.string.cipher_first_name'))
@@ -511,19 +550,16 @@ export struct AddCipherPage {
                 top: 12,
                 bottom: 4
               })
-            IBestDropdownMenu({ groupId: this.cardBrandGroup }) {
-              IBestDropdownItem({
-                groupId: this.cardBrandGroup,
-                options: AppOptionFactory.cardBrands(),
-                value: this.cardBrand,
-                onChange: value => {
-                  this.cardBrand = value;
-                  this.viewModel.cardItem.brand =
-                    CipherDisplayMapping.writeCardBrand(this.cardBrand as CardBrandType);
-                }
-              })
-                .accessibilityText($r('app.string.cipher_brand'))
-            }
+            AppDropdown({
+              options: AppOptionFactory.cardBrands(),
+              value: this.cardBrand,
+              accessibilityLabel: $r('app.string.cipher_brand'),
+              onChange: (value: number) => {
+                this.cardBrand = this.cardBrandFromValue(value);
+                this.viewModel.setCardBrand(this.cardBrand);
+              }
+            })
+              .margin({ left: 16, right: 16 })
 
             // 过期月份
             Text($r('app.string.cipher_exp_month'))
@@ -649,7 +685,7 @@ export struct AddCipherPage {
 
   private async saveCipher() {
     if (!this.allowSave) {
-      IBestToast.show($r('app.string.cipher_name_required'));
+      AppToast.show(this.getUIContext(), $r('app.string.cipher_name_required'));
       return;
     }
     this.isSubmitting = true;
@@ -657,12 +693,12 @@ export struct AddCipherPage {
     const createdCipher = await this.viewModel.submitCreate();
     this.isSubmitting = false;
     if (createdCipher) {
-      IBestToast.show($r('app.string.cipher_create_success'));
+      AppToast.show(this.getUIContext(), $r('app.string.cipher_create_success'));
       VaultChangeNotifier.setUpdatedCipher(createdCipher);
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
       this.pathInfos.pop();
     } else if (this.viewModel.errorMessage && this.viewModel.errorMessage.length > 0) {
-      IBestToast.show(this.viewModel.errorMessage === 'cipher_name_required' ?
+      AppToast.show(this.getUIContext(), this.viewModel.errorMessage === 'cipher_name_required' ?
         $r('app.string.cipher_name_required') : $r('app.string.error_save_failed'));
     }
   }

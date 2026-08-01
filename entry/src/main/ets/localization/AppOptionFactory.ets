@@ -1,44 +1,46 @@
-import { IBestDropdownMenuOption } from '@ibestservices/ibest-ui';
+import { AppDropdownOption } from '../model/AppUiModels';
 import { CardBrandType, FilterType, IdentityTitleType } from '../utils/Constants';
 
 export class AppOptionFactory {
-  static identityTitles(): IBestDropdownMenuOption[] {
-    const options: IBestDropdownMenuOption[] = [];
-    options.push({ text: $r('app.string.common_none'), value: IdentityTitleType.NONE });
-    options.push({ text: $r('app.string.identity_mr'), value: IdentityTitleType.MR });
-    options.push({ text: $r('app.string.identity_mrs'), value: IdentityTitleType.MRS });
-    options.push({ text: $r('app.string.identity_ms'), value: IdentityTitleType.MISS });
-    options.push({ text: $r('app.string.identity_mx'), value: IdentityTitleType.MX });
-    options.push({ text: $r('app.string.identity_dr'), value: IdentityTitleType.DR });
+  static identityTitles(): AppDropdownOption[] {
+    const options: AppDropdownOption[] = [];
+    options.push(AppDropdownOption.create($r('app.string.common_none'), IdentityTitleType.NONE));
+    options.push(AppDropdownOption.create($r('app.string.identity_mr'), IdentityTitleType.MR));
+    options.push(AppDropdownOption.create($r('app.string.identity_mrs'), IdentityTitleType.MRS));
+    options.push(AppDropdownOption.create($r('app.string.identity_ms'), IdentityTitleType.MISS));
+    options.push(AppDropdownOption.create($r('app.string.identity_mx'), IdentityTitleType.MX));
+    options.push(AppDropdownOption.create($r('app.string.identity_dr'), IdentityTitleType.DR));
     return options;
   }
 
-  static cardBrands(): IBestDropdownMenuOption[] {
-    const options: IBestDropdownMenuOption[] = [];
-    options.push({ text: $r('app.string.common_none'), value: CardBrandType.NONE });
-    options.push({ text: $r('app.string.card_visa'), value: CardBrandType.VISA });
-    options.push({ text: $r('app.string.card_mastercard'), value: CardBrandType.MASTER });
-    options.push({ text: $r('app.string.card_amex'), value: CardBrandType.AME });
-    options.push({ text: $r('app.string.card_discover'), value: CardBrandType.DISCOVER });
-    options.push({ text: $r('app.string.card_diners'), value: CardBrandType.DINERS });
-    options.push({ text: $r('app.string.card_jcb'), value: CardBrandType.JCB });
-    options.push({ text: $r('app.string.card_maestro'), value: CardBrandType.MAESTRO });
-    options.push({ text: $r('app.string.card_unionpay'), value: CardBrandType.UNIONPAY });
-    options.push({ text: $r('app.string.card_rupay'), value: CardBrandType.RUPAY });
-    options.push({ text: $r('app.string.common_other'), value: CardBrandType.OTHER });
+  static cardBrands(): AppDropdownOption[] {
+    const options: AppDropdownOption[] = [];
+    options.push(AppDropdownOption.create($r('app.string.common_none'), CardBrandType.NONE));
+    options.push(AppDropdownOption.create($r('app.string.card_visa'), CardBrandType.VISA));
+    options.push(AppDropdownOption.create($r('app.string.card_mastercard'), CardBrandType.MASTER));
+    options.push(AppDropdownOption.create($r('app.string.card_amex'), CardBrandType.AME));
+    options.push(AppDropdownOption.create($r('app.string.card_discover'), CardBrandType.DISCOVER));
+    options.push(AppDropdownOption.create($r('app.string.card_diners'), CardBrandType.DINERS));
+    options.push(AppDropdownOption.create($r('app.string.card_jcb'), CardBrandType.JCB));
+    options.push(AppDropdownOption.create($r('app.string.card_maestro'), CardBrandType.MAESTRO));
+    options.push(AppDropdownOption.create($r('app.string.card_unionpay'), CardBrandType.UNIONPAY));
+    options.push(AppDropdownOption.create($r('app.string.card_rupay'), CardBrandType.RUPAY));
+    options.push(AppDropdownOption.create($r('app.string.common_other'), CardBrandType.OTHER));
     return options;
   }
 
   static vaultFilters(total: number, login: number, note: number, card: number, identity: number,
-    favorite: number, deleted: number): IBestDropdownMenuOption[] {
-    const options: IBestDropdownMenuOption[] = [];
-    options.push({ text: $r('app.string.vault_filter_all', total), value: FilterType.ALL });
-    options.push({ text: $r('app.string.vault_filter_logins', login), value: FilterType.LOGINS });
-    options.push({ text: $r('app.string.vault_filter_notes', note), value: FilterType.NOTES });
-    options.push({ text: $r('app.string.vault_filter_cards', card), value: FilterType.CARDS });
-    options.push({ text: $r('app.string.vault_filter_identities', identity), value: FilterType.IDENTITIES });
-    options.push({ text: $r('app.string.vault_filter_favorites', favorite), value: FilterType.FAVORITE });
-    options.push({ text: $r('app.string.vault_filter_trash', deleted), value: FilterType.DELETED });
+    favorite: number, deleted: number): AppDropdownOption[] {
+    const options: AppDropdownOption[] = [];
+    options.push(AppDropdownOption.create($r('app.string.vault_filter_all', total), FilterType.ALL, total));
+    options.push(AppDropdownOption.create($r('app.string.vault_filter_logins', login), FilterType.LOGINS, login));
+    options.push(AppDropdownOption.create($r('app.string.vault_filter_notes', note), FilterType.NOTES, note));
+    options.push(AppDropdownOption.create($r('app.string.vault_filter_cards', card), FilterType.CARDS, card));
+    options.push(AppDropdownOption.create($r('app.string.vault_filter_identities', identity), FilterType.IDENTITIES,
+      identity));
+    options.push(AppDropdownOption.create($r('app.string.vault_filter_favorites', favorite), FilterType.FAVORITE,
+      favorite));
+    options.push(AppDropdownOption.create($r('app.string.vault_filter_trash', deleted), FilterType.DELETED, deleted));
     return options;
   }
 }

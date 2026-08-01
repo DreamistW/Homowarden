@@ -3,7 +3,7 @@ import { TotpListItem } from '../component/TotpListItem';
 import { TotpListViewModel } from '../viewmodel/TotpListViewModel';
 import { AppText, AppTextKey } from '../localization/AppText';
 import { AppTextResolver } from '../localization/AppTextResolver';
-import { IBestDialog } from '@ibestservices/ibest-ui';
+import { AppDialog, AppDialogAction } from '../component/AppDialog';
 
 @Component
 export struct TotpListPage {
@@ -141,14 +141,14 @@ export struct TotpListPage {
         .padding({ left: 16, right: 16 })
       }
 
-      IBestDialog({
-        visible: this.showPasswordDialog,
+      AppDialog({
+        visible: $showPasswordDialog,
         title: $r('app.string.totp_master_title'),
         showCancelButton: true,
         closeOnClickOverlay: false,
         defaultBuilder: (): void => this.passwordVerifyDialogContent(),
         beforeClose: async (action) => {
-          if (action === 'cancel') {
+          if (action === AppDialogAction.CANCEL) {
             return true;
           }
           const result = await this.verifyMasterPassword();

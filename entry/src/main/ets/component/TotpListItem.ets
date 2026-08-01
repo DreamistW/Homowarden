@@ -1,4 +1,4 @@
-import { IBestToast } from '@ibestservices/ibest-ui';
+import { AppToast } from '../utils/AppToast';
 import { Cipher } from '../model/CipherModels';
 import { TOTPUtil } from '../utils/TOTPUtil';
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
@@ -80,18 +80,18 @@ export struct TotpListItem {
       // 移除空格后复制
       const codeToCopy = this.currentCode.replace(/\s/g, '');
       if (codeToCopy === '------') {
-        IBestToast.show($r('app.string.totp_invalid'));
+        AppToast.show(this.getUIContext(), $r('app.string.totp_invalid'));
         return;
       }
 
       const pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, codeToCopy);
       const systemPasteboard = pasteboard.getSystemPasteboard();
       await systemPasteboard.setData(pasteData);
-      IBestToast.show($r('app.string.totp_copied'));
+      AppToast.show(this.getUIContext(), $r('app.string.totp_copied'));
     } catch (error) {
       const err = error as BusinessError;
       Logger.error(`Failed to copy code: ${err.message}`);
-      IBestToast.show($r('app.string.totp_copy_failed'));
+      AppToast.show(this.getUIContext(), $r('app.string.totp_copy_failed'));
     }
   }
 

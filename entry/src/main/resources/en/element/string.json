@@ -61,6 +61,14 @@
       "value": "Loading…"
     },
     {
+      "name": "common_pull_to_refresh",
+      "value": "Pull to refresh"
+    },
+    {
+      "name": "common_refreshing",
+      "value": "Refreshing…"
+    },
+    {
       "name": "common_saving",
       "value": "Saving…"
     },
@@ -379,6 +387,14 @@
     {
       "name": "vault_sync_failed_local",
       "value": "Sync failed. Showing your locally saved vault."
+    },
+    {
+      "name": "vault_refresh_success",
+      "value": "Vault refreshed"
+    },
+    {
+      "name": "vault_refresh_failed",
+      "value": "Unable to refresh vault"
     },
     {
       "name": "vault_filter_all",

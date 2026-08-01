@@ -1,7 +1,6 @@
 import { AbilityConstant, Configuration, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
-import { IBestInit } from '@ibestservices/ibest-ui';
 import { DataPreferences } from '@abner/datastore';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
 import { ShareDatabaseUtil } from '../utils/ShareDatabaseUtil';
@@ -47,7 +46,6 @@ export default class EntryAbility extends UIAbility {
         hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
         return;
       }
-      IBestInit(windowStage, this.context);
       hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
     });
   }

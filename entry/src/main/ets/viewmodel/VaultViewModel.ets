@@ -13,7 +13,7 @@ import {
 import { relationalStore } from '@kit.ArkData';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
-import { IBestDropdownMenuOption } from '@ibestservices/ibest-ui';
+import { AppDropdownOption } from '../model/AppUiModels';
 import { queryAssetSync } from '../utils/AssetUtil';
 import { util } from '@kit.ArkTS';
 import { CryptoUtil } from '../utils/CryptoUtil';
@@ -36,12 +36,13 @@ export class VaultViewModel {
   isLoading: boolean = false;
   // 错误信息
   errorMessage: AppText | undefined = undefined;
+  errorDetail: string = '';
   // 重新登录回调
   onReLoginRequired?: () => void;
   // 类型统计
   stats: CipherStats = {} as CipherStats;
   // 筛选菜单
-  filterOptions: IBestDropdownMenuOption[] = [];
+  filterOptions: AppDropdownOption[] = [];
   // 对称密钥
   symmetricKey: string = '';
 
@@ -51,6 +52,7 @@ export class VaultViewModel {
   async loadCiphers(forceSync: boolean = false): Promise<boolean> {
     try {
       this.errorMessage = undefined;
+      this.errorDetail = '';
 
       if (forceSync) {
         this.isLoading = true;
@@ -64,6 +66,7 @@ export class VaultViewModel {
     } catch (error) {
       Logger.error(`Failed to load ciphers: ${error}`);
       this.errorMessage = new AppText(AppTextKey.LOAD_FAILED);
+      this.errorDetail = ErrorMessageUtil.getUserMessage(error, '');
       return false;
     } finally {
       this.isLoading = false;
@@ -123,6 +126,7 @@ export class VaultViewModel {
       const errorMessage = ErrorMessageUtil.getMessage(error as Object);
       Logger.error(`Failed to sync ciphers from server: ${errorMessage}`);
       this.errorMessage = new AppText(AppTextKey.LOAD_FAILED);
+      this.errorDetail = ErrorMessageUtil.getUserMessage(error as Object, '');
 
       // 检查是否是认证错误（需要重新登录）
       if (businessError.message.includes('401') || businessError.message.includes('403')) {
@@ -278,7 +282,7 @@ export class VaultViewModel {
    * @param type 筛选类型：all, favorites, folders
    * @param searchText 搜索文本
    */
-  filterCiphers(type: FilterType | string, searchText: string): void {
+  filterCiphers(type: FilterType, searchText: string): void {
     let filtered = [...this.allCiphers];
 
     // 按类型筛选
@@ -335,7 +339,7 @@ export class VaultViewModel {
     this.filteredCiphers = filtered;
   }
 
-  applyLocalCipherChange(cipher: Cipher, filterType: FilterType | string, searchText: string): void {
+  applyLocalCipherChange(cipher: Cipher, filterType: FilterType, searchText: string): void {
     if (!cipher || !cipher.id) {
       return;
     }
@@ -349,7 +353,7 @@ export class VaultViewModel {
     this.filterCiphers(filterType, searchText);
   }
 
-  applyLocalCipherDeletion(cipherId: string, filterType: FilterType | string, searchText: string): void {
+  applyLocalCipherDeletion(cipherId: string, filterType: FilterType, searchText: string): void {
     if (!cipherId) {
       return;
     }
@@ -411,7 +415,7 @@ export class VaultViewModel {
     } catch (error) {
       Logger.error(`Failed to get cipher stats: ${error}`);
       this.errorMessage = new AppText(AppTextKey.LOAD_FAILED);
-      Promise.reject(error);
+      throw new Error(ErrorMessageUtil.getUserMessage(error, 'Failed to get cipher stats'));
     }
     return stats;
   }

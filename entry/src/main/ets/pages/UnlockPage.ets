@@ -3,7 +3,7 @@ import { userAuth } from '@kit.UserAuthenticationKit';
 import { cryptoFramework } from '@kit.CryptoArchitectureKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { common } from '@kit.AbilityKit';
-import { IBestToast } from '@ibestservices/ibest-ui';
+import { AppToast } from '../utils/AppToast';
 import { DataPreferences } from '@abner/datastore';
 import {
   BACKGROUND_TIMESTAMP,
@@ -96,7 +96,7 @@ export struct UnlockPage {
                 // 点击解锁按钮拉起生物认证
                 this.startBiometricAuth();
               } else {
-                IBestToast.show($r('app.string.unlock_biometrics_disabled'));
+                AppToast.show(this.getUIContext(), $r('app.string.unlock_biometrics_disabled'));
               }
             }
           })
@@ -147,7 +147,6 @@ export struct UnlockPage {
         //     // 点击解锁按钮拉起生物认证
         //     this.startBiometricAuth();
         //   } else {
-        //     IBestToast.show('未开启生物识别');
         //   }
         // })
         // .margin({ bottom: 24 })
@@ -192,7 +191,7 @@ export struct UnlockPage {
 
   async startPasswordAuth() {
     if (!this.masterPassword || this.masterPassword.length === 0) {
-      IBestToast.show($r('app.string.unlock_enter_master_password'));
+      AppToast.show(this.getUIContext(), $r('app.string.unlock_enter_master_password'));
       return;
     }
 
@@ -201,7 +200,7 @@ export struct UnlockPage {
       const kdfParamStr: string = queryAssetSync(KDF_PARAM_KEY);
 
       if (!kdfParamStr) {
-        IBestToast.show($r('app.string.unlock_parameters_failed'));
+        AppToast.show(this.getUIContext(), $r('app.string.unlock_parameters_failed'));
         this.pathInfos.replacePath({ name: "LoginPage" });
       }
 
@@ -209,7 +208,7 @@ export struct UnlockPage {
       const storedMasterKey = queryAssetSync(MASTER_KEY);
       const email = queryAssetSync(EMAIL_KEY);
       if (!storedMasterKey) {
-        IBestToast.show($r('app.string.unlock_parameters_failed'));
+        AppToast.show(this.getUIContext(), $r('app.string.unlock_parameters_failed'));
         this.pathInfos.replacePath({ name: "LoginPage" });
       }
 
@@ -236,7 +235,7 @@ export struct UnlockPage {
           32
         );
       } else {
-        IBestToast.show($r('app.string.unlock_parameters_failed'));
+        AppToast.show(this.getUIContext(), $r('app.string.unlock_parameters_failed'));
         this.pathInfos.replacePath({ name: "LoginPage" });
       }
 
@@ -253,12 +252,12 @@ export struct UnlockPage {
           this.pathInfos.pop();
         }
       } else {
-        IBestToast.show($r('app.string.unlock_wrong_password'));
+        AppToast.show(this.getUIContext(), $r('app.string.unlock_wrong_password'));
         return;
       }
     } catch (error) {
       Logger.error(`Master password verification failed: ${error}`);
-      IBestToast.show($r('app.string.unlock_verification_failed'));
+      AppToast.show(this.getUIContext(), $r('app.string.unlock_verification_failed'));
       return;
     }
   }
@@ -278,7 +277,7 @@ export struct UnlockPage {
         retryCount++;
       }
       if (!randData) {
-        IBestToast.show($r('app.string.unlock_biometric_start_failed'));
+        AppToast.show(this.getUIContext(), $r('app.string.unlock_biometric_start_failed'));
         return;
       }
 
@@ -320,7 +319,7 @@ export struct UnlockPage {
             }
           } else {
             // 认证失败，显示提示
-            IBestToast.show($r('app.string.unlock_biometric_failed'));
+            AppToast.show(this.getUIContext(), $r('app.string.unlock_biometric_failed'));
           }
         }
       });
@@ -330,7 +329,7 @@ export struct UnlockPage {
     } catch (error) {
       const err = error as BusinessError;
       Logger.error(`Failed to start biometric auth. Error: ${JSON.stringify(err)}`);
-      IBestToast.show($r('app.string.unlock_biometric_start_failed'));
+      AppToast.show(this.getUIContext(), $r('app.string.unlock_biometric_start_failed'));
     }
   }
 }

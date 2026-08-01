@@ -1,4 +1,4 @@
-import { IBestToast } from '@ibestservices/ibest-ui';
+import { AppToast } from '../utils/AppToast';
 import { Logger } from '@nzy/logger';
 import { TOTPUtil } from '../utils/TOTPUtil';
 import { scanBarcode, scanCore } from '@kit.ScanKit';
@@ -40,12 +40,12 @@ export struct TotpEditItem {
               Logger.info(`TOTP secret extracted: ${parsed.secret}`);
 
               if (parsed.issuer || parsed.account) {
-                IBestToast.show($r('app.string.totp_scan_success', parsed.issuer ?? parsed.account ?? ''));
+                AppToast.show(this.getUIContext(), $r('app.string.totp_scan_success', parsed.issuer ?? parsed.account ?? ''));
               } else {
-                IBestToast.show($r('app.string.totp_entered'));
+                AppToast.show(this.getUIContext(), $r('app.string.totp_entered'));
               }
             } else {
-              IBestToast.show($r('app.string.totp_invalid'));
+              AppToast.show(this.getUIContext(), $r('app.string.totp_invalid'));
             }
           }
         })
@@ -54,7 +54,7 @@ export struct TotpEditItem {
         })
     } catch (error) {
       Logger.error(`Start scan failed: ${JSON.stringify(error)}`);
-      IBestToast.show($r('app.string.error_unknown'));
+      AppToast.show(this.getUIContext(), $r('app.string.error_unknown'));
     }
   }
 
@@ -94,7 +94,7 @@ export struct TotpEditItem {
               onButtonClick: () => {
                 this.totpSecret = '';
                 this.onSecretChange?.('');
-                IBestToast.show($r('app.string.common_success'));
+                AppToast.show(this.getUIContext(), $r('app.string.common_success'));
               }
             })
 
@@ -107,7 +107,6 @@ export struct TotpEditItem {
             // .onClick(() => {
             //   this.totpSecret = '';
             //   this.onSecretChange?.('');
-            //   IBestToast.show('密钥已清除');
             // })
           }
 

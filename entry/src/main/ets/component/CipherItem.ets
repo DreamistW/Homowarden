@@ -1,5 +1,4 @@
 import { Cipher, CipherDisplayNameKind, CipherDisplaySubtitleKind } from '../model/CipherModels';
-import { IBestIcon } from "@ibestservices/ibest-ui";
 import { CipherItemType } from '../utils/Constants';
 
 @Component
@@ -9,24 +8,23 @@ export struct CipherItem {
 
   @Builder
   CipherTypeIcon() {
-    IBestIcon({
-      name: this.getTypeIcon(),
-      iconSize: 24
-    }).margin({ right: 8 })
+    Text(this.getTypeIcon())
+      .fontSize(24)
+      .margin({ right: 8 })
   }
 
   private getTypeIcon(): string {
     switch (this.cipher.type) {
       case CipherItemType.LOGIN:
-        return 'sign';
+        return '🔑';
       case CipherItemType.NOTE:
-        return 'notes-o';
+        return '📝';
       case CipherItemType.CARD:
-        return 'credit-pay';
+        return '💳';
       case CipherItemType.IDENTITY:
-        return 'friends-o';
+        return '👤';
       default:
-        return 'cross';
+        return '•';
     }
   }
 

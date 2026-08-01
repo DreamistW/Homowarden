@@ -3,10 +3,8 @@ import { CardBrandType, CipherItemType, IdentityTitleType } from '../utils/Const
 import { CryptoUtil } from '../utils/CryptoUtil';
 import { createCipher } from '../network/CipherApi';
 import { DeviceUtil } from '../utils/DeviceUtil';
-import { IBestDropdownMenuOption } from '@ibestservices/ibest-ui';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
 import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
-import { AppOptionFactory } from '../localization/AppOptionFactory';
 import { CipherDisplayMapping } from '../domain/CipherDisplayMapping';
 
 export class AddCipherViewModel {
@@ -24,14 +22,6 @@ export class AddCipherViewModel {
   // 页面状态
   submitting: boolean = false;
   errorMessage: string = '';
-  identityTitleOptions: IBestDropdownMenuOption[] = AppOptionFactory.identityTitles();
-  cardBrandOptions: IBestDropdownMenuOption[] = AppOptionFactory.cardBrands();
-
-  refreshLocalizedOptions(): void {
-    this.identityTitleOptions = AppOptionFactory.identityTitles();
-    this.cardBrandOptions = AppOptionFactory.cardBrands();
-  }
-
   setIdentityTitle(type: IdentityTitleType): void {
     this.identityItem.title = CipherDisplayMapping.writeIdentityTitle(type);
   }

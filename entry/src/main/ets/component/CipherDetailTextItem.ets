@@ -1,5 +1,5 @@
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
-import { IBestToast } from '@ibestservices/ibest-ui';
+import { AppToast } from '../utils/AppToast';
 import { Logger } from '@nzy/logger';
 import { common, Want } from '@kit.AbilityKit';
 import { AdaptiveIconButton } from './AdaptiveButton';
@@ -161,7 +161,7 @@ export struct CipherDetailTextItem {
       const pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, text);
       const systemPasteboard = pasteboard.getSystemPasteboard();
       await systemPasteboard.setData(pasteData);
-      IBestToast.show($r('app.string.totp_copied'));
+      AppToast.show(this.getUIContext(), $r('app.string.totp_copied'));
     } catch (error) {
       const err = error as BusinessError;
       Logger.error(`Failed to paste, error message: ${err.message}}`);
@@ -172,7 +172,7 @@ export struct CipherDetailTextItem {
     try {
       const context = getContext(this) as common.UIAbilityContext;
       if (!context) {
-        IBestToast.show($r('app.string.error_open_website'));
+        AppToast.show(this.getUIContext(), $r('app.string.error_open_website'));
         return;
       }
 
@@ -188,11 +188,11 @@ export struct CipherDetailTextItem {
       };
       context.startAbility(want).catch((err: Error) => {
         Logger.error(`Failed to open uri. Error: ${err.message}`);
-        IBestToast.show($r('app.string.error_open_website'));
+        AppToast.show(this.getUIContext(), $r('app.string.error_open_website'));
       });
     } catch (err) {
       Logger.error(`Failed to open uri. Error: ${JSON.stringify(err)}`);
-      IBestToast.show($r('app.string.error_open_website'));
+      AppToast.show(this.getUIContext(), $r('app.string.error_open_website'));
     }
   }
 

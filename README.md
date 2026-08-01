@@ -101,7 +101,6 @@ entry/src/main/ets/
 - `@ohos/axios`
 - `@huozhiniao/argon2`
 - `@abner/datastore`
-- `@ibestservices/ibest-ui`
 - `@nzy/logger`
 - `CryptoArchitectureKit`
 - `UserAuthenticationKit`

@@ -1,4 +1,5 @@
-import { IBestActionSheet, IBestDialog, IBestSwitch, IBestToast } from '@ibestservices/ibest-ui';
+import { AppDialog, AppDialogAction } from '../component/AppDialog';
+import { AppToast } from '../utils/AppToast';
 import { queryAssetSync } from '../utils/AssetUtil';
 import { EMAIL_KEY, SAVE_EMAIL, ServerType } from '../utils/Constants';
 import { LoginViewModel } from '../viewmodel/LoginViewModel';
@@ -79,12 +80,11 @@ export struct LoginPage {
       }
 
       Row() {
-        IBestSwitch({
-          value: $twoFactorRemember,
-          onChange: () => {
-            this.viewModel.twoFactorRemember = this.twoFactorRemember;
-          }
-        })
+        Toggle({ type: ToggleType.Switch, isOn: this.twoFactorRemember })
+          .onChange((isOn: boolean) => {
+            this.twoFactorRemember = isOn;
+            this.viewModel.twoFactorRemember = isOn;
+          })
           .accessibilityText($r('app.string.login_remember_me'))
         Text($r('app.string.login_remember_me'))
           .margin(12)
@@ -176,13 +176,12 @@ export struct LoginPage {
           Text($r('app.string.login_remember_email'))
             .fontSize(16)
             .margin(12)
-          IBestSwitch({
-            value: $needToSaveEmail,
-            onChange: () => {
-              this.viewModel.needSaveEmail = this.needToSaveEmail;
-              DataPreferences.getInstance().putSync(SAVE_EMAIL, this.needToSaveEmail ? 1 : 0);
-            }
-          })
+          Toggle({ type: ToggleType.Switch, isOn: this.needToSaveEmail })
+            .onChange((isOn: boolean) => {
+              this.needToSaveEmail = isOn;
+              this.viewModel.needSaveEmail = isOn;
+              DataPreferences.getInstance().putSync(SAVE_EMAIL, isOn ? 1 : 0);
+            })
             .accessibilityText($r('app.string.login_remember_email'))
         }
 
@@ -206,14 +205,19 @@ export struct LoginPage {
           Button(this.getServerTypeButtonText())
             .stateEffect(false)
             .buttonStyle(ButtonStyleMode.TEXTUAL)
-            .onClick(() => {
-              IBestActionSheet.show({
-                actions: this.getServerTypeList(),
-                onSelect: (position: number) => {
-                  this.viewModel.serverType = position as ServerType;
-                  this.viewModel.clearError();
-                }
-              })
+             .onClick(() => {
+               this.getUIContext().getPromptAction().showActionMenu({
+                 buttons: [
+                   { text: 'bitwarden.com', color: '#0A59F7' },
+                   { text: 'bitwarden.eu', color: '#0A59F7' },
+                   { text: this.getSelfHostedServerText(), color: '#0A59F7' }
+                 ]
+               }).then((result) => {
+                   this.viewModel.serverType = this.getServerTypeByIndex(result.index);
+                   this.viewModel.clearError();
+               }).catch(() => {
+                 return;
+               });
             })
         }
 
@@ -277,14 +281,14 @@ export struct LoginPage {
         }
 
         // 弹出2FA输入框
-        IBestDialog({
-          visible: this.isNeed2FA,
+        AppDialog({
+          visible: $isNeed2FA,
           title: $r('app.string.login_two_factor_title'),
           showCancelButton: true,
           closeOnClickOverlay: false,
           defaultBuilder: (): void => this.twoFactorInputContent(),
           beforeClose: async (action) => {
-            if (action === 'cancel') {
+            if (action === AppDialogAction.CANCEL) {
               return true;
             }
             if (this.viewModel.twoFactorProvider === TwoFactorProvider.WEB_AUTHN) {
@@ -320,14 +324,14 @@ export struct LoginPage {
         })
 
         // 弹出新设备输入框
-        IBestDialog({
-          visible: this.isNeedNewDevice,
+        AppDialog({
+          visible: $isNeedNewDevice,
           title: $r('app.string.login_new_device_title'),
           showCancelButton: true,
           closeOnClickOverlay: false,
           defaultBuilder: (): void => this.newDeviceInputContent(),
           beforeClose: async (action) => {
-            if (action === 'cancel') {
+            if (action === AppDialogAction.CANCEL) {
               return true;
             }
             const valueLength = this.viewModel.twoFactorToken.trim().length;
@@ -391,11 +395,11 @@ export struct LoginPage {
   // 处理登录逻辑
   private async handleLogin(): Promise<void> {
     if (this.viewModel.email.length == 0 || this.viewModel.password.length == 0) {
-      IBestToast.show($r('app.string.error_validation'));
+      AppToast.show(this.getUIContext(), $r('app.string.error_validation'));
       return;
     }
     if (this.viewModel.serverType == ServerType.SELF_HOSTED && this.viewModel.serverAddress == undefined) {
-      IBestToast.show($r('app.string.error_validation'));
+      AppToast.show(this.getUIContext(), $r('app.string.error_validation'));
       return;
     }
     this.twoFactorInputError = false;
@@ -475,9 +479,18 @@ export struct LoginPage {
     }
   }
 
-  private getServerTypeList(): string[] {
-    const selfHosted: string = this.getUIContext().getHostContext()?.resourceManager
+  private getSelfHostedServerText(): string {
+    return this.getUIContext().getHostContext()?.resourceManager
       .getStringSync($r('app.string.server_self_hosted')) ?? '';
-    return ['bitwarden.com', 'bitwarden.eu', selfHosted];
+  }
+
+  private getServerTypeByIndex(index: number): ServerType {
+    if (index === 1) {
+      return ServerType.EU;
+    }
+    if (index === 2) {
+      return ServerType.SELF_HOSTED;
+    }
+    return ServerType.US;
   }
 }

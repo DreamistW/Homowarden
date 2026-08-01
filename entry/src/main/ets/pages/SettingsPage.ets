@@ -15,7 +15,7 @@ import { cryptoFramework } from '@kit.CryptoArchitectureKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { clearAssetAndPreferences, queryAssetSync } from '../utils/AssetUtil';
 import { Logger } from '@nzy/logger';
-import { IBestDialogUtil, IBestToast } from '@ibestservices/ibest-ui';
+import { AppToast } from '../utils/AppToast';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 import { AdaptiveTextButton } from '../component/AdaptiveButton';
 import { AntiPeepUtil } from '../utils/AntiPeepUtil';
@@ -79,7 +79,7 @@ export struct SettingsPage {
       }
     } catch (err) {
       Logger.error(`Failed to get version name. Error: ${JSON.stringify(err)}`);
-      IBestToast.show($r('app.string.error_unknown'));
+      AppToast.show(this.getUIContext(), $r('app.string.error_unknown'));
     }
   }
 
@@ -155,7 +155,7 @@ export struct SettingsPage {
                     this.screenCaptureProtectionEnabled = isOn;
                     const applied = await WindowPrivacyUtil.setScreenCaptureProtectionEnabled(isOn);
                     if (!applied) {
-                      IBestToast.show($r('app.string.error_save_failed'));
+                      AppToast.show(this.getUIContext(), $r('app.string.error_save_failed'));
                     }
                   })
               }
@@ -187,7 +187,7 @@ export struct SettingsPage {
                     const enabled = await AntiPeepUtil.setProtectionEnabled(true, context);
                     this.antiPeepProtectionEnabled = enabled;
                     if (!enabled) {
-                      IBestToast.show($r('app.string.error_save_failed'));
+                      AppToast.show(this.getUIContext(), $r('app.string.error_save_failed'));
                     }
                   })
               }
@@ -404,7 +404,7 @@ export struct SettingsPage {
     try {
       const context = getContext(this) as common.UIAbilityContext;
       if (!context) {
-        IBestToast.show($r('app.string.error_open_website'));
+        AppToast.show(this.getUIContext(), $r('app.string.error_open_website'));
         return;
       }
       const want: Want = {
@@ -412,11 +412,11 @@ export struct SettingsPage {
       };
       context.startAbility(want).catch((err: Error) => {
         Logger.error(`Failed to open page. Error: ${err.message}`);
-        IBestToast.show($r('app.string.error_open_website'));
+        AppToast.show(this.getUIContext(), $r('app.string.error_open_website'));
       });
     } catch (err) {
       Logger.error(`Failed to open page. Error: ${JSON.stringify(err)}`);
-      IBestToast.show($r('app.string.error_open_website'));
+      AppToast.show(this.getUIContext(), $r('app.string.error_open_website'));
     }
   }
 
@@ -424,7 +424,7 @@ export struct SettingsPage {
     try {
       const context = getContext(this) as common.UIAbilityContext;
       if (!context) {
-        IBestToast.show($r('app.string.error_unknown'));
+        AppToast.show(this.getUIContext(), $r('app.string.error_unknown'));
         return;
       }
       const want: Want = {
@@ -432,11 +432,11 @@ export struct SettingsPage {
       };
       context.startAbility(want).catch((err: Error) => {
         Logger.error(`Failed to open email. Error: ${err.message}`);
-        IBestToast.show($r('app.string.error_unknown'));
+        AppToast.show(this.getUIContext(), $r('app.string.error_unknown'));
       });
     } catch (err) {
       Logger.error(`Failed to open email. Error: ${JSON.stringify(err)}`);
-      IBestToast.show($r('app.string.error_unknown'));
+      AppToast.show(this.getUIContext(), $r('app.string.error_unknown'));
     }
   }
 
@@ -515,7 +515,7 @@ export struct SettingsPage {
         retryCount++;
       }
       if (!randData) {
-        IBestToast.show($r('app.string.unlock_biometric_start_failed'));
+        AppToast.show(this.getUIContext(), $r('app.string.unlock_biometric_start_failed'));
         this.biometricEnabled = false;
         return;
       }
@@ -549,11 +549,11 @@ export struct SettingsPage {
             // 认证成功，更新状态
             this.biometricEnabled = true;
             this.updateBiometricAuthStatus(true);
-            IBestToast.show($r('app.string.common_success'));
+            AppToast.show(this.getUIContext(), $r('app.string.common_success'));
           } else {
             // 认证失败，关闭开关
             this.biometricEnabled = false;
-            IBestToast.show($r('app.string.unlock_biometric_failed'));
+            AppToast.show(this.getUIContext(), $r('app.string.unlock_biometric_failed'));
           }
         }
       });
@@ -564,24 +564,27 @@ export struct SettingsPage {
       const err = error as BusinessError;
       Logger.error(`Failed to start biometric auth. Error: ${JSON.stringify(err)}`);
       this.biometricEnabled = false;
-      IBestToast.show($r('app.string.unlock_biometric_start_failed'));
+      AppToast.show(this.getUIContext(), $r('app.string.unlock_biometric_start_failed'));
     }
   }
 
   private logout() {
-    IBestDialogUtil.open({
+    this.getUIContext().showAlertDialog({
       title: $r('app.string.common_confirm'),
       message: $r('app.string.settings_logout_confirm'),
-      showCancelButton: true,
-      onCancel: () => {
-        return;
+      secondaryButton: {
+        value: $r('app.string.common_cancel'),
+        action: () => {}
       },
-      onConfirm: () => {
-        clearAssetAndPreferences();
-        void WindowPrivacyUtil.applyForCurrentState();
-        this.onLogout();
+      primaryButton: {
+        value: $r('app.string.common_confirm'),
+        action: () => {
+          clearAssetAndPreferences();
+          void WindowPrivacyUtil.applyForCurrentState();
+          this.onLogout();
+        }
       }
-    })
+    });
   }
 
   private lockVault() {

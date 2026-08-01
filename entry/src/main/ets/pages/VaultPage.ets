@@ -2,15 +2,9 @@ import { EntryRouter } from '../../../../EntryRouter';
 import { Cipher, CipherDetailParams } from '../model/CipherModels';
 import { VaultViewModel } from '../viewmodel/VaultViewModel';
 import { common } from '@kit.AbilityKit';
-import {
-  IBestDialog,
-  IBestDropdownItem,
-  IBestDropdownMenu,
-  IBestField,
-  IBestFieldValueType,
-  IBestPullRefresh,
-  IBestToast
-} from '@ibestservices/ibest-ui';
+import { AppToast } from '../utils/AppToast';
+import { AppDropdown } from '../component/AppDropdown';
+import { AppDialog, AppDialogAction } from '../component/AppDialog';
 import { DataPreferences } from '@abner/datastore';
 import {
   FilterType, LOGIN_STATUS_KEY, NEED_RELOAD_CIPHERS
@@ -29,6 +23,8 @@ import { SettingsPage } from './SettingsPage';
 import { AppText, AppTextKey } from '../localization/AppText';
 import { AppTextResolver } from '../localization/AppTextResolver';
 import { AdaptiveIconButton } from '../component/AdaptiveButton';
+import { AppDropdownOption } from '../model/AppUiModels';
+import { AppOptionFactory } from '../localization/AppOptionFactory';
 
 @Builder
 export function VaultPageBuilder() {
@@ -46,7 +42,8 @@ struct VaultContent {
   private listScroller: ListScroller = new ListScroller();
   @State searchText: string = '';
   @State needReLogin: boolean = false;
-  @State selectedType: FilterType | string = 0;
+  @State selectedType: FilterType = FilterType.ALL;
+  @State filterOptions: AppDropdownOption[] = AppOptionFactory.vaultFilters(0, 0, 0, 0, 0, 0, 0);
   @State isInitialLoading: boolean = true;
   @State isLoading: boolean = false;
   @State showPasswordDialog: boolean = false;
@@ -69,12 +66,17 @@ struct VaultContent {
 
   private handleLocaleRevision(): void {
     this.viewModel.refreshLocale();
+    this.refreshFilterOptions();
     this.viewModel.filterCiphers(this.selectedType, this.searchText);
     this.publishVaultData();
   }
 
   private publishVaultData(): void {
     this.onVaultDataChanged(this.viewModel.allCiphers, this.viewModel.symmetricKey);
+  }
+
+  private refreshFilterOptions(): void {
+    this.filterOptions = this.viewModel.filterOptions.slice();
   }
 
   private async loadCiphersWithBackgroundSync() {
@@ -88,19 +90,21 @@ struct VaultContent {
       // 第一步：先加载本地数据库
       const localResult = await this.viewModel.loadCiphers(false);
       if (!localResult) {
-        IBestToast.show($r('app.string.error_load_failed'));
+        AppToast.show(this.getUIContext(), $r('app.string.error_load_failed'));
       }
 
       this.viewModel.filterCiphers(this.selectedType, this.searchText);
+      this.refreshFilterOptions();
       this.publishVaultData();
 
       // 第二步：如果本地没数据，则直接强制同步，避免先显示空态再跳变为列表
       if (this.viewModel.allCiphers.length === 0) {
         const syncResult = await this.viewModel.loadCiphers(true);
         if (!syncResult && !this.needReLogin) {
-          IBestToast.show($r('app.string.error_load_failed'));
+          AppToast.show(this.getUIContext(), $r('app.string.error_load_failed'));
         }
         this.viewModel.filterCiphers(this.selectedType, this.searchText);
+        this.refreshFilterOptions();
         this.publishVaultData();
         return;
       }
@@ -121,11 +125,12 @@ struct VaultContent {
     if (result) {
       // 后台同步完成后，重新应用当前筛选条件
       this.viewModel.filterCiphers(this.selectedType, this.searchText);
+      this.refreshFilterOptions();
       this.publishVaultData();
     } else {
       // 后台同步失败时，不影响已显示的本地数据
       if (!this.needReLogin && this.viewModel.errorMessage) {
-        IBestToast.show($r('app.string.vault_sync_failed_local'));
+        AppToast.show(this.getUIContext(), $r('app.string.vault_sync_failed_local'));
       }
     }
   }
@@ -134,9 +139,10 @@ struct VaultContent {
     const localResult = await this.viewModel.loadCiphers(false);
     if (localResult) {
       this.viewModel.filterCiphers(this.selectedType, this.searchText);
+      this.refreshFilterOptions();
       this.publishVaultData();
     } else {
-      IBestToast.show($r('app.string.error_load_failed'));
+      AppToast.show(this.getUIContext(), $r('app.string.error_load_failed'));
     }
     void this.doBackgroundSync();
   }
@@ -157,20 +163,31 @@ struct VaultContent {
     await this.reloadCiphersAfterLocalChange();
   }
 
-  private async loadCiphers(forceSync: boolean = true) {
-    // 设置重新登录回调
+  private async loadCiphers(forceSync: boolean = true): Promise<void> {
     this.viewModel.onReLoginRequired = () => {
       this.needReLogin = true;
     };
 
     this.isLoading = true;
-    const result = await this.viewModel.loadCiphers(forceSync);
-    if (!result && !this.needReLogin) {
-      IBestToast.show($r('app.string.error_validation'));
+    try {
+      const result = await this.viewModel.loadCiphers(forceSync);
+      if (result) {
+        AppToast.show(this.getUIContext(), $r('app.string.vault_refresh_success'));
+      } else if (this.viewModel.errorDetail.length > 0) {
+        AppToast.show(this.getUIContext(), this.viewModel.errorDetail);
+      } else if (this.viewModel.errorMessage !== undefined) {
+        AppToast.show(this.getUIContext(), AppTextResolver.resource(this.viewModel.errorMessage));
+      } else {
+        AppToast.show(this.getUIContext(), $r('app.string.vault_refresh_failed'));
+      }
+      this.viewModel.filterCiphers(this.selectedType, this.searchText);
+      this.refreshFilterOptions();
+      this.publishVaultData();
+    } catch (error) {
+      AppToast.show(this.getUIContext(), $r('app.string.vault_refresh_failed'));
+    } finally {
+      this.isLoading = false;
     }
-    this.viewModel.filterCiphers(this.selectedType, this.searchText);
-    this.publishVaultData();
-    this.isLoading = false;
   }
 
   @Builder
@@ -233,15 +250,38 @@ struct VaultContent {
   }
 
   @Builder
-  listContent() {
-    Scroll(this.listScroller) {
-      // 密码项列表
-      if (this.viewModel.isLoading) {
-        this.loadingContent()
-      } else if (this.viewModel.filteredCiphers.length === 0) {
-        this.emptyContent()
+  refreshContent() {
+    Row({ space: 8 }) {
+      LoadingProgress()
+        .width(24)
+        .height(24)
+      if (this.isLoading) {
+        Text($r('app.string.common_refreshing'))
+          .fontSize(14)
+          .fontColor(Color.Gray)
       } else {
-        List({ scroller: this.listScroller }) {
+        Text($r('app.string.common_pull_to_refresh'))
+          .fontSize(14)
+          .fontColor(Color.Gray)
+      }
+    }
+    .width('100%')
+    .height(40)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(VerticalAlign.Center)
+  }
+
+  @Builder
+  listContent() {
+    if (this.viewModel.isLoading) {
+      this.loadingContent()
+    } else {
+      List({ scroller: this.listScroller }) {
+        if (this.viewModel.filteredCiphers.length === 0) {
+          ListItem() {
+            this.emptyContent()
+          }
+        } else {
           ForEach(this.viewModel.filteredCiphers, (cipher: Cipher) => {
             ListItem() {
               CipherItem({
@@ -253,12 +293,11 @@ struct VaultContent {
             }
           })
         }
-        .width('100%')
-        .height('100%')
-        .padding({ left: 16, right: 16})
-        .safeAreaPadding({ bottom: $r('app.float.safe_area_bottom') })
-        .edgeEffect(EdgeEffect.None)
       }
+      .width('100%')
+      .height('100%')
+      .padding({ left: 16, right: 16 })
+      .edgeEffect(EdgeEffect.None)
     }
   }
 
@@ -271,53 +310,55 @@ struct VaultContent {
             // 搜索栏
             Row() {
               Column() {
-                IBestDropdownMenu({ groupId: this.groupId }) {
-                  IBestDropdownItem({
-                    groupId: this.groupId,
-                    options: this.viewModel.filterOptions,
-                    value: this.selectedType,
-                    onChange: value => {
-                      this.viewModel.filterCiphers(value, this.searchText);
-                      this.selectedType = value;
-                    }
-                  })
-                }
+                AppDropdown({
+                  options: this.filterOptions,
+                  value: this.selectedType,
+                  optionFontSize: 12,
+                  accessibilityLabel: $r('app.string.vault_title'),
+                  onChange: (value: number) => {
+                    this.selectedType = value;
+                    this.viewModel.filterCiphers(this.selectedType, this.searchText);
+                  }
+                })
               }.width('30%')
 
-              IBestField({
+              Search({
                 value: this.searchText,
                 placeholder: $r('app.string.vault_search_placeholder'),
-                showLabel: false,
-                hasBorder: false,
-                clearable: true,
-                onChange: (value: IBestFieldValueType) => {
-                  this.searchText = value as string;
-                  this.viewModel.filterCiphers('all', this.searchText);
+              })
+                .onChange((value: string) => {
+                  this.searchText = value;
+                  this.viewModel.filterCiphers(this.selectedType, this.searchText);
                 }
-              }).width('70%')
-                .borderRadius(0)
+              ).width('70%')
                 .layoutWeight(1)
             }
             .width('100%')
             .padding({ left: 16, right: 16, bottom: 8 })
 
-            IBestPullRefresh({
-              loading: $isLoading,
-              scroller: this.listScroller,
-              defaultContent: () => this.listContent(),
-              onRefresh: () => this.loadCiphers(true),
-              isEnableSlideUp: false
+            Refresh({ refreshing: this.isLoading, builder: this.refreshContent() }) {
+              this.listContent()
+            }
+            .onRefreshing(() => {
+              if (!this.isLoading) {
+                void this.loadCiphers(true);
+              }
             })
+            .width('100%')
+            .layoutWeight(1)
           }
 
           // 重新登录弹框
-          IBestDialog({
-            visible: this.needReLogin,
+          AppDialog({
+            visible: $needReLogin,
             title: $r('app.string.vault_relogin_title'),
             showCancelButton: false,
             closeOnClickOverlay: false,
             defaultBuilder: (): void => this.reLoginDialogContent(),
-            onConfirm: () => {
+            beforeClose: async (action: AppDialogAction) => {
+              if (action === AppDialogAction.CANCEL) {
+                return false;
+              }
               DataPreferences.getInstance().putSync(LOGIN_STATUS_KEY, 0);
               void WindowPrivacyUtil.applyForCurrentState();
               this.onRelogin();
@@ -326,14 +367,14 @@ struct VaultContent {
           })
 
           // 主密码验证弹框
-          IBestDialog({
-            visible: this.showPasswordDialog,
+          AppDialog({
+            visible: $showPasswordDialog,
             title: $r('app.string.totp_master_title'),
             showCancelButton: true,
             closeOnClickOverlay: false,
             defaultBuilder: (): void => this.passwordVerifyDialogContent(),
             beforeClose: async (action) => {
-              if (action === 'cancel') {
+              if (action === AppDialogAction.CANCEL) {
                 return true;
               }
               const result = await this.verifyMasterPassword();
@@ -350,13 +391,6 @@ struct VaultContent {
             }
           })
 
-          // IBestFloatBubble({
-          //   show: this.showAddBtn,
-          //   icon: $r("app.media.icon_add"),
-          //   onBubbleClick: () => {
-          //     this.pathInfos.pushPath({ name: EntryRouter.AddCipherPage, param: this.viewModel.symmetricKey });
-          //   }
-          // })
         }
         .width('100%')
         .height('100%')

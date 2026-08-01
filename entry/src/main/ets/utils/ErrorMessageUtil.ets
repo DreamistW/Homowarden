@@ -24,6 +24,24 @@ interface ErrorLike {
 }
 
 export class ErrorMessageUtil {
+  static getUserMessage(error: Object | string | null | undefined, fallback: string = ''): string {
+    if (error === null || error === undefined) {
+      return fallback;
+    }
+    if (typeof error === 'string') {
+      return ErrorMessageUtil.limitMessage(error, fallback);
+    }
+    const errorLike = error as ErrorLike;
+    const responseMessage = ErrorMessageUtil.getResponseDataMessage(errorLike.response?.data);
+    if (responseMessage.length > 0) {
+      return ErrorMessageUtil.limitMessage(responseMessage, fallback);
+    }
+    if (errorLike.message && errorLike.message.length > 0) {
+      return ErrorMessageUtil.limitMessage(errorLike.message, fallback);
+    }
+    return fallback;
+  }
+
   static getMessage(error: Object | string | null | undefined, fallback: string = 'error_unknown'): string {
     if (error === null || error === undefined) {
       return fallback;
@@ -112,6 +130,14 @@ export class ErrorMessageUtil {
     if (messages.indexOf(message) < 0) {
       messages.push(message);
     }
+  }
+
+  private static limitMessage(message: string, fallback: string): string {
+    const normalized = message.trim();
+    if (normalized.length === 0) {
+      return fallback;
+    }
+    return normalized.length > 240 ? `${normalized.substring(0, 240)}…` : normalized;
   }
 
   private static safeStringify(error: Object): string {
