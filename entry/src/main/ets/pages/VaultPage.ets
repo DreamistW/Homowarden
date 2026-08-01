@@ -28,6 +28,7 @@ import { Sure2SharePage } from './Sure2Share';
 import { SettingsPage } from './SettingsPage';
 import { AppText, AppTextKey } from '../localization/AppText';
 import { AppTextResolver } from '../localization/AppTextResolver';
+import { AdaptiveIconButton } from '../component/AdaptiveButton';
 
 @Builder
 export function VaultPageBuilder() {
@@ -254,7 +255,7 @@ struct VaultContent {
         }
         .width('100%')
         .height('100%')
-        .padding({ left: 16, right: 16 })
+        .padding({ left: 16, right: 16})
         .safeAreaPadding({ bottom: $r('app.float.safe_area_bottom') })
         .edgeEffect(EdgeEffect.None)
       }
@@ -480,8 +481,9 @@ export struct VaultPage {
 
   build() {
     HdsNavDestination() {
-      Column() {
-        Tabs({ barPosition: BarPosition.End, controller: this.tabsController }) {
+      Stack({ alignContent: Alignment.BottomEnd }) {
+        Column() {
+          Tabs({ barPosition: BarPosition.End, controller: this.tabsController }) {
           TabContent() {
             VaultContent({
               activationRevision: this.vaultActivationRevision,
@@ -521,24 +523,38 @@ export struct VaultPage {
               }
             })
           }
-        }
-        .barHeight(0)
-        .scrollable(true)
-        .layoutWeight(1)
-        .onChange((index: number) => {
-          this.selectedMainTab = this.getTabByIndex(index);
-        })
-
-        MainBottomNavigation({
-          selectedMainTab: this.selectedMainTab,
-          addEnabled: this.sharedSymmetricKey.length > 0,
-          onSelect: (tab: MainTab) => {
-            this.selectTab(tab);
-          },
-          onAdd: () => {
-            this.addCipher();
           }
-        })
+          .barHeight(0)
+          .scrollable(true)
+          .layoutWeight(1)
+          .onChange((index: number) => {
+            this.selectedMainTab = this.getTabByIndex(index);
+          })
+
+          MainBottomNavigation({
+            selectedMainTab: this.selectedMainTab,
+            onSelect: (tab: MainTab) => {
+              this.selectTab(tab);
+            }
+          })
+        }
+        .width('100%')
+        .height('100%')
+
+        if (this.selectedMainTab === MainTab.VAULT && this.sharedSymmetricKey.length > 0) {
+          AdaptiveIconButton({
+            icon: $r('app.media.icon_add'),
+            iconWidth: 25,
+            iconHeight: 25,
+            contentPadding: 8,
+            barBottomMargin: 0,
+            onButtonClick: () => {
+              this.addCipher();
+            }
+          })
+            .accessibilityText($r('app.string.cipher_add_title'))
+            .margin({ right: 8, bottom: 72 })
+        }
       }
       .width('100%')
       .height('100%')
