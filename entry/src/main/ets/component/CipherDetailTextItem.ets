@@ -36,6 +36,7 @@ export struct CipherDetailTextItem {
 
       if (this.isEditable) {
         TextInput({ text: this.content })
+          .accessibilityText(this.getAccessibilityLabel())
           .fontSize(14)
           .layoutWeight(1)
           .margin({ left: 16, right: 16 })
@@ -50,6 +51,7 @@ export struct CipherDetailTextItem {
           Column() {
             AdaptiveIconButton({
               icon: $r('app.media.icon_cancel'),
+              accessibilityLabel: $r('app.string.accessibility_clear'),
               barWidth: 40,
               barHeight: 40,
               iconWidth: 20,
@@ -80,6 +82,7 @@ export struct CipherDetailTextItem {
         if (this.showContent) {
           AdaptiveIconButton({
             icon: $r('app.media.icon_show'),
+            accessibilityLabel: $r('app.string.accessibility_hide'),
             barWidth: 40,
             barHeight: 40,
             iconWidth: 20,
@@ -93,6 +96,7 @@ export struct CipherDetailTextItem {
         } else {
           AdaptiveIconButton({
             icon: $r('app.media.icon_hide'),
+            accessibilityLabel: $r('app.string.accessibility_show'),
             barWidth: 40,
             barHeight: 40,
             iconWidth: 20,
@@ -109,6 +113,7 @@ export struct CipherDetailTextItem {
       if (this.showCopyButton && !this.isEditable && this.content) {
         AdaptiveIconButton({
           icon: $r('app.media.icon_copy'),
+          accessibilityLabel: $r('app.string.common_copy'),
           barWidth: 40,
           barHeight: 40,
           iconWidth: 20,
@@ -124,6 +129,7 @@ export struct CipherDetailTextItem {
       if (this.isUri && !this.isEditable) {
         AdaptiveIconButton({
           icon: $r('app.media.icon_jump'),
+          accessibilityLabel: $r('app.string.accessibility_open_website'),
           barWidth: 40,
           barHeight: 40,
           iconWidth: 20,
@@ -138,6 +144,13 @@ export struct CipherDetailTextItem {
     }
     .width('100%')
     .padding({ top: 8, bottom: 8 })
+  }
+
+  private getAccessibilityLabel(): string {
+    if (typeof this.label === 'string') {
+      return this.label;
+    }
+    return this.getUIContext().getHostContext()?.resourceManager.getStringSync(this.label.id) ?? '';
   }
 
   private async copyText(text: string | null | undefined) {

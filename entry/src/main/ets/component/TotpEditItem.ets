@@ -73,6 +73,7 @@ export struct TotpEditItem {
           text: this.totpSecret,
           placeholder: this.totpSecret ? $r('app.string.totp_entered') : $r('app.string.totp_not_entered')
         })
+          .accessibilityText($r('app.string.totp_title'))
           .type(InputType.Password)
           .layoutWeight(1)
           .margin({ right: 8 })
@@ -83,6 +84,7 @@ export struct TotpEditItem {
           if (this.totpSecret && this.totpSecret.length > 0) {
             AdaptiveIconButton({
               icon: $r('app.media.icon_cancel'),
+              accessibilityLabel: $r('app.string.accessibility_clear_totp'),
               barWidth: 40,
               barHeight: 40,
               iconWidth: 20,
@@ -111,6 +113,7 @@ export struct TotpEditItem {
 
           AdaptiveIconButton({
             icon: $r('app.media.icon_scan_barcode'),
+            accessibilityLabel: $r('app.string.accessibility_scan_totp'),
             barWidth: 40,
             barHeight: 40,
             iconWidth: 20,

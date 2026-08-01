@@ -356,6 +356,7 @@ export struct CipherDetailPage {
 
                 if (this.isEditable) {
                   TextInput({ text: this.cipher.notes })
+                    .accessibilityText($r('app.string.cipher_notes'))
                     .onChange((value: string) => {
                       this.cipher.notes = value;
                     })

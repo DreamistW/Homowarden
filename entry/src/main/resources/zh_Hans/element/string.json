@@ -97,6 +97,34 @@
       "value": "历史"
     },
     {
+      "name": "accessibility_clear",
+      "value": "清除"
+    },
+    {
+      "name": "accessibility_show",
+      "value": "显示内容"
+    },
+    {
+      "name": "accessibility_hide",
+      "value": "隐藏内容"
+    },
+    {
+      "name": "accessibility_open_website",
+      "value": "打开网站"
+    },
+    {
+      "name": "accessibility_copy_totp",
+      "value": "复制验证码"
+    },
+    {
+      "name": "accessibility_clear_totp",
+      "value": "清除 TOTP 密钥"
+    },
+    {
+      "name": "accessibility_scan_totp",
+      "value": "扫描 TOTP 二维码"
+    },
+    {
       "name": "nav_vault",
       "value": "密码库"
     },

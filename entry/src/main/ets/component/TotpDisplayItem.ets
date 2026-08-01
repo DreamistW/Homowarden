@@ -120,6 +120,7 @@ export struct TotpDisplayItem {
       // 复制按钮
       AdaptiveIconButton({
         icon: $r('app.media.icon_copy'),
+        accessibilityLabel: $r('app.string.accessibility_copy_totp'),
         barWidth: 40,
         barHeight: 40,
         iconWidth: 20,

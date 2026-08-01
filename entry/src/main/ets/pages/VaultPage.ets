@@ -544,6 +544,7 @@ export struct VaultPage {
         if (this.selectedMainTab === MainTab.VAULT && this.sharedSymmetricKey.length > 0) {
           AdaptiveIconButton({
             icon: $r('app.media.icon_add'),
+            accessibilityLabel: $r('app.string.cipher_add_title'),
             iconWidth: 25,
             iconHeight: 25,
             contentPadding: 8,
@@ -552,7 +553,6 @@ export struct VaultPage {
               this.addCipher();
             }
           })
-            .accessibilityText($r('app.string.cipher_add_title'))
             .margin({ right: 8, bottom: 72 })
         }
       }

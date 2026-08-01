@@ -46,6 +46,7 @@ export struct AdaptiveTextButton {
 @Component
 export struct AdaptiveIconButton {
   icon: Resource = $r('app.media.icon_add');
+  accessibilityLabel: Resource = $r('app.string.common_unknown');
   barWidth: number = 50;
   barHeight: number = 50;
   iconWidth: number = 20;
@@ -71,6 +72,7 @@ export struct AdaptiveIconButton {
       .padding(0)
       .width(this.barWidth)
       .height(this.barHeight)
+      .accessibilityText(this.accessibilityLabel)
       .onClick(() => {
         this.onButtonClick?.();
       })

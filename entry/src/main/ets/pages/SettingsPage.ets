@@ -101,6 +101,7 @@ export struct SettingsPage {
                 Blank()
 
                 Toggle({ type: ToggleType.Switch, isOn: this.biometricEnabled })
+                  .accessibilityText($r('app.string.settings_biometrics'))
                   .onChange((isOn: boolean) => {
                     if (isOn) {
                       this.biometricEnabled = true;
@@ -128,6 +129,7 @@ export struct SettingsPage {
                 Blank()
 
                 Toggle({ type: ToggleType.Switch, isOn: this.autoLockEnabled })
+                  .accessibilityText($r('app.string.settings_auto_lock'))
                   .onChange((isOn: boolean) => {
                     this.autoLockEnabled = isOn;
                     DataPreferences.getInstance().putSync(AUTO_LOCK, isOn ? 1 : 0);
@@ -148,6 +150,7 @@ export struct SettingsPage {
                 Blank()
 
                 Toggle({ type: ToggleType.Switch, isOn: this.screenCaptureProtectionEnabled })
+                  .accessibilityText($r('app.string.settings_block_capture'))
                   .onChange(async (isOn: boolean) => {
                     this.screenCaptureProtectionEnabled = isOn;
                     const applied = await WindowPrivacyUtil.setScreenCaptureProtectionEnabled(isOn);
@@ -171,6 +174,7 @@ export struct SettingsPage {
                 Blank()
 
                 Toggle({ type: ToggleType.Switch, isOn: this.antiPeepProtectionEnabled })
+                  .accessibilityText($r('app.string.settings_anti_peep'))
                   .onChange(async (isOn: boolean) => {
                     this.antiPeepProtectionEnabled = isOn;
                     if (!isOn) {

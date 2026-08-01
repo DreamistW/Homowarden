@@ -85,6 +85,7 @@ export struct LoginPage {
             this.viewModel.twoFactorRemember = this.twoFactorRemember;
           }
         })
+          .accessibilityText($r('app.string.login_remember_me'))
         Text($r('app.string.login_remember_me'))
           .margin(12)
       }
@@ -182,6 +183,7 @@ export struct LoginPage {
               DataPreferences.getInstance().putSync(SAVE_EMAIL, this.needToSaveEmail ? 1 : 0);
             }
           })
+            .accessibilityText($r('app.string.login_remember_email'))
         }
 
         // 密码输入框

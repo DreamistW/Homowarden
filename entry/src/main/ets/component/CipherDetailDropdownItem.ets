@@ -17,6 +17,13 @@ export struct CipherDetailDropdownItem {
   // 是否编辑模式
   @Prop isEditable: boolean = false;
 
+  private getAccessibilityLabel(): string {
+    if (typeof this.label === 'string') {
+      return this.label;
+    }
+    return this.getUIContext().getHostContext()?.resourceManager.getStringSync(this.label.id) ?? '';
+  }
+
   build() {
     Row() {
       Text(this.label)
@@ -38,6 +45,7 @@ export struct CipherDetailDropdownItem {
                 }
               },
             })
+              .accessibilityText(this.getAccessibilityLabel())
           }
         }
         .layoutWeight(1)

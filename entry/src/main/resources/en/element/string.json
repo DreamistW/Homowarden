@@ -97,6 +97,34 @@
       "value": "History"
     },
     {
+      "name": "accessibility_clear",
+      "value": "Clear"
+    },
+    {
+      "name": "accessibility_show",
+      "value": "Show content"
+    },
+    {
+      "name": "accessibility_hide",
+      "value": "Hide content"
+    },
+    {
+      "name": "accessibility_open_website",
+      "value": "Open website"
+    },
+    {
+      "name": "accessibility_copy_totp",
+      "value": "Copy verification code"
+    },
+    {
+      "name": "accessibility_clear_totp",
+      "value": "Clear TOTP secret"
+    },
+    {
+      "name": "accessibility_scan_totp",
+      "value": "Scan TOTP QR code"
+    },
+    {
       "name": "nav_vault",
       "value": "Vault"
     },
