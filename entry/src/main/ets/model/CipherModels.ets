@@ -125,6 +125,8 @@ export interface CipherField {
   value: string; // 字段值
   type: CipherFieldType; // 字段类型（0为文本，1为隐藏，2为复选框）
   linkedId?: number | null; // 官方字段联动 ID
+  // 仅作为 ForEach 行 key 使用的本地内存标识，不参与加解密、数据库写入与服务端序列化。
+  itemId?: string;
 }
 
 /**

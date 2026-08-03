@@ -629,6 +629,38 @@
       "value": "Custom fields"
     },
     {
+      "name": "cipher_field_type",
+      "value": "Field type"
+    },
+    {
+      "name": "cipher_field_type_text",
+      "value": "Text"
+    },
+    {
+      "name": "cipher_field_type_hidden",
+      "value": "Hidden"
+    },
+    {
+      "name": "cipher_field_type_boolean",
+      "value": "Boolean"
+    },
+    {
+      "name": "cipher_add_field",
+      "value": "Add field"
+    },
+    {
+      "name": "cipher_field_name",
+      "value": "Name"
+    },
+    {
+      "name": "cipher_field_value",
+      "value": "Value"
+    },
+    {
+      "name": "accessibility_remove_field",
+      "value": "Remove field"
+    },
+    {
       "name": "cipher_add_website",
       "value": "Add website"
     },

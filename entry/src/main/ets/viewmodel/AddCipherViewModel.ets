@@ -1,5 +1,5 @@
-import { Cipher, CipherCard, CipherIdentity, CipherLogin, CipherSecureNote, CipherUri } from '../model/CipherModels';
-import { CardBrandType, CipherItemType, IdentityTitleType } from '../utils/Constants';
+import { Cipher, CipherCard, CipherField, CipherIdentity, CipherLogin, CipherSecureNote, CipherUri } from '../model/CipherModels';
+import { CardBrandType, CipherFieldType, CipherItemType, IdentityTitleType } from '../utils/Constants';
 import { CryptoUtil } from '../utils/CryptoUtil';
 import { createCipher } from '../network/CipherApi';
 import { DeviceUtil } from '../utils/DeviceUtil';
@@ -20,6 +20,8 @@ export class AddCipherViewModel {
   cardItem: CipherCard = {} as CipherCard;
   identityItem: CipherIdentity = {} as CipherIdentity;
   notes: string = '';
+  // 自定义字段列表：仅持有明文用于界面表单与后续加密；itemId 仅用于 ForEach 行 key。
+  fields: CipherField[] = [];
   // 页面状态
   submitting: boolean = false;
   errorMessage: string = '';
@@ -29,6 +31,17 @@ export class AddCipherViewModel {
 
   setCardBrand(type: CardBrandType): void {
     this.cardItem.brand = CipherDisplayMapping.writeCardBrand(type);
+  }
+
+  /** 在表单尾部追加一条空白自定义字段；界面的 @State 数组须在调用后重新赋值以触发渲染。 */
+  addField(type: CipherFieldType): void {
+    const newField: CipherField = {
+      name: '',
+      value: type === CipherFieldType.BOOL ? 'false' : '',
+      type: type,
+      itemId: DeviceUtil.generateUUID()
+    };
+    this.fields.push(newField);
   }
 
   canSave(): boolean {
@@ -163,6 +176,21 @@ export class AddCipherViewModel {
     return identity;
   }
 
+  // 构建加密自定义字段；不携带 itemId，确保本地内存标识不会泄漏到服务端或数据库。
+  private async buildEncryptedFields(): Promise<CipherField[]> {
+    return await Promise.all(this.fields.map(async (field: CipherField): Promise<CipherField> => {
+      const encName = field.name ? await CryptoUtil.encryptField(field.name, this.symmetricKey) : '';
+      const encValue = field.value ? await CryptoUtil.encryptField(field.value, this.symmetricKey) : '';
+      const cipherField: CipherField = {
+        name: encName,
+        value: encValue,
+        type: field.type,
+        linkedId: field.linkedId ?? null
+      };
+      return cipherField;
+    }));
+  }
+
   // 构建加密项目
   private async buildEncryptedCipher(): Promise<Cipher> {
     const encName = await CryptoUtil.encryptField(this.name.trim(), this.symmetricKey);
@@ -187,7 +215,7 @@ export class AddCipherViewModel {
       card: this.type == CipherItemType.CARD ? await this.buildEncryptedCard() : null,
       identity: this.type == CipherItemType.IDENTITY ? await this.buildEncryptedIdentity() : null,
       secureNote: this.type == CipherItemType.NOTE ? await this.buildEncryptedNote() : null,
-      fields: [],
+      fields: await this.buildEncryptedFields(),
       collectionIds: [],
       reprompt: 0,
     };
@@ -259,7 +287,7 @@ export class AddCipherViewModel {
       card: this.type == CipherItemType.CARD ? this.buildPlainCard() : null,
       identity: this.type == CipherItemType.IDENTITY ? this.buildPlainIdentity() : null,
       secureNote: this.type == CipherItemType.NOTE ? this.noteItem : null,
-      fields: [],
+      fields: this.fields.slice(),
       collectionIds: createdCipher.collectionIds || [],
       passwordHistory: null,
       attachments: null,

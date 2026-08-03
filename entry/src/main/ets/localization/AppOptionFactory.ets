@@ -1,5 +1,5 @@
 import { AppDropdownOption } from '../model/AppUiModels';
-import { CardBrandType, FilterType, IdentityTitleType } from '../utils/Constants';
+import { CardBrandType, CipherFieldType, FilterType, IdentityTitleType } from '../utils/Constants';
 
 /** 集中创建使用本地化资源的下拉选项。 */
 export class AppOptionFactory {
@@ -27,6 +27,14 @@ export class AppOptionFactory {
     options.push(AppDropdownOption.create($r('app.string.card_unionpay'), CardBrandType.UNIONPAY));
     options.push(AppDropdownOption.create($r('app.string.card_rupay'), CardBrandType.RUPAY));
     options.push(AppDropdownOption.create($r('app.string.common_other'), CardBrandType.OTHER));
+    return options;
+  }
+
+  static customFieldTypes(): AppDropdownOption[] {
+    const options: AppDropdownOption[] = [];
+    options.push(AppDropdownOption.create($r('app.string.cipher_field_type_text'), CipherFieldType.TEXT));
+    options.push(AppDropdownOption.create($r('app.string.cipher_field_type_hidden'), CipherFieldType.HIDE));
+    options.push(AppDropdownOption.create($r('app.string.cipher_field_type_boolean'), CipherFieldType.BOOL));
     return options;
   }
 

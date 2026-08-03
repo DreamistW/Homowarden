@@ -629,6 +629,38 @@
       "value": "自定义字段"
     },
     {
+      "name": "cipher_field_type",
+      "value": "字段类型"
+    },
+    {
+      "name": "cipher_field_type_text",
+      "value": "文本型"
+    },
+    {
+      "name": "cipher_field_type_hidden",
+      "value": "隐藏型"
+    },
+    {
+      "name": "cipher_field_type_boolean",
+      "value": "布尔型"
+    },
+    {
+      "name": "cipher_add_field",
+      "value": "添加字段"
+    },
+    {
+      "name": "cipher_field_name",
+      "value": "字段名称"
+    },
+    {
+      "name": "cipher_field_value",
+      "value": "值"
+    },
+    {
+      "name": "accessibility_remove_field",
+      "value": "移除字段"
+    },
+    {
       "name": "cipher_add_website",
       "value": "添加网站"
     },

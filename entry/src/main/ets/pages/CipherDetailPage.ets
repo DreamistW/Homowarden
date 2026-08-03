@@ -11,6 +11,8 @@ import { CipherDetailTextItem } from '../component/CipherDetailTextItem';
 import { CipherDetailDropdownItem } from '../component/CipherDetailDropdownItem';
 import { TotpDisplayItem } from '../component/TotpDisplayItem';
 import { TotpEditItem } from '../component/TotpEditItem';
+import { CustomFieldEditItem } from '../component/CustomFieldEditItem';
+import { AppDropdown } from '../component/AppDropdown';
 import { AppDropdownOption } from '../model/AppUiModels';
 import { AppToast } from '../utils/AppToast';
 import { AppDialog, AppDialogAction } from '../component/AppDialog';
@@ -22,6 +24,7 @@ import { VaultChangeNotifier } from '../utils/VaultChangeNotifier';
 import { AppOptionFactory } from '../localization/AppOptionFactory';
 import { CipherDisplayMapping } from '../domain/CipherDisplayMapping';
 import { LocaleUtil } from '../localization/LocaleUtil';
+import { DeviceUtil } from '../utils/DeviceUtil';
 
 @Builder
 export function CipherDetailPageBuilder() {
@@ -46,6 +49,7 @@ export struct CipherDetailPage {
   @State formattedCreationDate: string = '';
   @State formattedRevisionDate: string = '';
   @State formattedDeletedDate: string = '';
+  @State newFieldEditType: CipherFieldType = CipherFieldType.TEXT;
   pathInfos: NavPathStack = new NavPathStack();
   private viewModel: CipherDetailViewModel = new CipherDetailViewModel();
   private identityTitleGroup: string = 'identityTitleSelector';
@@ -117,6 +121,17 @@ export struct CipherDetailPage {
         return CardBrandType.OTHER;
       default:
         return CardBrandType.NONE;
+    }
+  }
+
+  private customFieldTypeFromValue(value: number): CipherFieldType {
+    switch (value) {
+      case CipherFieldType.HIDE:
+        return CipherFieldType.HIDE;
+      case CipherFieldType.BOOL:
+        return CipherFieldType.BOOL;
+      default:
+        return CipherFieldType.TEXT;
     }
   }
 
@@ -383,8 +398,8 @@ export struct CipherDetailPage {
                 this.buildSecureNoteSection();
               }
 
-              // 自定义字段
-              if (this.cipher.fields && this.cipher.fields.length > 0) {
+              // 自定义字段：查看模式下仅当存在字段时才渲章节；编辑模式下必须显示以容纳"添加字段"入口。
+              if (this.isEditable || (this.cipher.fields && this.cipher.fields.length > 0)) {
                 this.buildCustomFieldsSection();
               }
 
@@ -1007,15 +1022,71 @@ export struct CipherDetailPage {
         .fontWeight(FontWeight.Medium)
         .margin({ bottom: 12 })
 
-      ForEach(this.cipher.fields as CipherField[], (field: CipherField) => {
-        CipherDetailTextItem({
-          label: field.name,
-          content: this.getFieldValue(field),
-          showContent: (field.type == CipherFieldType.HIDE) ? this.showHideField : true,
-          showHideButton: (field.type == CipherFieldType.HIDE) ? true : false,
-          isEditable: this.isEditable
-        })
-      })
+      if (this.isEditable) {
+        // 编辑模式：可增删改；每个 row 通过回调就地修改字段并整组重新赋值触发 ForEach 重渲。
+        ForEach(this.cipher.fields ?? [], (field: CipherField) => {
+          CustomFieldEditItem({
+            field: field,
+            onNameChange: (v: string) => {
+              field.name = v;
+              this.cipher.fields = [...(this.cipher.fields ?? [])];
+            },
+            onValueChange: (v: string) => {
+              field.value = v;
+              this.cipher.fields = [...(this.cipher.fields ?? [])];
+            },
+            onBoolChange: (v: boolean) => {
+              field.value = v ? 'true' : 'false';
+              this.cipher.fields = [...(this.cipher.fields ?? [])];
+            },
+            onRemove: () => {
+              this.cipher.fields = (this.cipher.fields ?? []).filter(f => f !== field);
+            }
+          })
+        }, (field: CipherField) => field.itemId ?? field.name)
+
+        // 类型下拉 + 添加按钮
+        Row({ space: 8 }) {
+          AppDropdown({
+            options: AppOptionFactory.customFieldTypes(),
+            value: this.newFieldEditType,
+            accessibilityLabel: $r('app.string.cipher_field_type'),
+            onChange: (value: number) => {
+              this.newFieldEditType = this.customFieldTypeFromValue(value);
+            }
+          })
+            .layoutWeight(1)
+
+          AdaptiveTextButton({
+            text: $r('app.string.cipher_add_field'),
+            barWidth: 120,
+            barHeight: 40,
+            fontSize: 14,
+            barBottomMargin: 0,
+            onButtonClick: () => {
+              const newField: CipherField = {
+                name: '',
+                value: this.newFieldEditType === CipherFieldType.BOOL ? 'false' : '',
+                type: this.newFieldEditType,
+                itemId: DeviceUtil.generateUUID()
+              };
+              this.cipher.fields = [...(this.cipher.fields ?? []), newField];
+            }
+          })
+        }
+        .margin({ top: 8 })
+      } else {
+        // 查看模式：沿用现有只读 CipherDetailTextItem 渲染。
+        ForEach(this.cipher.fields as CipherField[], (field: CipherField) => {
+          CipherDetailTextItem({
+            label: field.name,
+            content: this.getFieldValue(field),
+            showContent: (field.type == CipherFieldType.HIDE) ? this.showHideField : true,
+            showHideButton: (field.type == CipherFieldType.HIDE) ? true : false,
+            isEditable: false
+          })
+        }, (field: CipherField) => field.itemId ?? field.name)
+      }
     }
     .width('100%')
     .padding(16)

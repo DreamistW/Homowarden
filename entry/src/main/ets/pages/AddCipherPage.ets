@@ -2,8 +2,12 @@ import { DataPreferences } from '@abner/datastore';
 import { AppDropdown } from '../component/AppDropdown';
 import { AppToast } from '../utils/AppToast';
 import { TotpEditItem } from '../component/TotpEditItem';
+import { CustomFieldEditItem } from '../component/CustomFieldEditItem';
+import { AdaptiveTextButton } from '../component/AdaptiveButton';
+import { CipherField } from '../model/CipherModels';
 import {
   CardBrandType,
+  CipherFieldType,
   CipherItemType,
   IdentityTitleType,
   NEED_RELOAD_CIPHERS
@@ -26,6 +30,7 @@ export struct AddCipherPage {
   @State identityTitle: IdentityTitleType = IdentityTitleType.NONE;
   @State cardBrand: CardBrandType = CardBrandType.NONE;
   @State totpSecret: string = '';
+  @State newFieldType: CipherFieldType = CipherFieldType.TEXT;
   allowSave: boolean = false;
   pathInfos: NavPathStack = new NavPathStack();
   ConfirmBtn: HdsNavigationBadgeIconOptions = {
@@ -81,6 +86,17 @@ export struct AddCipherPage {
         return CardBrandType.OTHER;
       default:
         return CardBrandType.NONE;
+    }
+  }
+
+  private customFieldTypeFromValue(value: number): CipherFieldType {
+    switch (value) {
+      case CipherFieldType.HIDE:
+        return CipherFieldType.HIDE;
+      case CipherFieldType.BOOL:
+        return CipherFieldType.BOOL;
+      default:
+        return CipherFieldType.TEXT;
     }
   }
 
@@ -639,6 +655,61 @@ export struct AddCipherPage {
               this.viewModel.notes = v;
             })
             .margin({ left: 16, right: 16, bottom: 24 })
+
+          // 自定义字段区块：所有 cipher 类型共用，与新增密码项主流程一致。
+          Text($r('app.string.cipher_custom_fields'))
+            .fontSize(16)
+            .fontWeight(FontWeight.Medium)
+            .margin({ left: 16, right: 16, top: 16, bottom: 8 })
+
+          ForEach(this.viewModel.fields, (field: CipherField) => {
+            Column() {
+              CustomFieldEditItem({
+                field: field,
+                onNameChange: (v: string) => {
+                  field.name = v;
+                  this.viewModel.fields = [...this.viewModel.fields];
+                },
+                onValueChange: (v: string) => {
+                  field.value = v;
+                  this.viewModel.fields = [...this.viewModel.fields];
+                },
+                onBoolChange: (v: boolean) => {
+                  field.value = v ? 'true' : 'false';
+                  this.viewModel.fields = [...this.viewModel.fields];
+                },
+                onRemove: () => {
+                  this.viewModel.fields = this.viewModel.fields.filter(f => f !== field);
+                }
+              })
+            }
+            .padding({ left: 16, right: 16 })
+          }, (field: CipherField) => field.itemId ?? field.name)
+
+          Row({ space: 8 }) {
+            AppDropdown({
+              options: AppOptionFactory.customFieldTypes(),
+              value: this.newFieldType,
+              accessibilityLabel: $r('app.string.cipher_field_type'),
+              onChange: (value: number) => {
+                this.newFieldType = this.customFieldTypeFromValue(value);
+              }
+            })
+              .layoutWeight(1)
+
+            AdaptiveTextButton({
+              text: $r('app.string.cipher_add_field'),
+              barWidth: 120,
+              barHeight: 40,
+              fontSize: 14,
+              barBottomMargin: 0,
+              onButtonClick: () => {
+                this.viewModel.addField(this.newFieldType);
+                this.viewModel.fields = [...this.viewModel.fields];
+              }
+            })
+          }
+          .margin({ left: 16, right: 16, top: 8, bottom: 24 })
 
           // 错误提示
           if (this.viewModel.errorMessage && this.viewModel.errorMessage.length > 0) {
