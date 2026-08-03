@@ -20,6 +20,7 @@ import { HdsNavDestination } from '@hms.hds.hdsBaseComponent';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 import { AdaptiveTextButton } from '../component/AdaptiveButton';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
+import { VaultViewModel } from '../viewmodel/VaultViewModel';
 
 @Builder
 export function UnlockPageBuilder() {
@@ -189,11 +190,13 @@ export struct UnlockPage {
 
   private async logout(): Promise<void> {
     try {
+      await VaultViewModel.prepareForLogout();
       await DatabaseUtil.getInstance().clearVaultData();
       clearAssetAndPreferences();
       await WindowPrivacyUtil.applyForCurrentState();
       this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
     } catch (error) {
+      VaultViewModel.beginSession();
       Logger.error(`Failed to log out. Error: ${JSON.stringify(error)}`);
       AppToast.show(this.getUIContext(), $r('app.string.error_storage'));
     }
@@ -261,6 +264,7 @@ export struct UnlockPage {
         // 判断当前页面栈
         if (pathName == EntryRouter.UnlockPage) {
           // 认证成功，跳转到 VaultPage
+          VaultViewModel.beginSession();
           this.pathInfos.replacePath({ name: EntryRouter.VaultPage });
         } else {
           this.pathInfos.pop();
@@ -329,6 +333,7 @@ export struct UnlockPage {
             // 判断当前页面栈
             if (pathName == EntryRouter.UnlockPage) {
               // 认证成功，跳转到 VaultPage
+              VaultViewModel.beginSession();
               this.pathInfos.replacePath({ name: EntryRouter.VaultPage });
             } else {
               this.pathInfos.pop();

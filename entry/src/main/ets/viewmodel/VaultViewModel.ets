@@ -29,6 +29,10 @@ import { LocaleUtil } from '../localization/LocaleUtil';
 export class VaultViewModel {
   // 所有实例共享同一同步 Promise，避免并发请求交错覆盖数据库。
   private static activeSyncPromise: Promise<boolean> | null = null;
+  private static activeSyncGuards: Array<() => boolean> = [];
+  private static activeDatabaseWritePromise: Promise<void> | null = null;
+  private static syncGeneration: number = 0;
+  private static syncBlocked: boolean = false;
   // 所有密码项
   allCiphers: Cipher[] = [];
   // 筛选后的密码项
@@ -78,27 +82,69 @@ export class VaultViewModel {
    * 从服务器同步密码项数据
    */
   private async syncCiphersFromServer(shouldApplyResult?: () => boolean): Promise<boolean> {
+    if (VaultViewModel.syncBlocked) {
+      return false;
+    }
     if (VaultViewModel.activeSyncPromise) {
+      if (shouldApplyResult) {
+        VaultViewModel.activeSyncGuards.push(shouldApplyResult);
+      }
       return await VaultViewModel.activeSyncPromise;
     }
-    const syncPromise = this.performSyncCiphersFromServer(shouldApplyResult);
+    VaultViewModel.activeSyncGuards = [];
+    if (shouldApplyResult) {
+      VaultViewModel.activeSyncGuards.push(shouldApplyResult);
+    }
+    const generation = VaultViewModel.syncGeneration;
+    const syncPromise = this.performSyncCiphersFromServer(generation);
     VaultViewModel.activeSyncPromise = syncPromise;
     try {
       return await syncPromise;
     } finally {
       if (VaultViewModel.activeSyncPromise === syncPromise) {
         VaultViewModel.activeSyncPromise = null;
+        VaultViewModel.activeSyncGuards = [];
       }
     }
   }
 
-  private async performSyncCiphersFromServer(shouldApplyResult?: () => boolean): Promise<boolean> {
+  private static canApplySync(generation: number): boolean {
+    if (VaultViewModel.syncBlocked || generation !== VaultViewModel.syncGeneration) {
+      return false;
+    }
+    for (const guard of VaultViewModel.activeSyncGuards) {
+      if (!guard()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  static async prepareForLogout(): Promise<void> {
+    VaultViewModel.syncBlocked = true;
+    VaultViewModel.syncGeneration++;
+    const writePromise = VaultViewModel.activeDatabaseWritePromise;
+    if (writePromise) {
+      try {
+        await writePromise;
+      } catch (error) {
+        Logger.info(`Active vault database write stopped before logout: ${error}`);
+      }
+    }
+  }
+
+  static beginSession(): void {
+    VaultViewModel.syncBlocked = false;
+    VaultViewModel.syncGeneration++;
+  }
+
+  private async performSyncCiphersFromServer(generation: number): Promise<boolean> {
     try {
       Logger.info('Starting to sync ciphers from server...');
 
       const response = await getAllCiphers();
       // 调用方可用修订号判定结果是否已被本地编辑淘汰。
-      if (shouldApplyResult && !shouldApplyResult()) {
+      if (!VaultViewModel.canApplySync(generation)) {
         Logger.info('Skip stale vault sync response');
         return false;
       }
@@ -109,17 +155,19 @@ export class VaultViewModel {
         // 全量替换必须置于同一事务，任何条目失败都回滚旧密码库。
         const enableForeignKeys = `PRAGMA foreign_keys = ON`;
         await DatabaseUtil.getInstance().executeSql(enableForeignKeys);
+        if (!VaultViewModel.canApplySync(generation)) {
+          Logger.info('Skip stale vault sync database write');
+          return false;
+        }
 
-        await DatabaseUtil.getInstance().beginTransaction();
+        const writePromise = this.replaceVaultDatabase(response.ciphers, generation);
+        VaultViewModel.activeDatabaseWritePromise = writePromise;
         try {
-          await DatabaseUtil.getInstance().deleteAllData(DBTableName.MAIN);
-          for (const cipher of response.ciphers) {
-            await DatabaseUtil.getInstance().saveCipherToDatabase(cipher);
+          await writePromise;
+        } finally {
+          if (VaultViewModel.activeDatabaseWritePromise === writePromise) {
+            VaultViewModel.activeDatabaseWritePromise = null;
           }
-          await DatabaseUtil.getInstance().commitTransaction();
-        } catch (error) {
-          await DatabaseUtil.getInstance().rollBackTransaction();
-          throw new Error(`Cipher sync transaction failed: ${error}`);
         }
       }
       return true;
@@ -139,12 +187,44 @@ export class VaultViewModel {
     }
   }
 
+  private async replaceVaultDatabase(ciphers: Cipher[], generation: number): Promise<void> {
+    await DatabaseUtil.getInstance().beginTransaction();
+    try {
+      await DatabaseUtil.getInstance().deleteAllData(DBTableName.MAIN);
+      for (const cipher of ciphers) {
+        if (!VaultViewModel.canApplySync(generation)) {
+          throw new Error('Vault sync became stale');
+        }
+        await DatabaseUtil.getInstance().saveCipherToDatabase(cipher);
+      }
+      if (!VaultViewModel.canApplySync(generation)) {
+        throw new Error('Vault sync became stale');
+      }
+      await DatabaseUtil.getInstance().commitTransaction();
+    } catch (error) {
+      try {
+        await DatabaseUtil.getInstance().rollBackTransaction();
+      } catch (rollbackError) {
+        Logger.error(`Failed to roll back cipher sync transaction: ${rollbackError}`);
+      }
+      throw new Error(`Cipher sync transaction failed: ${error}`);
+    }
+  }
+
   private async loadCiphersFromDatabase() {
     await DatabaseUtil.getInstance().createTable();
     this.symmetricKey = await this.getSymmetricKey();
     const ciphersData = await DatabaseUtil.getInstance().queryAllData(DBTableName.MAIN);
     const cipherKeysData = await DatabaseUtil.getInstance().queryAllData(DBTableName.KEYS);
-    this.allCiphers = await this.buildCiphersFromData(ciphersData, cipherKeysData);
+    const loginData = await DatabaseUtil.getInstance().queryAllData(DBTableName.LOGINS);
+    const cardData = await DatabaseUtil.getInstance().queryAllData(DBTableName.CARDS);
+    const identityData = await DatabaseUtil.getInstance().queryAllData(DBTableName.IDENTITIES);
+    const cipherKeysById = this.buildRowsByCipherId(cipherKeysData);
+    const loginsById = this.buildRowsByCipherId(loginData);
+    const cardsById = this.buildRowsByCipherId(cardData);
+    const identitiesById = this.buildRowsByCipherId(identityData);
+    this.allCiphers = await this.buildCiphersFromData(ciphersData, cipherKeysById, loginsById, cardsById,
+      identitiesById);
     this.filteredCiphers = this.allCiphers.filter(cipher => cipher.deletedDate == null);
     this.stats = await this.getCipherTypeStats(ciphersData);
     this.buildFilterOptions();
@@ -195,14 +275,47 @@ export class VaultViewModel {
    * 从数据库数据构建密码项对象
    */
   private async buildCiphersFromData(ciphersData: relationalStore.ValuesBucket[],
-    cipherKeysData: relationalStore.ValuesBucket[]): Promise<Cipher[]> {
+    cipherKeysById: Map<string, relationalStore.ValuesBucket>,
+    loginsById: Map<string, relationalStore.ValuesBucket>, cardsById: Map<string, relationalStore.ValuesBucket>,
+    identitiesById: Map<string, relationalStore.ValuesBucket>): Promise<Cipher[]> {
     const ciphers: Cipher[] = [];
+    const batchSize: number = 16;
+    for (let start: number = 0; start < ciphersData.length; start += batchSize) {
+      const end: number = Math.min(start + batchSize, ciphersData.length);
+      const batchData: relationalStore.ValuesBucket[] = ciphersData.slice(start, end);
+      const batchCiphers: Cipher[] = await Promise.all(batchData.map(
+        async (cipherData: relationalStore.ValuesBucket): Promise<Cipher> => {
+          return await this.buildCipherFromData(cipherData, cipherKeysById, loginsById, cardsById, identitiesById);
+        }
+      ));
+      ciphers.push(...batchCiphers);
+    }
 
-    for (const cipherData of ciphersData) {
+    ciphers.sort((a: Cipher, b: Cipher) => {
+      if (!a.name && !b.name) {
+        return 0;
+      }
+      if (!a.name) {
+        return 1;
+      }
+      if (!b.name) {
+        return -1;
+      }
+      return a.name.localeCompare(b.name, LocaleUtil.getLanguage());
+    })
+
+    return ciphers;
+  }
+
+  private async buildCipherFromData(cipherData: relationalStore.ValuesBucket,
+    cipherKeysById: Map<string, relationalStore.ValuesBucket>,
+    loginsById: Map<string, relationalStore.ValuesBucket>, cardsById: Map<string, relationalStore.ValuesBucket>,
+    identitiesById: Map<string, relationalStore.ValuesBucket>): Promise<Cipher> {
       const rawRevisionDate = cipherData.revision_date as string;
-      const keyData = cipherKeysData.find(data => data.cipher_id === cipherData.id);
+      const cipherId = cipherData.id as string;
+      const keyData = cipherKeysById.get(cipherId);
       const cipher: Cipher = {
-        id: cipherData.id as string,
+        id: cipherId,
         type: cipherData.type as CipherItemType,
         name: cipherData.name as string,
         favorite: (cipherData.favorite as number) === 1,
@@ -227,7 +340,7 @@ export class VaultViewModel {
       try {
         const cipherKey = await CryptoUtil.decryptCipherKey(cipher.key, this.symmetricKey);
         cipher.name = await CryptoUtil.decryptField(cipher.name, cipherKey);
-        cipher.subtitle = await this.getSubtitle(cipher, cipherKey);
+        cipher.subtitle = await this.getSubtitle(cipher, cipherKey, loginsById, cardsById, identitiesById);
         if (!cipher.subtitle) {
           cipher.displaySubtitleKind = this.getTypeSubtitleKind(cipher.type);
         }
@@ -242,23 +355,18 @@ export class VaultViewModel {
         cipher.notes = null;
         cipher.edit = false;
       }
-      ciphers.push(cipher);
+      return cipher;
+  }
+
+  private buildRowsByCipherId(rows: relationalStore.ValuesBucket[]): Map<string, relationalStore.ValuesBucket> {
+    const rowsById = new Map<string, relationalStore.ValuesBucket>();
+    for (const row of rows) {
+      const cipherId = row.cipher_id;
+      if (cipherId !== null && cipherId !== undefined) {
+        rowsById.set(cipherId.toString(), row);
+      }
     }
-
-    ciphers.sort((a: Cipher, b: Cipher) => {
-      if (!a.name && !b.name) {
-        return 0;
-      }
-      if (!a.name) {
-        return 1;
-      }
-      if (!b.name) {
-        return -1;
-      }
-      return a.name.localeCompare(b.name, LocaleUtil.getLanguage());
-    })
-
-    return ciphers;
+    return rowsById;
   }
 
   // 获得对称密钥
@@ -545,27 +653,28 @@ export class VaultViewModel {
   }
 
   /** 解密列表副标题，并保留身份姓名分量供语言切换时重排。 */
-  async getSubtitle(cipher: Cipher, cipherKey: string): Promise<string> {
+  async getSubtitle(cipher: Cipher, cipherKey: string,
+    loginsById: Map<string, relationalStore.ValuesBucket>, cardsById: Map<string, relationalStore.ValuesBucket>,
+    identitiesById: Map<string, relationalStore.ValuesBucket>): Promise<string> {
     // 根据不同的项目类型返回对应的副标题
     if (cipher.type == CipherItemType.LOGIN) {
-      const encUsername =
-        DatabaseUtil.getInstance().querySingleData(DBTableName.LOGINS, 'cipher_id', cipher.id, 'username');
+      const loginRow = loginsById.get(cipher.id);
+      const encUsername = loginRow ? loginRow.username : '';
       if (encUsername != '') {
         const username = await CryptoUtil.decryptField(encUsername as string, cipherKey);
         return username;
       }
     } else if (cipher.type == CipherItemType.CARD) {
-      const encCardNumber =
-        DatabaseUtil.getInstance().querySingleData(DBTableName.CARDS, 'cipher_id', cipher.id, 'number');
+      const cardRow = cardsById.get(cipher.id);
+      const encCardNumber = cardRow ? cardRow.number : '';
       if (encCardNumber && encCardNumber.toString().length > 5) {
         const cardNumber = await CryptoUtil.decryptField(encCardNumber as string, cipherKey);
         return '*' + cardNumber.slice(-4);
       }
     } else if (cipher.type == CipherItemType.IDENTITY) {
-      const encFirstName =
-        DatabaseUtil.getInstance().querySingleData(DBTableName.IDENTITIES, 'cipher_id', cipher.id, 'first_name');
-      const encLastName =
-        DatabaseUtil.getInstance().querySingleData(DBTableName.IDENTITIES, 'cipher_id', cipher.id, 'last_name');
+      const identityRow = identitiesById.get(cipher.id);
+      const encFirstName = identityRow ? identityRow.first_name : '';
+      const encLastName = identityRow ? identityRow.last_name : '';
       if (encFirstName != '' || encLastName != '') {
         const firstName = encFirstName != '' ? await CryptoUtil.decryptField(encFirstName as string, cipherKey) : '';
         const lastName = encLastName != '' ? await CryptoUtil.decryptField(encLastName as string, cipherKey) : '';

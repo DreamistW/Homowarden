@@ -75,16 +75,22 @@ export class DatabaseUtil {
     if (DatabaseUtil.store == null) {
       throw new Error('Database is undefined');
     }
-    DatabaseUtil.store.commit();
-    DatabaseUtil.transactionActive = false;
+    try {
+      DatabaseUtil.store.commit();
+    } finally {
+      DatabaseUtil.transactionActive = false;
+    }
   }
 
   async rollBackTransaction(): Promise<void> {
     if (DatabaseUtil.store == null) {
       throw new Error('Database is undefined');
     }
-    DatabaseUtil.store.rollBack();
-    DatabaseUtil.transactionActive = false;
+    try {
+      DatabaseUtil.store.rollBack();
+    } finally {
+      DatabaseUtil.transactionActive = false;
+    }
   }
 
   async insertData(table: string, data: relationalStore.ValuesBucket): Promise<number> {
@@ -197,7 +203,11 @@ export class DatabaseUtil {
       await this.deleteAllData(DBTableName.MAIN);
       await this.commitTransaction();
     } catch (error) {
-      await this.rollBackTransaction();
+      try {
+        await this.rollBackTransaction();
+      } catch (rollbackError) {
+        Logger.error(`Failed to roll back vault clearing transaction: ${rollbackError}`);
+      }
       throw new Error(`Failed to clear vault data: ${error}`);
     }
   }

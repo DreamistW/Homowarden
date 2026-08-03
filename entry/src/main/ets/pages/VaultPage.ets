@@ -44,6 +44,7 @@ struct VaultContent {
   @State needReLogin: boolean = false;
   @State selectedType: FilterType = FilterType.ALL;
   @State filterOptions: AppDropdownOption[] = AppOptionFactory.vaultFilters(0, 0, 0, 0, 0, 0, 0);
+  @State displayCiphers: Cipher[] = [];
   @State isInitialLoading: boolean = true;
   @State isLoading: boolean = false;
   @State showPasswordDialog: boolean = false;
@@ -69,7 +70,7 @@ struct VaultContent {
     // 语言变化后重排身份姓名并重建带数量的筛选文案。
     this.viewModel.refreshLocale();
     this.refreshFilterOptions();
-    this.viewModel.filterCiphers(this.selectedType, this.searchText);
+    this.applyCurrentFilter();
     this.publishVaultData();
   }
 
@@ -79,6 +80,11 @@ struct VaultContent {
 
   private refreshFilterOptions(): void {
     this.filterOptions = this.viewModel.filterOptions.slice();
+  }
+
+  private applyCurrentFilter(): void {
+    this.viewModel.filterCiphers(this.selectedType, this.searchText);
+    this.displayCiphers = this.viewModel.filteredCiphers.slice();
   }
 
   /** 优先展示本地数据，并按是否为空选择前台或后台同步策略。 */
@@ -96,23 +102,11 @@ struct VaultContent {
         AppToast.show(this.getUIContext(), $r('app.string.error_load_failed'));
       }
 
-      this.viewModel.filterCiphers(this.selectedType, this.searchText);
+      this.applyCurrentFilter();
       this.refreshFilterOptions();
       this.publishVaultData();
 
-      // 第二步：如果本地没数据，则直接强制同步，避免先显示空态再跳变为列表
-      if (this.viewModel.allCiphers.length === 0) {
-        const syncResult = await this.viewModel.loadCiphers(true);
-        if (!syncResult && !this.needReLogin) {
-          AppToast.show(this.getUIContext(), $r('app.string.error_load_failed'));
-        }
-        this.viewModel.filterCiphers(this.selectedType, this.searchText);
-        this.refreshFilterOptions();
-        this.publishVaultData();
-        return;
-      }
-
-      // 第三步：本地已有数据，则后台静默同步
+      this.isInitialLoading = false;
       void this.doBackgroundSync();
     } finally {
       this.isInitialLoading = false;
@@ -128,7 +122,7 @@ struct VaultContent {
 
     if (result) {
       // 后台同步完成后，重新应用当前筛选条件
-      this.viewModel.filterCiphers(this.selectedType, this.searchText);
+      this.applyCurrentFilter();
       this.refreshFilterOptions();
       this.publishVaultData();
     } else {
@@ -142,7 +136,7 @@ struct VaultContent {
   private async reloadCiphersAfterLocalChange() {
     const localResult = await this.viewModel.loadCiphers(false);
     if (localResult) {
-      this.viewModel.filterCiphers(this.selectedType, this.searchText);
+      this.applyCurrentFilter();
       this.refreshFilterOptions();
       this.publishVaultData();
     } else {
@@ -155,12 +149,18 @@ struct VaultContent {
     // 先更新内存列表保证返回页面即时可见，再以数据库和后台同步结果校准。
     if (change?.type === VaultLocalChangeType.UPSERT && change.cipher) {
       this.viewModel.applyLocalCipherChange(change.cipher, this.selectedType, this.searchText);
+      this.applyCurrentFilter();
+      this.refreshFilterOptions();
+      this.publishVaultData();
       void this.reloadCiphersAfterLocalChange();
       return;
     }
 
     if (change?.type === VaultLocalChangeType.DELETE && change.cipherId) {
       this.viewModel.applyLocalCipherDeletion(change.cipherId, this.selectedType, this.searchText);
+      this.applyCurrentFilter();
+      this.refreshFilterOptions();
+      this.publishVaultData();
       void this.reloadCiphersAfterLocalChange();
       return;
     }
@@ -185,7 +185,7 @@ struct VaultContent {
       } else {
         AppToast.show(this.getUIContext(), $r('app.string.vault_refresh_failed'));
       }
-      this.viewModel.filterCiphers(this.selectedType, this.searchText);
+      this.applyCurrentFilter();
       this.refreshFilterOptions();
       this.publishVaultData();
     } catch (error) {
@@ -278,16 +278,16 @@ struct VaultContent {
 
   @Builder
   listContent() {
-    if (this.viewModel.isLoading) {
+    if (this.isLoading) {
       this.loadingContent()
     } else {
       List({ scroller: this.listScroller }) {
-        if (this.viewModel.filteredCiphers.length === 0) {
+        if (this.displayCiphers.length === 0) {
           ListItem() {
             this.emptyContent()
           }
         } else {
-          ForEach(this.viewModel.filteredCiphers, (cipher: Cipher) => {
+          ForEach(this.displayCiphers, (cipher: Cipher) => {
             ListItem() {
               CipherItem({
                 cipher: cipher,
@@ -322,7 +322,7 @@ struct VaultContent {
                   accessibilityLabel: $r('app.string.vault_title'),
                   onChange: (value: number) => {
                     this.selectedType = value;
-                    this.viewModel.filterCiphers(this.selectedType, this.searchText);
+                    this.applyCurrentFilter();
                   }
                 })
               }.width('30%')
@@ -333,7 +333,7 @@ struct VaultContent {
               })
                 .onChange((value: string) => {
                   this.searchText = value;
-                  this.viewModel.filterCiphers(this.selectedType, this.searchText);
+                  this.applyCurrentFilter();
                 }
               ).layoutWeight(1)
             }

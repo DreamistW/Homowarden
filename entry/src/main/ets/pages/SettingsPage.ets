@@ -20,6 +20,7 @@ import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 import { AdaptiveTextButton } from '../component/AdaptiveButton';
 import { AntiPeepUtil } from '../utils/AntiPeepUtil';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
+import { VaultViewModel } from '../viewmodel/VaultViewModel';
 
 @Component
 export struct SettingsPage {
@@ -592,11 +593,13 @@ export struct SettingsPage {
 
   private async performLogout(): Promise<void> {
     try {
+      await VaultViewModel.prepareForLogout();
       await DatabaseUtil.getInstance().clearVaultData();
       clearAssetAndPreferences();
       await WindowPrivacyUtil.applyForCurrentState();
       this.onLogout();
     } catch (error) {
+      VaultViewModel.beginSession();
       Logger.error(`Failed to log out. Error: ${JSON.stringify(error)}`);
       AppToast.show(this.getUIContext(), $r('app.string.error_storage'));
     }

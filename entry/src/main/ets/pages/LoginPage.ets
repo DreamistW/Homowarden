@@ -12,6 +12,7 @@ import { AdaptiveTextButton } from '../component/AdaptiveButton';
 import { TwoFactorProvider } from '../model/AccessToken';
 import { AppText, AppTextKey } from '../localization/AppText';
 import { AppTextResolver } from '../localization/AppTextResolver';
+import { VaultViewModel } from '../viewmodel/VaultViewModel';
 
 @Builder
 export function LoginPageBuilder() {
@@ -444,6 +445,7 @@ export struct LoginPage {
   // 跳转到密码库页面
   private async navigateToVault(): Promise<void> {
     await WindowPrivacyUtil.applyForCurrentState();
+    VaultViewModel.beginSession();
     this.pathInfos.replacePath({ name: EntryRouter.VaultPage });
   }
 
