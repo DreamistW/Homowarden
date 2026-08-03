@@ -313,7 +313,7 @@ struct VaultContent {
             this.loadingContent()
           } else {
             // 搜索栏
-            Row() {
+            Row({ space: 8 }) {
               Column() {
                 AppDropdown({
                   options: this.filterOptions,
@@ -335,8 +335,7 @@ struct VaultContent {
                   this.searchText = value;
                   this.viewModel.filterCiphers(this.selectedType, this.searchText);
                 }
-              ).width('70%')
-                .layoutWeight(1)
+              ).layoutWeight(1)
             }
             .width('100%')
             .padding({ left: 16, right: 16, bottom: 8 })
