@@ -19,6 +19,7 @@ import { CryptoUtil } from '../utils/CryptoUtil';
 import { HdsNavDestination } from '@hms.hds.hdsBaseComponent';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 import { AdaptiveTextButton } from '../component/AdaptiveButton';
+import { DatabaseUtil } from '../utils/DatabaseUtil';
 
 @Builder
 export function UnlockPageBuilder() {
@@ -109,10 +110,7 @@ export struct UnlockPage {
             fontSize: 18,
             contentPadding: 6,
             onButtonClick: () => {
-              clearAssetAndPreferences();
-              void WindowPrivacyUtil.applyForCurrentState();
-              // 跳转到登录页面
-              this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
+              void this.logout();
             }
           })
         }
@@ -187,6 +185,18 @@ export struct UnlockPage {
       }
       return true;
     })
+  }
+
+  private async logout(): Promise<void> {
+    try {
+      await DatabaseUtil.getInstance().clearVaultData();
+      clearAssetAndPreferences();
+      await WindowPrivacyUtil.applyForCurrentState();
+      this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
+    } catch (error) {
+      Logger.error(`Failed to log out. Error: ${JSON.stringify(error)}`);
+      AppToast.show(this.getUIContext(), $r('app.string.error_storage'));
+    }
   }
 
   /**

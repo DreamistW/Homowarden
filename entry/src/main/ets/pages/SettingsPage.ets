@@ -19,6 +19,7 @@ import { AppToast } from '../utils/AppToast';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 import { AdaptiveTextButton } from '../component/AdaptiveButton';
 import { AntiPeepUtil } from '../utils/AntiPeepUtil';
+import { DatabaseUtil } from '../utils/DatabaseUtil';
 
 @Component
 export struct SettingsPage {
@@ -583,13 +584,22 @@ export struct SettingsPage {
       primaryButton: {
         value: $r('app.string.common_confirm'),
         action: () => {
-          // 注销先清理关键资产，再按清理后的登录状态恢复窗口隐私策略。
-          clearAssetAndPreferences();
-          void WindowPrivacyUtil.applyForCurrentState();
-          this.onLogout();
+          void this.performLogout();
         }
       }
     });
+  }
+
+  private async performLogout(): Promise<void> {
+    try {
+      await DatabaseUtil.getInstance().clearVaultData();
+      clearAssetAndPreferences();
+      await WindowPrivacyUtil.applyForCurrentState();
+      this.onLogout();
+    } catch (error) {
+      Logger.error(`Failed to log out. Error: ${JSON.stringify(error)}`);
+      AppToast.show(this.getUIContext(), $r('app.string.error_storage'));
+    }
   }
 
   private lockVault() {

@@ -185,6 +185,23 @@ export class DatabaseUtil {
     })
   }
 
+  async clearVaultData(): Promise<void> {
+    await this.beginTransaction();
+    try {
+      await this.deleteAllData(DBTableName.KEYS);
+      await this.deleteAllData(DBTableName.LOGINS);
+      await this.deleteAllData(DBTableName.CARDS);
+      await this.deleteAllData(DBTableName.IDENTITIES);
+      await this.deleteAllData(DBTableName.FIELDS);
+      await this.deleteAllData(DBTableName.NOTES);
+      await this.deleteAllData(DBTableName.MAIN);
+      await this.commitTransaction();
+    } catch (error) {
+      await this.rollBackTransaction();
+      throw new Error(`Failed to clear vault data: ${error}`);
+    }
+  }
+
   async queryAllData(table: string): Promise<relationalStore.ValuesBucket[]> {
     await DatabaseUtil.initPromise;
     return new Promise((resolve, reject) => {
