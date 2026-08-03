@@ -98,7 +98,7 @@ export struct TotpDisplayItem {
       Text($r('app.string.totp_title'))
         .fontSize(14)
         .fontColor('#666666')
-        .width(80)
+        .width(112)
 
       // 验证码显示
       Text(this.currentCode)
