@@ -286,6 +286,30 @@ export class DatabaseUtil {
     return result;
   }
 
+  /**
+   * 一次性同步查询一张表的指定列，返回每行 ValuesBucket 数组。
+   * 用于把若干按 id 逐条 querySingleData 的同步查询合并为一次，避免在主线程上 N 次串行查询。
+   */
+  queryAllRowsSync(table: string, columns: string[]): relationalStore.ValuesBucket[] {
+    let result: relationalStore.ValuesBucket[] = [];
+    try {
+      let predicates = new relationalStore.RdbPredicates(table);
+      if (DatabaseUtil.store != null) {
+        const resultSet = DatabaseUtil.store.querySync(predicates, columns);
+        while (resultSet.goToNextRow()) {
+          result.push(resultSet.getRow());
+        }
+        resultSet.close();
+      } else {
+        Logger.error(`Database is undefined`);
+      }
+    } catch (err) {
+      const error = err as BusinessError;
+      Logger.error(`Query ${table} failed, message is ${error.message}`);
+    }
+    return result;
+  }
+
   async createTable(): Promise<void> {
     if (DatabaseUtil.tablePromise) {
       return DatabaseUtil.tablePromise;
