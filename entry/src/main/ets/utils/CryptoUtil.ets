@@ -34,6 +34,24 @@ export class CryptoUtil {
   }
 
   /**
+   * 单次迭代 PBKDF2-SHA256，用于生成服务端登录验证值。
+   * 单次迭代结果等于 HMAC-SHA256(password, salt || INT32_BE(1))。
+   */
+  static async deriveKeyPBKDF2SingleIteration(password: Uint8Array, salt: string): Promise<string> {
+    const saltBytes: Uint8Array = new util.TextEncoder().encodeInto(salt);
+    const input: Uint8Array = new Uint8Array(saltBytes.length + 4);
+    input.set(saltBytes, 0);
+    input.set(new Uint8Array([0, 0, 0, 1]), saltBytes.length);
+    const mac = cryptoFramework.createMac('SHA256');
+    const keyBlob: cryptoFramework.DataBlob = { data: password };
+    const hmacGenerator = cryptoFramework.createSymKeyGenerator('HMAC');
+    await mac.init(await hmacGenerator.convertKey(keyBlob));
+    await mac.update({ data: input });
+    const result: cryptoFramework.DataBlob = await mac.doFinal();
+    return new util.Base64Helper().encodeToStringSync(result.data);
+  }
+
+  /**
    * HKDF密钥派生
    * @param key 原始密钥
    * @param salt 盐
@@ -80,15 +98,17 @@ export class CryptoUtil {
     let passwordBuffer = new util.TextEncoder().encodeInto(password);
     let saltBuffer = new util.TextEncoder().encodeInto(salt.toLowerCase());
 
-    const option: HashOption = {
-      timeCost: iterations,
-      memoryCost: memory * 1024,
-      parallelism: parallelism,
-      hashLength: keyLen,
-      argon2Type: 2, // Argon2id
-      argon2Version: 19
-    };
-    const result = argon2Hash(passwordBuffer, saltBuffer, option);
+    const option: HashOption = new HashOption();
+    option.timeCost = iterations;
+    option.memoryCost = memory * 1024;
+    option.parallelism = parallelism;
+    option.hashLength = keyLen;
+    option.argon2Type = 2;
+    option.argon2Version = 19;
+    const result = argon2Hash(passwordBuffer.buffer, saltBuffer.buffer, option);
+    if (result.result !== 'ARGON2_OK') {
+      throw new Error(`Argon2 failed: ${result.result}`);
+    }
     return new util.Base64Helper().encodeToStringSync(new Uint8Array(result.hash));
   }
 

@@ -67,6 +67,7 @@ export struct UnlockPage {
           })
 
         TextInput({ text: this.masterPassword })
+          .accessibilityText($r('app.string.unlock_enter_master_password'))
           .onChange((v: string) => {
             this.masterPassword = v;
           })

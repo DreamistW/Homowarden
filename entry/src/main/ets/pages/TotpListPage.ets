@@ -189,6 +189,7 @@ export struct TotpListPage {
         .fontSize(16)
         .fontWeight(FontWeight.Medium)
       TextInput({ placeholder: $r('app.string.unlock_enter_master_password'), text: this.passwordInput })
+        .accessibilityText($r('app.string.unlock_enter_master_password'))
         .type(InputType.Password)
         .onChange((value: string) => {
           this.passwordInput = value;

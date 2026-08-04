@@ -853,6 +853,10 @@
       "value": "%1$d 天前"
     },
     {
+      "name": "share_history_delete_confirm",
+      "value": "删除这条分享记录？"
+    },
+    {
       "name": "share_delete_success",
       "value": "删除成功"
     },

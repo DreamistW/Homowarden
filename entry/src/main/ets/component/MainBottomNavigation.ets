@@ -14,7 +14,7 @@ export struct MainBottomNavigation {
   onSelect: (tab: MainTab) => void = () => {};
 
   @Builder
-  private navigationItem(tab: MainTab, label: ResourceStr, icon: Resource) {
+  private navigationItem(tab: MainTab, label: Resource, icon: Resource) {
     Column({ space: 3 }) {
       Image(icon)
         .width(24)
@@ -31,6 +31,8 @@ export struct MainBottomNavigation {
     .width('20%')
     .height(56)
     .justifyContent(FlexAlign.Center)
+    .accessibilityGroup(true)
+    .accessibilityText(label)
     .onClick(() => {
       this.onSelect(tab);
     })

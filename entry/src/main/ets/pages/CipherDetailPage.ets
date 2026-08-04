@@ -431,6 +431,7 @@ export struct CipherDetailPage {
               if (this.isEditable) {
                 Row({ space: 8 }) {
                   Checkbox({ name: 'reprompt', group: 'cipher' })
+                    .accessibilityText($r('app.string.cipher_reprompt'))
                     .select(this.cipher.reprompt === 1)
                     .onChange((checked: boolean) => {
                       this.cipher.reprompt = checked ? 1 : 0;

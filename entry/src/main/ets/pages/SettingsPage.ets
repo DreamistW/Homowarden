@@ -119,7 +119,7 @@ export struct SettingsPage {
                   })
               }
               .width('100%')
-              .padding({ top: 12, bottom: 12 })
+              .padding({ top: 20, bottom: 4 })
 
               Text($r('app.string.settings_biometrics_desc'))
                 .fontSize(12)
@@ -140,7 +140,7 @@ export struct SettingsPage {
                   })
               }
               .width('100%')
-              .padding({ top: 12, bottom: 12 })
+              .padding({ top: 20, bottom: 4 })
 
               Text($r('app.string.settings_auto_lock_desc'))
                 .fontSize(12)
@@ -165,7 +165,7 @@ export struct SettingsPage {
                   })
               }
               .width('100%')
-              .padding({ top: 12, bottom: 12 })
+              .padding({ top: 20, bottom: 4 })
 
               Text($r('app.string.settings_block_capture_desc'))
                 .fontSize(12)
@@ -197,7 +197,7 @@ export struct SettingsPage {
                   })
               }
               .width('100%')
-              .padding({ top: 12, bottom: 12 })
+              .padding({ top: 20, bottom: 4 })
 
               Text($r('app.string.settings_anti_peep_desc'))
                 .fontSize(12)

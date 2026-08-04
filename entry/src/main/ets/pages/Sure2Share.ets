@@ -108,6 +108,7 @@ export struct Sure2SharePage {
 
           // 输入文本框
           TextArea({ text: this.inputText })
+            .accessibilityText($r('app.string.share_input_title'))
             .id('beforeLink')
             .height('20%')
             .width('90%')
@@ -164,6 +165,7 @@ export struct Sure2SharePage {
 
           // 输出文本框
           TextArea({ text: this.outputText })
+            .accessibilityText($r('app.string.share_output_title'))
             .height('20%')
             .width('90%')
             .margin({ top: 12 })

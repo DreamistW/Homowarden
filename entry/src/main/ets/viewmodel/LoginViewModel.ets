@@ -225,12 +225,7 @@ export class LoginViewModel {
     try {
       // 将Base64主密钥解码为Uint8Array
       const masterKeyBytes = new util.Base64Helper().decodeSync(this.masterKey);
-      this.loginPassword = await CryptoUtil.deriveKeyPBKDF2(
-        masterKeyBytes,
-        this.password,
-        1,
-        32
-      );
+      this.loginPassword = await CryptoUtil.deriveKeyPBKDF2SingleIteration(masterKeyBytes, this.password);
       Logger.info('Hash master key successfully');
       return true;
     } catch (error) {

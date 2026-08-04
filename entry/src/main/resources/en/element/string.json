@@ -853,6 +853,10 @@
       "value": "%1$d days ago"
     },
     {
+      "name": "share_history_delete_confirm",
+      "value": "Delete this share record?"
+    },
+    {
       "name": "share_delete_success",
       "value": "Deleted"
     },

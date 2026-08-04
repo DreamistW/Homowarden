@@ -121,6 +121,7 @@ export struct TotpListItem {
       }
       .width('100%')
       .margin({ bottom: 12 })
+      .accessibilityGroup(true)
       .onClick(() => {
         this.onTap?.();
       })
@@ -131,7 +132,6 @@ export struct TotpListItem {
         Text(this.currentCode)
           .fontSize(24)
           .fontWeight(FontWeight.Bold)
-          .onClick(() => this.copyCode())
 
         Blank()
 
@@ -141,6 +141,7 @@ export struct TotpListItem {
             .width(8)
             .height(8)
             .fill(this.remainingSeconds > 5 ? Color.Green : Color.Red)
+            .accessibilityLevel('no')
 
           Text($r('app.string.totp_seconds', this.remainingSeconds))
             .fontSize(14)

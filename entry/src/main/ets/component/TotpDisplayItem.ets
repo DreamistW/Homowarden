@@ -111,6 +111,7 @@ export struct TotpDisplayItem {
         .height(8)
         .fill(this.remainingSeconds > 5 ? Color.Green : Color.Red)
         .margin({ right: 4 })
+        .accessibilityLevel('no')
 
       // 剩余时间
       Text($r('app.string.totp_seconds', this.remainingSeconds))

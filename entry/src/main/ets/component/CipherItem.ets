@@ -81,7 +81,8 @@ export struct CipherItem {
     .width('100%')
     .padding(16)
     .borderRadius(8)
-    .margin({ bottom: 8 })
+    .margin({ bottom: 4 })
+    .accessibilityGroup(true)
     .onClick(() => {
       this.onTap?.();
     })

@@ -65,6 +65,7 @@ export struct AdaptiveIconButton {
           .height(this.iconHeight)
           .fillColor($r('app.color.button_foreground_color'))
           .align(Alignment.Center)
+          .accessibilityLevel('no')
       }
       .type(ButtonType.Circle)
       .backgroundColor($r('app.color.button_background_color'))

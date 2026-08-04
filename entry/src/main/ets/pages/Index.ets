@@ -27,45 +27,58 @@ struct PrivacyDialogContent {
 
   build() {
     Column() {
-      Text($r('app.string.privacy_welcome'))
-        .fontSize(20)
-        .margin({ top: 20, bottom: 10 })
+      Column() {
+        Text($r('app.string.privacy_welcome'))
+          .fontSize(20)
+          .fontWeight(FontWeight.Medium)
+          .margin({ bottom: 12 })
 
-      Text() {
-        Span($r('app.string.privacy_intro_brand'))
-        Span($r('app.string.privacy_storage_notice'))
-        Span($r('app.string.privacy_read_prefix'))
-        Span($r('app.string.privacy_policy'))
-          .fontColor(Color.Blue)
-          .decoration({ type: TextDecorationType.Underline })
-          .onClick(() => {
-            const context = getContext(this) as common.UIAbilityContext;
-            const want: Want = {
-              uri: 'https://agreement-drcn.hispace.dbankcloud.cn/index.html?agreementId=1846508510607638400'
-            };
-            context.startAbility(want).catch((err: Error) => {
-              Logger.error(`Failed to open url. Error: ${err.message}`);
-              AppToast.show(this.getUIContext(), $r('app.string.error_open_website'));
-            });
-          })
+        Text() {
+          Span($r('app.string.privacy_intro_brand'))
+          Span($r('app.string.privacy_storage_notice'))
+          Span($r('app.string.privacy_read_prefix'))
+          Span($r('app.string.privacy_policy'))
+            .fontColor(Color.Blue)
+            .decoration({ type: TextDecorationType.Underline })
+            .onClick(() => {
+              const context = getContext(this) as common.UIAbilityContext;
+              const want: Want = {
+                uri: 'https://agreement-drcn.hispace.dbankcloud.cn/index.html?agreementId=1846508510607638400'
+              };
+              context.startAbility(want).catch((err: Error) => {
+                Logger.error(`Failed to open url. Error: ${err.message}`);
+                AppToast.show(this.getUIContext(), $r('app.string.error_open_website'));
+              });
+            })
+        }
+        .fontSize(16)
       }
-      .fontSize(16)
-      .margin({ bottom: 20 })
+      .padding({ left: 24, right: 24, top: 24, bottom: 16 })
+
+      Divider()
 
       Row() {
         Button($r('app.string.privacy_disagree'))
+          .layoutWeight(1)
+          .height(48)
+          .fontSize(16)
+          .buttonStyle(ButtonStyleMode.TEXTUAL)
           .onClick(() => {
             this.dialogController?.close();
             this.cancel();
           })
-          .margin({ right: 12 })
         Button($r('app.string.privacy_agree'))
+          .layoutWeight(1)
+          .height(48)
+          .fontSize(16)
+          .fontColor($r('app.color.button_background_color'))
+          .buttonStyle(ButtonStyleMode.TEXTUAL)
           .onClick(() => {
             this.dialogController?.close();
             this.confirm();
           })
-      }.justifyContent(FlexAlign.SpaceEvenly)
-    }.padding(20)
+      }
+    }
   }
 }
 
@@ -129,7 +142,8 @@ struct Index {
       }
     }),
     autoCancel: false,
-    alignment: DialogAlignment.Center
+    alignment: DialogAlignment.Center,
+    customStyle: false
   })
 
   getPrivacyStatus() {

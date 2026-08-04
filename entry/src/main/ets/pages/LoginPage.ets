@@ -1,4 +1,3 @@
-import { AppDialog, AppDialogAction } from '../component/AppDialog';
 import { AppToast } from '../utils/AppToast';
 import { queryAssetSync } from '../utils/AssetUtil';
 import { EMAIL_KEY, SAVE_EMAIL, ServerType } from '../utils/Constants';
@@ -13,6 +12,70 @@ import { TwoFactorProvider } from '../model/AccessToken';
 import { AppText, AppTextKey } from '../localization/AppText';
 import { AppTextResolver } from '../localization/AppTextResolver';
 import { VaultViewModel } from '../viewmodel/VaultViewModel';
+
+// 验证码弹框原生容器：系统提供弹框外壳，内容由调用方注入。
+@CustomDialog
+struct VerificationDialogContent {
+  dialogController?: CustomDialogController
+  @BuilderParam contentBuilder: () => void
+  title: ResourceStr = ''
+  cancel: () => void = () => {
+  }
+  confirm: () => Promise<void> = async () => {
+  }
+  @State submitting: boolean = false
+
+  private async submit(): Promise<void> {
+    if (this.submitting) {
+      return;
+    }
+    this.submitting = true;
+    try {
+      await this.confirm();
+    } finally {
+      this.submitting = false;
+    }
+  }
+
+  build() {
+    Column() {
+      Column() {
+        Text(this.title)
+          .fontSize(20)
+          .fontWeight(FontWeight.Medium)
+          .margin({ bottom: 12 })
+
+        this.contentBuilder()
+      }
+      .padding({ left: 24, right: 24, top: 24, bottom: 16 })
+
+      Divider()
+
+      Row() {
+        Button($r('app.string.common_cancel'))
+          .layoutWeight(1)
+          .height(48)
+          .fontSize(16)
+          .buttonStyle(ButtonStyleMode.TEXTUAL)
+          .enabled(!this.submitting)
+          .onClick(() => {
+            this.dialogController?.close();
+            this.cancel();
+          })
+        Button($r('app.string.common_confirm'))
+          .layoutWeight(1)
+          .height(48)
+          .fontSize(16)
+          .fontColor($r('app.color.button_background_color'))
+          .buttonStyle(ButtonStyleMode.TEXTUAL)
+          .enabled(!this.submitting)
+          .onClick(() => {
+            void this.submit();
+          })
+      }
+    }
+  }
+}
 
 @Builder
 export function LoginPageBuilder() {
@@ -30,8 +93,61 @@ export struct LoginPage {
   @State needToSaveEmail: boolean = false;
   @State twoFactorRemember: boolean = false;
   @State pendingEmailLogin: boolean = false;
+  @State verificationSubmitting: boolean = false;
   private exitTime: number = 0;
   pathInfos: NavPathStack = new NavPathStack();
+
+  // 两步验证弹框控制器（系统原生 @CustomDialog 容器）
+  twoFactorDialogController: CustomDialogController = new CustomDialogController({
+    builder: VerificationDialogContent({
+      title: $r('app.string.login_two_factor_title'),
+      contentBuilder: (): void => this.twoFactorInputContent(),
+      cancel: () => {
+        this.isNeed2FA = false;
+      },
+      confirm: async (): Promise<void> => {
+        await this.handleTwoFactorConfirm();
+      }
+    }),
+    cancel: () => {
+      this.isNeed2FA = false;
+    },
+    onWillDismiss: (action: DismissDialogAction) => {
+      if (!this.verificationSubmitting) {
+        this.isNeed2FA = false;
+        action.dismiss();
+      }
+    },
+    autoCancel: false,
+    alignment: DialogAlignment.Center,
+    customStyle: false
+  })
+
+  // 新设备验证弹框控制器
+  newDeviceDialogController: CustomDialogController = new CustomDialogController({
+    builder: VerificationDialogContent({
+      title: $r('app.string.login_new_device_title'),
+      contentBuilder: (): void => this.newDeviceInputContent(),
+      cancel: () => {
+        this.isNeedNewDevice = false;
+      },
+      confirm: async (): Promise<void> => {
+        await this.handleNewDeviceConfirm();
+      }
+    }),
+    cancel: () => {
+      this.isNeedNewDevice = false;
+    },
+    onWillDismiss: (action: DismissDialogAction) => {
+      if (!this.verificationSubmitting) {
+        this.isNeedNewDevice = false;
+        action.dismiss();
+      }
+    },
+    autoCancel: false,
+    alignment: DialogAlignment.Center,
+    customStyle: false
+  })
 
   aboutToAppear() {
     this.viewModel.loadServerConfig();
@@ -73,6 +189,7 @@ export struct LoginPage {
 
       if (this.viewModel.twoFactorProvider !== TwoFactorProvider.WEB_AUTHN) {
         TextInput({ placeholder: $r('app.string.login_enter') })
+          .accessibilityText($r('app.string.login_two_factor_prompt'))
           .onChange(value => {
             this.viewModel.twoFactorToken = value;
             this.twoFactorInputError = false;
@@ -117,7 +234,7 @@ export struct LoginPage {
           })
           .enabled(!this.pendingEmailLogin)
       }
-    }.padding(20)
+    }
   }
 
   @Builder
@@ -126,6 +243,7 @@ export struct LoginPage {
       Text($r('app.string.login_new_device_prompt'))
         .margin(12)
       TextInput({ placeholder: $r('app.string.login_enter') })
+        .accessibilityText($r('app.string.login_new_device_prompt'))
         .onChange(value => {
           this.viewModel.twoFactorToken = value;
           this.twoFactorInputError = false;
@@ -156,7 +274,7 @@ export struct LoginPage {
           this.pendingEmailLogin = false;
         })
         .enabled(!this.pendingEmailLogin)
-    }.padding(20)
+    }
   }
 
   build() {
@@ -167,6 +285,7 @@ export struct LoginPage {
           placeholder: $r('app.string.login_email_placeholder'),
           text: this.viewModel.email
         })
+          .accessibilityText($r('app.string.login_email'))
           .type(InputType.Email)
           .onChange((value: string) => {
             this.viewModel.email = value;
@@ -193,6 +312,7 @@ export struct LoginPage {
           placeholder: $r('app.string.login_password_placeholder'),
           text: this.viewModel.password
         })
+          .accessibilityText($r('app.string.login_password'))
           .type(InputType.Password)
           .onChange((value: string) => {
             this.viewModel.password = value;
@@ -233,7 +353,8 @@ export struct LoginPage {
               placeholder: $r('app.string.login_domain_placeholder'),
               text: this.viewModel.serverAddress
             })
-              .type(InputType.Normal)
+              .accessibilityText($r('app.string.login_select_server'))
+              .type(InputType.URL)
               .onChange((value: string) => {
                 this.viewModel.serverAddress = value;
                 this.viewModel.clearError();
@@ -282,83 +403,6 @@ export struct LoginPage {
             .fontColor(Color.Green)
             .margin(12)
         }
-
-        // 弹出2FA输入框
-        AppDialog({
-          visible: $isNeed2FA,
-          title: $r('app.string.login_two_factor_title'),
-          showCancelButton: true,
-          closeOnClickOverlay: false,
-          defaultBuilder: (): void => this.twoFactorInputContent(),
-          beforeClose: async (action) => {
-            if (action === AppDialogAction.CANCEL) {
-              return true;
-            }
-            if (this.viewModel.twoFactorProvider === TwoFactorProvider.WEB_AUTHN) {
-              // Passkey 必须先完成系统认证，再继续服务端 2FA 登录流程。
-              const context = this.getUIContext().getHostContext() as common.Context;
-              const passkeyResult = await this.viewModel.performPasskeyTwoFactor(context);
-              if (!passkeyResult) {
-                this.twoFactorInputError = true;
-                this.twoFactorInputHint = AppTextResolver.resource(this.viewModel.errorMessage ??
-                  new AppText(AppTextKey.PASSKEY_FAILED));
-                return false;
-              }
-            } else {
-              const valueLength = this.viewModel.twoFactorToken.trim().length;
-              this.twoFactorInputError = !valueLength;
-              if (this.twoFactorInputError) {
-                this.twoFactorInputHint = $r('app.string.login_error_code_required');
-                return false;
-              }
-            }
-            const result = await this.viewModel.continueLogin();
-            if (!result) {
-              this.twoFactorInputError = true;
-              this.twoFactorInputHint = AppTextResolver.resource(this.viewModel.errorMessage ??
-                new AppText(this.viewModel.twoFactorProvider === TwoFactorProvider.WEB_AUTHN ?
-                  AppTextKey.PASSKEY_FAILED : AppTextKey.CODE_INVALID));
-              return false;
-            }
-            this.isNeed2FA = false;
-            // 异步校验和导航成功后才允许 AppDialog 真正关闭。
-            this.updateUI();
-            await this.navigateToVault();
-            return true;
-          }
-        })
-
-        // 弹出新设备输入框
-        AppDialog({
-          visible: $isNeedNewDevice,
-          title: $r('app.string.login_new_device_title'),
-          showCancelButton: true,
-          closeOnClickOverlay: false,
-          defaultBuilder: (): void => this.newDeviceInputContent(),
-          beforeClose: async (action) => {
-            if (action === AppDialogAction.CANCEL) {
-              return true;
-            }
-            const valueLength = this.viewModel.twoFactorToken.trim().length;
-            this.twoFactorInputError = !valueLength;
-            if (this.twoFactorInputError) {
-              this.twoFactorInputHint = $r('app.string.login_error_code_required');
-              return false;
-            }
-            const result = await this.viewModel.continueLogin();
-            if (!result) {
-              this.twoFactorInputError = true;
-              this.twoFactorInputHint = AppTextResolver.resource(this.viewModel.errorMessage ??
-                new AppText(AppTextKey.CODE_INVALID));
-              return false;
-            }
-            this.isNeedNewDevice = false;
-            // 保持弹窗直到验证码校验及密码库导航均完成。
-            this.updateUI();
-            await this.navigateToVault();
-            return true;
-          }
-        })
 
         // 显示预登录信息（可选）
         // if (this.viewModel.kdfIterations > 0) {
@@ -415,9 +459,13 @@ export struct LoginPage {
     this.viewModel.needNewDevice = false;
     const loginSuccess = await this.viewModel.login();
     if (this.viewModel.needTwoFactor) {
-      this.isNeed2FA = this.prepareTwoFactorDialog();
+      if (this.prepareTwoFactorDialog()) {
+        this.isNeed2FA = true;
+        this.twoFactorDialogController.open();
+      }
     } else if (this.viewModel.needNewDevice) {
       this.isNeedNewDevice = true;
+      this.newDeviceDialogController.open();
     } else if (loginSuccess) {
       // 登录成功，跳转到密码库页面
       await this.navigateToVault();
@@ -425,6 +473,84 @@ export struct LoginPage {
     this.updateUI();
     this.isLoading = false;
     this.getUIContext().getFocusController().clearFocus();
+  }
+
+  // 两步验证确认：异步校验验证码/Passkey，失败时保持弹框打开。
+  private async handleTwoFactorConfirm(): Promise<void> {
+    if (this.verificationSubmitting) {
+      return;
+    }
+    this.verificationSubmitting = true;
+    try {
+      await this.performTwoFactorConfirm();
+    } finally {
+      this.verificationSubmitting = false;
+    }
+  }
+
+  private async performTwoFactorConfirm(): Promise<void> {
+    if (this.viewModel.twoFactorProvider === TwoFactorProvider.WEB_AUTHN) {
+      const context = this.getUIContext().getHostContext() as common.Context;
+      const passkeyResult = await this.viewModel.performPasskeyTwoFactor(context);
+      if (!passkeyResult) {
+        this.twoFactorInputError = true;
+        this.twoFactorInputHint = AppTextResolver.resource(this.viewModel.errorMessage ??
+          new AppText(AppTextKey.PASSKEY_FAILED));
+        return;
+      }
+    } else {
+      const valueLength = this.viewModel.twoFactorToken.trim().length;
+      this.twoFactorInputError = !valueLength;
+      if (this.twoFactorInputError) {
+        this.twoFactorInputHint = $r('app.string.login_error_code_required');
+        return;
+      }
+    }
+    const result = await this.viewModel.continueLogin();
+    if (!result) {
+      this.twoFactorInputError = true;
+      this.twoFactorInputHint = AppTextResolver.resource(this.viewModel.errorMessage ??
+        new AppText(this.viewModel.twoFactorProvider === TwoFactorProvider.WEB_AUTHN ?
+          AppTextKey.PASSKEY_FAILED : AppTextKey.CODE_INVALID));
+      return;
+    }
+    this.updateUI();
+    this.isNeed2FA = false;
+    this.twoFactorDialogController.close();
+    await this.navigateToVault();
+  }
+
+  // 新设备验证确认：异步校验验证码，失败时保持弹框打开。
+  private async handleNewDeviceConfirm(): Promise<void> {
+    if (this.verificationSubmitting) {
+      return;
+    }
+    this.verificationSubmitting = true;
+    try {
+      await this.performNewDeviceConfirm();
+    } finally {
+      this.verificationSubmitting = false;
+    }
+  }
+
+  private async performNewDeviceConfirm(): Promise<void> {
+    const valueLength = this.viewModel.twoFactorToken.trim().length;
+    this.twoFactorInputError = !valueLength;
+    if (this.twoFactorInputError) {
+      this.twoFactorInputHint = $r('app.string.login_error_code_required');
+      return;
+    }
+    const result = await this.viewModel.continueLogin();
+    if (!result) {
+      this.twoFactorInputError = true;
+      this.twoFactorInputHint = AppTextResolver.resource(this.viewModel.errorMessage ??
+        new AppText(AppTextKey.CODE_INVALID));
+      return;
+    }
+    this.updateUI();
+    this.isNeedNewDevice = false;
+    this.newDeviceDialogController.close();
+    await this.navigateToVault();
   }
 
   private prepareTwoFactorDialog(): boolean {

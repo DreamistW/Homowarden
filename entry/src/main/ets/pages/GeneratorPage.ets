@@ -353,52 +353,56 @@ export struct GeneratorPage {
           .fontSize(16)
           .layoutWeight(1)
         Toggle({ type: ToggleType.Switch, isOn: this.upperOn })
+          .accessibilityText($r('app.string.password_uppercase'))
           .onChange(async (on: boolean) => {
             this.upperOn = on;
             await this.regenerate();
           })
       }
       .width('100%')
-      .padding({ top: 12, bottom: 12 })
+      .padding({ top: 8, bottom: 8 })
 
       Row() {
         Text($r('app.string.password_lowercase'))
           .fontSize(16)
           .layoutWeight(1)
         Toggle({ type: ToggleType.Switch, isOn: this.lowerOn })
+          .accessibilityText($r('app.string.password_lowercase'))
           .onChange(async (on: boolean) => {
             this.lowerOn = on;
             await this.regenerate();
           })
       }
       .width('100%')
-      .padding({ top: 12, bottom: 12 })
+      .padding({ top: 8, bottom: 8 })
 
       Row() {
         Text($r('app.string.password_digits'))
           .fontSize(16)
           .layoutWeight(1)
         Toggle({ type: ToggleType.Switch, isOn: this.digitOn })
+          .accessibilityText($r('app.string.password_digits'))
           .onChange(async (on: boolean) => {
             this.digitOn = on;
             await this.regenerate();
           })
       }
       .width('100%')
-      .padding({ top: 12, bottom: 12 })
+      .padding({ top: 8, bottom: 8 })
 
       Row() {
         Text($r('app.string.password_symbols'))
           .fontSize(16)
           .layoutWeight(1)
         Toggle({ type: ToggleType.Switch, isOn: this.symbolOn })
+          .accessibilityText($r('app.string.password_symbols'))
           .onChange(async (on: boolean) => {
             this.symbolOn = on;
             await this.regenerate();
           })
       }
       .width('100%')
-      .padding({ top: 12, bottom: 12 })
+      .padding({ top: 8, bottom: 8 })
 
       // 数字最小个数步进
       Row() {
@@ -533,6 +537,7 @@ export struct GeneratorPage {
             .fontColor('#666666')
             .width('100%')
           TextInput({ text: this.email, placeholder: $r('app.string.username_email_placeholder') })
+            .accessibilityText($r('app.string.username_email'))
             .type(InputType.Email)
             .fontSize(16)
             .height(48)
@@ -551,26 +556,28 @@ export struct GeneratorPage {
             .fontSize(16)
             .layoutWeight(1)
           Toggle({ type: ToggleType.Switch, isOn: this.capitalize })
+            .accessibilityText($r('app.string.username_capitalize'))
             .onChange(async (on: boolean) => {
               this.capitalize = on;
               await this.regenerate();
             })
         }
         .width('100%')
-        .padding({ top: 12, bottom: 12 })
+        .padding({ top: 8, bottom: 8 })
 
         Row() {
           Text($r('app.string.username_include_number'))
             .fontSize(16)
             .layoutWeight(1)
           Toggle({ type: ToggleType.Switch, isOn: this.includeNumber })
+            .accessibilityText($r('app.string.username_include_number'))
             .onChange(async (on: boolean) => {
               this.includeNumber = on;
               await this.regenerate();
             })
         }
         .width('100%')
-        .padding({ top: 12, bottom: 12 })
+        .padding({ top: 8, bottom: 8 })
       }
 
       // 底部避让

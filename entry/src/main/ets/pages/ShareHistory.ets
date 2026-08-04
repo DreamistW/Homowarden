@@ -6,6 +6,7 @@ import { uniformTypeDescriptor } from '@kit.ArkData';
 import { common } from '@kit.AbilityKit';
 import { getShareLink } from '../utils/ParseLinkUtil';
 import { hdsMaterial, HdsNavDestination } from '@kit.UIDesignKit';
+import { AdaptiveIconButton } from '../component/AdaptiveButton';
 
 @Builder
 export function HistoryPageBuilder() {
@@ -137,11 +138,29 @@ struct History {
     });
   }
 
-  // 删除功能
-  async deleteItem(item: HistoryItem) {
+  // 弹出确认对话框请求删除单条记录。
+  requestDelete(item: HistoryItem): void {
+    this.getUIContext().showAlertDialog({
+      title: $r('app.string.share_history_delete_confirm'),
+      message: item.content,
+      secondaryButton: {
+        value: $r('app.string.common_cancel'),
+        action: () => {}
+      },
+      primaryButton: {
+        value: $r('app.string.common_confirm'),
+        action: () => {
+          void this.doDelete(item);
+        }
+      }
+    });
+  }
+
+  // 删除指定记录并刷新列表。
+  async doDelete(item: HistoryItem) {
     try {
       await this.dbUtil.deleteData('history', item.id);
-      await this.loadHistory(); // 重新加载历史记录
+      await this.loadHistory();
       this.getUIContext().getPromptAction().showToast({
         message: $r('app.string.share_delete_success')
       });
@@ -204,16 +223,11 @@ struct History {
               ListItem() {
                 this.HistoryItemBuilder(item);
               }
-              .swipeAction({
-                end: {
-                  builder: this.ActionBuilder.bind(this, item),
-                },
-                edgeEffect: SwipeEdgeEffect.None
-              })
             }, (item: HistoryItem) => item.id)
           }
           .width('100%')
           .layoutWeight(1)
+          .padding({ left: 16, right: 16, top: 12 })
         } else {
           Column() {
             Text($r('app.string.share_history_empty'))
@@ -247,96 +261,103 @@ struct History {
     })
   }
 
-  // 历史记录项构建器
+  // 单条历史记录卡片
   @Builder
   HistoryItemBuilder(item: HistoryItem) {
     Row() {
-      Column() {
-        Text(item.content)
-          .fontSize(16)
-          .maxLines(5)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-          .align(Alignment.Start)
-          .width('100%')
-          .padding({ right: 12 })
-
+      Column({ space: 6 }) {
         Text(this.formatTime(item.timestamp))
           .fontSize(12)
           .fontColor('#999999')
-          .margin({ top: 8 })
+
+        Text(item.content)
+          .fontSize(16)
+          .fontFamily('monospace')
+          .maxLines(3)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
           .align(Alignment.Start)
           .width('100%')
       }
       .alignItems(HorizontalAlign.Start)
-      .width('100%')
-      .padding({
-        left: 16,
-        right: 16,
-        top: 12,
-        bottom: 12
-      })
+      .layoutWeight(1)
+
+      Row({ space: 4 }) {
+        Button() {
+          Image($r('app.media.icon_copy'))
+            .width(18)
+            .height(18)
+            .fillColor($r('app.color.button_foreground_color'))
+            .accessibilityLevel('no')
+        }
+          .type(ButtonType.Circle)
+          .width(36)
+          .height(36)
+          .padding(0)
+          .backgroundColor($r('app.color.button_background_color'))
+          .accessibilityText($r('app.string.common_copy'))
+          .bindMenu([
+            {
+              value: $r('app.string.share_copy_full'),
+              action: () => {
+                this.copyLink(item.content);
+              }
+            },
+            {
+              value: $r('app.string.share_copy_link'),
+              action: async () => {
+                const link: string = await getShareLink(item.content);
+                this.copyLink(link);
+              }
+            }
+          ])
+
+        Button() {
+          Image($r('app.media.icon_share'))
+            .width(18)
+            .height(18)
+            .fillColor($r('app.color.button_foreground_color'))
+            .accessibilityLevel('no')
+        }
+          .type(ButtonType.Circle)
+          .width(36)
+          .height(36)
+          .padding(0)
+          .backgroundColor($r('app.color.button_background_color'))
+          .accessibilityText($r('app.string.common_share'))
+          .bindMenu([
+            {
+              value: $r('app.string.share_full'),
+              action: () => {
+                this.shareLink(item.content, false);
+              }
+            },
+            {
+              value: $r('app.string.share_link'),
+              action: async () => {
+                const link: string = await getShareLink(item.content);
+                this.shareLink(link, true);
+              }
+            }
+          ])
+
+        AdaptiveIconButton({
+          icon: $r('app.media.icon_delete'),
+          accessibilityLabel: $r('app.string.common_delete'),
+          barWidth: 36,
+          barHeight: 36,
+          iconWidth: 18,
+          iconHeight: 18,
+          contentPadding: 4,
+          barBottomMargin: 0,
+          onButtonClick: () => {
+            this.requestDelete(item);
+          }
+        })
+      }
     }
     .width('100%')
+    .padding(16)
     .borderRadius(8)
-    .margin({ left: 16, right: 16 })
-  }
-
-  // 滑动操作构建器
-  @Builder
-  ActionBuilder(item: HistoryItem) {
-    Column() {
-      Button($r('app.string.common_copy'))
-        .type(ButtonType.Normal)
-        .backgroundColor('#007DFF')
-        .width(80)
-        .height('33%')
-        .bindMenu([
-          {
-            value: $r('app.string.share_copy_full'),
-            action: () => {
-              this.copyLink(item.content);
-            }
-          },
-          {
-            value: $r('app.string.share_copy_link'),
-            action: async () => {
-              const link: string = await getShareLink(item.content);
-              this.copyLink(link);
-            }
-          }
-        ])
-
-      Button($r('app.string.common_share'))
-        .type(ButtonType.Normal)
-        .backgroundColor('#FFA500')
-        .width(80)
-        .height('33%')
-        .bindMenu([
-          {
-            value: $r('app.string.share_full'),
-            action: () => {
-              this.shareLink(item.content, false);
-            }
-          },
-          {
-            value: $r('app.string.share_link'),
-            action: async () => {
-              const link: string = await getShareLink(item.content);
-              this.shareLink(link, true);
-            }
-          }
-        ])
-
-      Button($r('app.string.common_delete'))
-        .type(ButtonType.Normal)
-        .backgroundColor('#FF3B30')
-        .width(80)
-        .height('33%')
-        .onClick(() => {
-          this.deleteItem(item);
-        })
-    }
-    .width(80)
-    .height('100%')
+    .backgroundColor($r('app.color.start_window_background'))
   }
 }
