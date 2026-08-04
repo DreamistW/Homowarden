@@ -20,6 +20,7 @@ import { MainBottomNavigation, MainTab } from '../component/MainBottomNavigation
 import { TotpListPage } from './TotpListPage';
 import { Sure2SharePage } from './Sure2Share';
 import { SettingsPage } from './SettingsPage';
+import { GeneratorPage } from './GeneratorPage';
 import { AppText, AppTextKey } from '../localization/AppText';
 import { AppTextResolver } from '../localization/AppTextResolver';
 import { AdaptiveIconButton } from '../component/AdaptiveButton';
@@ -325,7 +326,7 @@ struct VaultContent {
                     this.applyCurrentFilter();
                   }
                 })
-              }.width('30%')
+              }.width('36%')
 
               Search({
                 value: this.searchText,
@@ -460,10 +461,22 @@ export struct VaultPage {
       }
     }
   };
+  generatorHistoryBtn: HdsNavigationBadgeIconOptions = {
+    content: {
+      label: $r('app.string.common_history'),
+      icon: $r('app.media.icon_history'),
+      action: () => {
+        this.pathInfos.pushPath({ name: EntryRouter.GeneratorHistoryPage });
+      }
+    }
+  };
 
   private getTitle(): ResourceStr {
     if (this.selectedMainTab === MainTab.TOTP) {
       return $r('app.string.nav_totp');
+    }
+    if (this.selectedMainTab === MainTab.GENERATOR) {
+      return $r('app.string.generator_title');
     }
     if (this.selectedMainTab === MainTab.SHARE) {
       return $r('app.string.nav_share');
@@ -483,6 +496,9 @@ export struct VaultPage {
     if (index === MainTab.TOTP) {
       return MainTab.TOTP;
     }
+    if (index === MainTab.GENERATOR) {
+      return MainTab.GENERATOR;
+    }
     if (index === MainTab.SHARE) {
       return MainTab.SHARE;
     }
@@ -490,6 +506,16 @@ export struct VaultPage {
       return MainTab.SETTINGS;
     }
     return MainTab.VAULT;
+  }
+
+  private getTitleMenu(): HdsNavigationBadgeIconOptions[] {
+    if (this.selectedMainTab === MainTab.SHARE) {
+      return [this.historyBtn];
+    }
+    if (this.selectedMainTab === MainTab.GENERATOR) {
+      return [this.generatorHistoryBtn];
+    }
+    return [];
   }
 
   private addCipher(): void {
@@ -550,6 +576,9 @@ export struct VaultPage {
             })
           }
           TabContent() {
+            GeneratorPage({ bottomContentInset: 0 })
+          }
+          TabContent() {
             Sure2SharePage()
           }
           TabContent() {
@@ -602,7 +631,7 @@ export struct VaultPage {
     .titleBar({
       content: {
         title: { mainTitle: this.getTitle() },
-        menu: { value: this.selectedMainTab === MainTab.SHARE ? [this.historyBtn] : [] }
+        menu: { value: this.getTitleMenu() }
       },
       enableComponentSafeArea: true,
       style: {

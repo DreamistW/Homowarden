@@ -20,6 +20,7 @@ import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 import { AdaptiveTextButton } from '../component/AdaptiveButton';
 import { AntiPeepUtil } from '../utils/AntiPeepUtil';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
+import { GENERATOR_HISTORY_TABLE, GeneratorDatabaseUtil } from '../utils/GeneratorDatabaseUtil';
 import { VaultViewModel } from '../viewmodel/VaultViewModel';
 
 @Component
@@ -592,15 +593,40 @@ export struct SettingsPage {
   }
 
   private async performLogout(): Promise<void> {
+    const cleanupErrors: string[] = [];
     try {
       await VaultViewModel.prepareForLogout();
-      await DatabaseUtil.getInstance().clearVaultData();
-      clearAssetAndPreferences();
-      await WindowPrivacyUtil.applyForCurrentState();
-      this.onLogout();
     } catch (error) {
-      VaultViewModel.beginSession();
-      Logger.error(`Failed to log out. Error: ${JSON.stringify(error)}`);
+      cleanupErrors.push(`${error}`);
+      Logger.error(`Failed to prepare vault for logout: ${error}`);
+    }
+    try {
+      await GeneratorDatabaseUtil.getInstance().deleteAllData(GENERATOR_HISTORY_TABLE);
+    } catch (error) {
+      cleanupErrors.push(`${error}`);
+      Logger.error(`Failed to clear generator history during logout: ${error}`);
+    }
+    try {
+      await DatabaseUtil.getInstance().clearVaultData();
+    } catch (error) {
+      cleanupErrors.push(`${error}`);
+      Logger.error(`Failed to clear vault database during logout: ${error}`);
+    }
+    try {
+      clearAssetAndPreferences();
+    } catch (error) {
+      cleanupErrors.push(`${error}`);
+      Logger.error(`Failed to clear credentials during logout: ${error}`);
+    }
+    try {
+      await WindowPrivacyUtil.applyForCurrentState();
+    } catch (error) {
+      cleanupErrors.push(`${error}`);
+      Logger.error(`Failed to update window privacy during logout: ${error}`);
+    }
+    this.onLogout();
+    if (cleanupErrors.length > 0) {
+      Logger.error(`Logout completed with cleanup errors: ${cleanupErrors.join('; ')}`);
       AppToast.show(this.getUIContext(), $r('app.string.error_storage'));
     }
   }

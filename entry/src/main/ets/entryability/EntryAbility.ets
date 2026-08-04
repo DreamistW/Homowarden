@@ -4,6 +4,7 @@ import { window } from '@kit.ArkUI';
 import { DataPreferences } from '@abner/datastore';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
 import { ShareDatabaseUtil } from '../utils/ShareDatabaseUtil';
+import { GeneratorDatabaseUtil } from '../utils/GeneratorDatabaseUtil';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 import { LocaleState } from '../localization/LocaleState';
 
@@ -27,8 +28,18 @@ export default class EntryAbility extends UIAbility {
         hilog.error(DOMAIN, 'testTag', 'Failed to create database tables: %{public}s', err.message);
       });
       ShareDatabaseUtil.init(this.context);
+      void this.initializeGeneratorDatabase();
     } catch (err) {
       console.error(`Failed to init database. Error: ${JSON.stringify(err)}`);
+    }
+  }
+
+  private async initializeGeneratorDatabase(): Promise<void> {
+    try {
+      await GeneratorDatabaseUtil.init(this.context);
+    } catch (err) {
+      const error = err as Error;
+      hilog.error(DOMAIN, 'testTag', 'Failed to initialize generator database: %{public}s', error.message);
     }
   }
 

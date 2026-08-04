@@ -29,6 +29,11 @@
       "name": "ShareHistoryPage",
       "pageSourceFile": "src/main/ets/pages/ShareHistory.ets",
       "buildFunction": "HistoryPageBuilder"
+    },
+    {
+      "name": "GeneratorHistoryPage",
+      "pageSourceFile": "src/main/ets/pages/GeneratorHistoryPage.ets",
+      "buildFunction": "GeneratorHistoryPageBuilder"
     }
   ]
 }

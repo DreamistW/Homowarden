@@ -2,8 +2,9 @@
 export enum MainTab {
   VAULT = 0,
   TOTP = 1,
-  SHARE = 2,
-  SETTINGS = 3
+  GENERATOR = 2,
+  SHARE = 3,
+  SETTINGS = 4
 }
 
 /** 展示主页面固定页签并向父组件回传选择结果。 */
@@ -27,7 +28,7 @@ export struct MainBottomNavigation {
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
     }
-    .width('25%')
+    .width('20%')
     .height(56)
     .justifyContent(FlexAlign.Center)
     .onClick(() => {
@@ -39,6 +40,7 @@ export struct MainBottomNavigation {
     Row() {
       this.navigationItem(MainTab.VAULT, $r('app.string.nav_vault'), $r('app.media.icon_home'))
       this.navigationItem(MainTab.TOTP, $r('app.string.nav_totp'), $r('app.media.icon_key'))
+      this.navigationItem(MainTab.GENERATOR, $r('app.string.nav_generator'), $r('app.media.icon_password'))
       this.navigationItem(MainTab.SHARE, $r('app.string.nav_share'), $r('app.media.icon_share'))
       this.navigationItem(MainTab.SETTINGS, $r('app.string.nav_settings'), $r('app.media.icon_settings'))
     }

@@ -192,23 +192,27 @@ export class DatabaseUtil {
   }
 
   async clearVaultData(): Promise<void> {
-    await this.beginTransaction();
-    try {
-      await this.deleteAllData(DBTableName.KEYS);
-      await this.deleteAllData(DBTableName.LOGINS);
-      await this.deleteAllData(DBTableName.CARDS);
-      await this.deleteAllData(DBTableName.IDENTITIES);
-      await this.deleteAllData(DBTableName.FIELDS);
-      await this.deleteAllData(DBTableName.NOTES);
-      await this.deleteAllData(DBTableName.MAIN);
-      await this.commitTransaction();
-    } catch (error) {
+    const tables: string[] = [
+      DBTableName.KEYS,
+      DBTableName.LOGINS,
+      DBTableName.CARDS,
+      DBTableName.IDENTITIES,
+      DBTableName.FIELDS,
+      DBTableName.NOTES,
+      DBTableName.MAIN
+    ];
+    const errors: string[] = [];
+    for (const table of tables) {
       try {
-        await this.rollBackTransaction();
-      } catch (rollbackError) {
-        Logger.error(`Failed to roll back vault clearing transaction: ${rollbackError}`);
+        await this.deleteAllData(table);
+      } catch (error) {
+        const message = `${error}`;
+        errors.push(`${table}: ${message}`);
+        Logger.error(`Failed to clear ${table} during logout: ${message}`);
       }
-      throw new Error(`Failed to clear vault data: ${error}`);
+    }
+    if (errors.length > 0) {
+      throw new Error(`Failed to clear some vault tables: ${errors.join('; ')}`);
     }
   }
 
