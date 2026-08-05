@@ -86,7 +86,7 @@ export class CryptoUtil {
   /**
    * Argon2id密钥派生
    * @param password 明文密码
-   * @param salt 盐（Base64字符串）
+   * @param salt 盐
    * @param iterations 迭代次数
    * @param memory 内存（MB）
    * @param parallelism 并行度
@@ -95,8 +95,12 @@ export class CryptoUtil {
    */
   static async deriveKeyArgon2id(password: string, salt: string, iterations: number, memory: number,
     parallelism: number, keyLen: number = 32): Promise<string> {
-    let passwordBuffer = new util.TextEncoder().encodeInto(password);
-    let saltBuffer = new util.TextEncoder().encodeInto(salt.toLowerCase());
+    const passwordBuffer = new util.TextEncoder().encodeInto(password);
+    const saltBuffer = new util.TextEncoder().encodeInto(salt.trim().toLowerCase());
+    // Bitwarden 使用邮箱的 SHA-256 摘要作为 Argon2id 的盐，而不是邮箱原始字节。
+    const saltDigest = cryptoFramework.createMd('SHA256');
+    await saltDigest.update({ data: saltBuffer });
+    const saltHash = await saltDigest.digest();
 
     const option: HashOption = new HashOption();
     option.timeCost = iterations;
@@ -105,7 +109,7 @@ export class CryptoUtil {
     option.hashLength = keyLen;
     option.argon2Type = 2;
     option.argon2Version = 19;
-    const result = argon2Hash(passwordBuffer.buffer, saltBuffer.buffer, option);
+    const result = argon2Hash(passwordBuffer.buffer, saltHash.data.buffer, option);
     if (result.result !== 'ARGON2_OK') {
       throw new Error(`Argon2 failed: ${result.result}`);
     }
