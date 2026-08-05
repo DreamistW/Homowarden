@@ -1110,7 +1110,7 @@ export struct CipherDetailPage {
       Logger.info(`Cipher ${this.cipher.id} deleted successfully`);
 
       // 显示成功提示
-      AppToast.show(this.getUIContext(), $r('app.string.common_success'));
+      AppToast.show(this.getUIContext(), $r('app.string.common_delete_success'));
 
       if (changedCipher) {
         VaultChangeNotifier.setUpdatedCipher(changedCipher);

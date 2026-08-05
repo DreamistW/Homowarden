@@ -93,6 +93,18 @@
       "value": "操作成功"
     },
     {
+      "name": "common_delete_success",
+      "value": "删除成功"
+    },
+    {
+      "name": "common_select_all",
+      "value": "全选"
+    },
+    {
+      "name": "common_deselect_all",
+      "value": "全不选"
+    },
+    {
       "name": "common_back_exit",
       "value": "再按一次退出"
     },
@@ -857,8 +869,12 @@
       "value": "删除这条分享记录？"
     },
     {
-      "name": "share_delete_success",
-      "value": "删除成功"
+      "name": "history_delete_selected_confirm",
+      "value": "确认要删除这些记录吗？"
+    },
+    {
+      "name": "history_selected_count",
+      "value": "已选择 %1$d 项"
     },
     {
       "name": "share_copy_success",
@@ -1020,41 +1036,149 @@
       "name": "vault_relogin_message",
       "value": "登录已过期，请重新登录后继续。"
     },
-    { "name": "nav_generator", "value": "生成器" },
-    { "name": "generator_title", "value": "生成器" },
-    { "name": "generator_tab_password", "value": "密码" },
-    { "name": "generator_tab_username", "value": "用户名" },
-    { "name": "generator_empty", "value": "请至少选择一种字符类型" },
-    { "name": "generator_copied", "value": "已复制" },
-    { "name": "generator_cleared", "value": "已清空" },
-    { "name": "generator_history_title", "value": "生成历史" },
-    { "name": "generator_history_empty", "value": "暂无生成历史" },
-    { "name": "generator_history_clear", "value": "清空" },
-    { "name": "generator_history_delete_confirm", "value": "删除这条记录？" },
-    { "name": "generator_history_clear_confirm", "value": "清空全部生成历史？" },
-    { "name": "generator_history_type_password", "value": "密码" },
-    { "name": "generator_history_type_username", "value": "用户名" },
-    { "name": "password_length", "value": "长度" },
-    { "name": "password_uppercase", "value": "大写字母 (A-Z)" },
-    { "name": "password_lowercase", "value": "小写字母 (a-z)" },
-    { "name": "password_digits", "value": "数字 (0-9)" },
-    { "name": "password_symbols", "value": "符号 (!@#$%^&*)" },
-    { "name": "password_min_digits", "value": "数字最小个数" },
-    { "name": "password_min_symbols", "value": "符号最小个数" },
-    { "name": "username_type", "value": "类型" },
-    { "name": "username_type_email", "value": "邮箱别名" },
-    { "name": "username_type_word", "value": "随机单词" },
-    { "name": "username_email", "value": "邮箱" },
-    { "name": "username_email_placeholder", "value": "输入邮箱" },
-    { "name": "username_capitalize", "value": "首字母大写" },
-    { "name": "username_include_number", "value": "包含数字" },
-    { "name": "accessibility_generate", "value": "生成" },
-    { "name": "accessibility_copy_generated", "value": "复制生成内容" },
-    { "name": "accessibility_password_length", "value": "密码长度" },
-    { "name": "accessibility_decrease_min_digits", "value": "减少数字最小个数" },
-    { "name": "accessibility_increase_min_digits", "value": "增加数字最小个数" },
-    { "name": "accessibility_decrease_min_symbols", "value": "减少符号最小个数" },
-    { "name": "accessibility_increase_min_symbols", "value": "增加符号最小个数" },
-    { "name": "accessibility_clear_generator_history", "value": "清空生成历史" }
+    {
+      "name": "nav_generator",
+      "value": "生成器"
+    },
+    {
+      "name": "generator_title",
+      "value": "生成器"
+    },
+    {
+      "name": "generator_tab_password",
+      "value": "密码"
+    },
+    {
+      "name": "generator_tab_username",
+      "value": "用户名"
+    },
+    {
+      "name": "generator_empty",
+      "value": "请至少选择一种字符类型"
+    },
+    {
+      "name": "generator_copied",
+      "value": "已复制"
+    },
+    {
+      "name": "generator_cleared",
+      "value": "已清空"
+    },
+    {
+      "name": "generator_history_title",
+      "value": "生成历史"
+    },
+    {
+      "name": "generator_history_empty",
+      "value": "暂无生成历史"
+    },
+    {
+      "name": "generator_history_clear",
+      "value": "清空"
+    },
+    {
+      "name": "generator_history_delete_confirm",
+      "value": "删除这条记录？"
+    },
+    {
+      "name": "generator_history_clear_confirm",
+      "value": "清空全部生成历史？"
+    },
+    {
+      "name": "generator_history_type_password",
+      "value": "密码"
+    },
+    {
+      "name": "generator_history_type_username",
+      "value": "用户名"
+    },
+    {
+      "name": "password_length",
+      "value": "长度"
+    },
+    {
+      "name": "password_uppercase",
+      "value": "大写字母 (A-Z)"
+    },
+    {
+      "name": "password_lowercase",
+      "value": "小写字母 (a-z)"
+    },
+    {
+      "name": "password_digits",
+      "value": "数字 (0-9)"
+    },
+    {
+      "name": "password_symbols",
+      "value": "符号 (!@#$%^&*)"
+    },
+    {
+      "name": "password_min_digits",
+      "value": "数字最小个数"
+    },
+    {
+      "name": "password_min_symbols",
+      "value": "符号最小个数"
+    },
+    {
+      "name": "username_type",
+      "value": "类型"
+    },
+    {
+      "name": "username_type_email",
+      "value": "邮箱别名"
+    },
+    {
+      "name": "username_type_word",
+      "value": "随机单词"
+    },
+    {
+      "name": "username_email",
+      "value": "邮箱"
+    },
+    {
+      "name": "username_email_placeholder",
+      "value": "输入邮箱"
+    },
+    {
+      "name": "username_capitalize",
+      "value": "首字母大写"
+    },
+    {
+      "name": "username_include_number",
+      "value": "包含数字"
+    },
+    {
+      "name": "accessibility_generate",
+      "value": "生成"
+    },
+    {
+      "name": "accessibility_copy_generated",
+      "value": "复制生成内容"
+    },
+    {
+      "name": "accessibility_password_length",
+      "value": "密码长度"
+    },
+    {
+      "name": "accessibility_decrease_min_digits",
+      "value": "减少数字最小个数"
+    },
+    {
+      "name": "accessibility_increase_min_digits",
+      "value": "增加数字最小个数"
+    },
+    {
+      "name": "accessibility_decrease_min_symbols",
+      "value": "减少符号最小个数"
+    },
+    {
+      "name": "accessibility_increase_min_symbols",
+      "value": "增加符号最小个数"
+    },
+    {
+      "name": "accessibility_clear_generator_history",
+      "value": "清空生成历史"
+    }
   ]
 }
