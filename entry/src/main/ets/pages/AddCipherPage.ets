@@ -3,7 +3,8 @@ import { AppDropdown } from '../component/AppDropdown';
 import { AppToast } from '../utils/AppToast';
 import { TotpEditItem } from '../component/TotpEditItem';
 import { CustomFieldEditItem } from '../component/CustomFieldEditItem';
-import { AdaptiveTextButton } from '../component/AdaptiveButton';
+import { AdaptiveIconButton, AdaptiveTextButton } from '../component/AdaptiveButton';
+import { GeneratorPanel, GeneratorPanelMode } from '../component/GeneratorPanel';
 import { CipherField } from '../model/CipherModels';
 import {
   CardBrandType,
@@ -31,6 +32,12 @@ export struct AddCipherPage {
   @State cardBrand: CardBrandType = CardBrandType.NONE;
   @State totpSecret: string = '';
   @State newFieldType: CipherFieldType = CipherFieldType.TEXT;
+  // 登录用户名/密码的受控镜像，便于生成器回填后即时显示。
+  @State loginUsername: string = '';
+  @State loginPassword: string = '';
+  // 生成器面板状态。
+  @State showGenSheet: boolean = false;
+  @State genMode: GeneratorPanelMode = GeneratorPanelMode.PASSWORD;
   allowSave: boolean = false;
   pathInfos: NavPathStack = new NavPathStack();
   // 表单初始快照，用于判断是否有未保存改动。
@@ -122,6 +129,24 @@ export struct AddCipherPage {
     .alignItems(VerticalAlign.Center)
   }
 
+  // 生成器底部面板内容：按当前模式渲染，"使用"回填到对应输入框。
+  @Builder
+  generatorSheet() {
+    GeneratorPanel({
+      mode: this.genMode,
+      onUse: (value: string) => {
+        if (this.genMode === GeneratorPanelMode.PASSWORD) {
+          this.loginPassword = value;
+          this.viewModel.loginItem.password = value;
+        } else {
+          this.loginUsername = value;
+          this.viewModel.loginItem.username = value;
+        }
+        this.showGenSheet = false;
+      }
+    })
+  }
+
   build() {
     HdsNavDestination() {
       Scroll() {
@@ -157,7 +182,7 @@ export struct AddCipherPage {
             .margin({
               left: 16,
               right: 16,
-              top: 12,
+              top: 20,
               bottom: 4
             })
           TextInput()
@@ -170,39 +195,77 @@ export struct AddCipherPage {
 
           if (this.cipherType == CipherItemType.LOGIN) {
             // 用户名
-            Text($r('app.string.cipher_username'))
-              .fontSize(14)
-              .fontColor('#666666')
-              .margin({
-                left: 16,
-                right: 16,
-                top: 12,
-                bottom: 4
+            Row() {
+              Text($r('app.string.cipher_username'))
+                .fontSize(14)
+                .fontColor('#666666')
+                .width(56)
+              TextInput({ text: this.loginUsername })
+                .accessibilityText($r('app.string.cipher_username'))
+                .layoutWeight(1)
+                .margin({ left: 8, right: 8 })
+                .onChange((v: string) => {
+                  this.loginUsername = v;
+                  this.viewModel.loginItem.username = v;
+                })
+              AdaptiveIconButton({
+                icon: $r('app.media.icon_password'),
+                accessibilityLabel: $r('app.string.accessibility_generate'),
+                barWidth: 32,
+                barHeight: 32,
+                iconWidth: 20,
+                iconHeight: 20,
+                contentPadding: 4,
+                barBottomMargin: 0,
+                onButtonClick: () => {
+                  this.genMode = GeneratorPanelMode.USERNAME;
+                  this.showGenSheet = true;
+                }
               })
-            TextInput()
-              .accessibilityText($r('app.string.cipher_username'))
-              .onChange((v: string) => {
-                this.viewModel.loginItem.username = v;
-              })
-              .margin({ left: 16, right: 16 })
+            }
+            .margin({
+              left: 16,
+              right: 16,
+              top: 20,
+              bottom: 8
+            })
 
             // 密码
-            Text($r('app.string.cipher_password'))
-              .fontSize(14)
-              .fontColor('#666666')
-              .margin({
-                left: 16,
-                right: 16,
-                top: 12,
-                bottom: 4
+            Row() {
+              Text($r('app.string.cipher_password'))
+                .fontSize(14)
+                .fontColor('#666666')
+                .width(56)
+              TextInput({ text: this.loginPassword, placeholder: $r('app.string.login_password_placeholder') })
+                .accessibilityText($r('app.string.cipher_password'))
+                .type(InputType.Password)
+                .layoutWeight(1)
+                .margin({ left: 8, right: 8 })
+                .onChange((v: string) => {
+                  this.loginPassword = v;
+                  this.viewModel.loginItem.password = v;
+                })
+              AdaptiveIconButton({
+                icon: $r('app.media.icon_password'),
+                accessibilityLabel: $r('app.string.accessibility_generate'),
+                barWidth: 32,
+                barHeight: 32,
+                iconWidth: 20,
+                iconHeight: 20,
+                contentPadding: 4,
+                barBottomMargin: 0,
+                onButtonClick: () => {
+                  this.genMode = GeneratorPanelMode.PASSWORD;
+                  this.showGenSheet = true;
+                }
               })
-            TextInput({ placeholder: $r('app.string.login_password_placeholder') })
-              .accessibilityText($r('app.string.cipher_password'))
-              .type(InputType.Password)
-              .onChange((v: string) => {
-                this.viewModel.loginItem.password = v;
-              })
-              .margin({ left: 16, right: 16 })
+            }
+            .margin({
+              left: 16,
+              right: 16,
+              top: 20,
+              bottom: 8
+            })
 
             // 网站
             Text($r('app.string.cipher_website'))
@@ -760,6 +823,8 @@ export struct AddCipherPage {
       }
       return false;
     })
+    .bindSheet($$this.showGenSheet, this.generatorSheet,
+      { detents: [SheetSize.LARGE], showClose: true })
   }
 
   private canSave() {

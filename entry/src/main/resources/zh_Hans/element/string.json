@@ -641,6 +641,10 @@
       "value": "确认返回吗？当前变更会丢失"
     },
     {
+      "name": "cipher_use_generated",
+      "value": "使用"
+    },
+    {
       "name": "cipher_custom_fields",
       "value": "自定义字段"
     },
