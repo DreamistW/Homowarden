@@ -33,6 +33,8 @@ export struct AddCipherPage {
   @State newFieldType: CipherFieldType = CipherFieldType.TEXT;
   allowSave: boolean = false;
   pathInfos: NavPathStack = new NavPathStack();
+  // 表单初始快照，用于判断是否有未保存改动。
+  private initialViewModelSnapshot: string = '';
   ConfirmBtn: HdsNavigationBadgeIconOptions = {
     content: {
       label: $r('app.string.common_confirm'),
@@ -747,11 +749,43 @@ export struct AddCipherPage {
       if (param) {
         this.viewModel.symmetricKey = param;
       }
+      this.initialViewModelSnapshot = JSON.stringify(this.viewModel);
+    })
+    .onBackPressed((): boolean => {
+      if (this.hasUnsavedChanges()) {
+        this.showDiscardConfirm(() => {
+          this.pathInfos.pop();
+        });
+        return true;
+      }
+      return false;
     })
   }
 
   private canSave() {
     this.allowSave = this.viewModel.canSave();
+  }
+
+  // 相对初始快照判断表单是否有未保存改动。
+  private hasUnsavedChanges(): boolean {
+    return JSON.stringify(this.viewModel) !== this.initialViewModelSnapshot;
+  }
+
+  // 弹出“放弃改动”二次确认；点击确认执行 onConfirm，点击取消则停留在当前界面。
+  private showDiscardConfirm(onConfirm: () => void): void {
+    this.getUIContext().showAlertDialog({
+      message: $r('app.string.cipher_discard_changes_confirm'),
+      secondaryButton: {
+        value: $r('app.string.common_cancel'),
+        action: () => {}
+      },
+      primaryButton: {
+        value: $r('app.string.common_confirm'),
+        action: () => {
+          onConfirm();
+        }
+      }
+    });
   }
 
   /**

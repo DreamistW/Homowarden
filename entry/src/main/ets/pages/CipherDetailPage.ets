@@ -52,6 +52,8 @@ export struct CipherDetailPage {
   @State newFieldEditType: CipherFieldType = CipherFieldType.TEXT;
   pathInfos: NavPathStack = new NavPathStack();
   private viewModel: CipherDetailViewModel = new CipherDetailViewModel();
+  // 进入编辑模式时的明文快照，用于判断是否有未保存改动。
+  private originalCipherSnapshot: string = '';
   private identityTitleGroup: string = 'identityTitleSelector';
   private cardBrandGroup: string = 'cardBrandSelector';
   // 下拉菜单选项
@@ -144,6 +146,7 @@ export struct CipherDetailPage {
           AppToast.show(this.getUIContext(), $r('app.string.error_encryption'));
           return;
         }
+        this.originalCipherSnapshot = JSON.stringify(this.cipher);
         this.isEditable = true;
       }
     }
@@ -177,8 +180,7 @@ export struct CipherDetailPage {
         if (this.isSaving) {
           return;
         }
-        this.isEditable = false;
-        this.loadCipherDetail();
+        this.requestCancelEdit();
       }
     }
   }
@@ -244,6 +246,45 @@ export struct CipherDetailPage {
     } finally {
       this.isLoading = false;
     }
+  }
+
+  // 退出编辑模式并重新加载详情。
+  private exitEditMode(): void {
+    this.isEditable = false;
+    this.loadCipherDetail();
+  }
+
+  // 取消编辑：若有未保存改动则二次确认，确认后放弃改动退出编辑。
+  private requestCancelEdit(): void {
+    if (this.hasUnsavedChanges()) {
+      this.showDiscardConfirm(() => {
+        this.exitEditMode();
+      });
+    } else {
+      this.exitEditMode();
+    }
+  }
+
+  // 编辑模式下相对快照判断是否有未保存改动。
+  private hasUnsavedChanges(): boolean {
+    return this.isEditable && JSON.stringify(this.cipher) !== this.originalCipherSnapshot;
+  }
+
+  // 弹出“放弃改动”二次确认；点击确认执行 onConfirm，点击取消则停留在当前界面。
+  private showDiscardConfirm(onConfirm: () => void): void {
+    this.getUIContext().showAlertDialog({
+      message: $r('app.string.cipher_discard_changes_confirm'),
+      secondaryButton: {
+        value: $r('app.string.common_cancel'),
+        action: () => {}
+      },
+      primaryButton: {
+        value: $r('app.string.common_confirm'),
+        action: () => {
+          onConfirm();
+        }
+      }
+    });
   }
 
   /**
@@ -546,6 +587,14 @@ export struct CipherDetailPage {
         this.viewModel.symmetricKey = param.symmetricKey;
         this.loadCipherDetail();
       }
+    })
+    .onBackPressed((): boolean => {
+      if (this.isEditable) {
+        // 编辑模式下按返回退回查看模式（若有改动则二次确认），而非直接离开页面。
+        this.requestCancelEdit();
+        return true;
+      }
+      return false;
     })
   }
 
