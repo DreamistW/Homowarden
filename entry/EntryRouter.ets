@@ -6,4 +6,5 @@ export class EntryRouter {
   static UnlockPage = 'UnlockPage';
   static ShareHistoryPage = 'ShareHistoryPage';
   static GeneratorHistoryPage = 'GeneratorHistoryPage';
+  static DetailPlaceholder = 'DetailPlaceholder';
 }

@@ -5,6 +5,7 @@ import { GeneratorDatabaseUtil, GENERATOR_HISTORY_TABLE } from '../utils/Generat
 import { GeneratorHistoryItem, GeneratorRecordType } from '../model/GeneratorHistoryModel';
 import { AdaptiveIconButton } from '../component/AdaptiveButton';
 import { AppToast } from '../utils/AppToast';
+import { DetailRouter } from '../utils/DetailRouter';
 
 @Builder
 export function GeneratorHistoryPageBuilder() {
@@ -14,6 +15,7 @@ export function GeneratorHistoryPageBuilder() {
 @Component
 struct GeneratorHistory {
   @StorageLink('localeRevision') @Watch('handleLocaleRevision') localeRevision: number = 0;
+  @StorageLink('isSplitView') isSplitView: boolean = false;
   pathInfos: NavPathStack = new NavPathStack();
   @State historyList: GeneratorHistoryItem[] = [];
   @State inSelectionMode: boolean = false;
@@ -329,12 +331,17 @@ struct GeneratorHistory {
         }
       }
     })
+    .hideBackButton(this.isSplitView)
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
     })
     .onBackPressed((): boolean => {
       if (this.inSelectionMode) {
         this.exitSelectionMode();
+        return true;
+      }
+      if (this.isSplitView) {
+        DetailRouter.closeDetail(this.pathInfos);
         return true;
       }
       return false;

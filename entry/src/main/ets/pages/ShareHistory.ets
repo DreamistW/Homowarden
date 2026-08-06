@@ -7,6 +7,7 @@ import { common } from '@kit.AbilityKit';
 import { getShareLink } from '../utils/ParseLinkUtil';
 import { hdsMaterial, HdsNavDestination } from '@kit.UIDesignKit';
 import { AdaptiveIconButton } from '../component/AdaptiveButton';
+import { DetailRouter } from '../utils/DetailRouter';
 
 @Builder
 export function HistoryPageBuilder() {
@@ -16,6 +17,7 @@ export function HistoryPageBuilder() {
 @Component
 struct History {
   @StorageLink('localeRevision') @Watch('handleLocaleRevision') localeRevision: number = 0;
+  @StorageLink('isSplitView') isSplitView: boolean = false;
   pathInfos: NavPathStack = new NavPathStack();
   @State searchText: string = '';
   @State historyList: HistoryItem[] = [];
@@ -351,12 +353,17 @@ struct History {
         }
       }
     })
+    .hideBackButton(this.isSplitView)
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
     })
     .onBackPressed((): boolean => {
       if (this.inSelectionMode) {
         this.exitSelectionMode();
+        return true;
+      }
+      if (this.isSplitView) {
+        DetailRouter.closeDetail(this.pathInfos);
         return true;
       }
       return false;

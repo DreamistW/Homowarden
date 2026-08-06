@@ -6,7 +6,9 @@
     "description": "$string:module_desc",
     "mainElement": "EntryAbility",
     "deviceTypes": [
-      "phone"
+      "phone",
+      "tablet",
+      "2in1"
     ],
     "deliveryWithInstall": true,
     "installationFree": false,
@@ -20,6 +22,7 @@
         "label": "$string:EntryAbility_label",
         "startWindowIcon": "$media:app_small_icon",
         "startWindowBackground": "$color:start_window_background",
+        "orientation": "auto_rotation",
         "exported": true,
         "removeMissionAfterTerminate": true,
         "skills": [

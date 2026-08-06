@@ -13,8 +13,13 @@ export interface VaultLocalChange {
 
 let pendingChange: VaultLocalChange | null = null;
 let changeRevision: number = 0;
+const COMMITTED_CHANGE_REVISION_KEY = 'vaultCommittedChangeRevision';
 
 export class VaultChangeNotifier {
+  static initialize(): void {
+    AppStorage.setOrCreate(COMMITTED_CHANGE_REVISION_KEY, 0);
+  }
+
   static markLocalChangePending(): void {
     changeRevision++;
   }
@@ -25,6 +30,7 @@ export class VaultChangeNotifier {
       cipher: cipher
     };
     changeRevision++;
+    VaultChangeNotifier.notifyCommittedChange();
   }
 
   static setDeletedCipher(cipherId: string): void {
@@ -33,6 +39,7 @@ export class VaultChangeNotifier {
       cipherId: cipherId
     };
     changeRevision++;
+    VaultChangeNotifier.notifyCommittedChange();
   }
 
   static getChangeRevision(): number {
@@ -57,5 +64,10 @@ export class VaultChangeNotifier {
     if (pendingChange?.cipher?.id === cipherId || pendingChange?.cipherId === cipherId) {
       pendingChange = null;
     }
+  }
+
+  private static notifyCommittedChange(): void {
+    const revision = AppStorage.get<number>(COMMITTED_CHANGE_REVISION_KEY) ?? 0;
+    AppStorage.setOrCreate(COMMITTED_CHANGE_REVISION_KEY, revision + 1);
   }
 }
