@@ -2,17 +2,38 @@ import { EntryRouter } from '../../../../EntryRouter';
 
 /** 统一单栏压栈与分栏右侧替换的详情路由语义。 */
 export class DetailRouter {
-  private static detailStack: NavPathStack | null = null;
+  private static closeHandler: (() => void) | null = null;
 
-  static registerDetailStack(stack: NavPathStack): void {
-    DetailRouter.detailStack = stack;
+  static registerCloseHandler(handler: () => void): void {
+    DetailRouter.closeHandler = handler;
+  }
+
+  static unregisterCloseHandler(handler: () => void): void {
+    if (DetailRouter.closeHandler === handler) {
+      DetailRouter.closeHandler = null;
+    }
+  }
+
+  static showPlaceholder(stack: NavPathStack): void {
+    const placeholder: NavPathInfo = { name: EntryRouter.DetailPlaceholder };
+    const pathNames = stack.getAllPathName();
+    if (!pathNames || pathNames.length === 0) {
+      stack.pushPath(placeholder);
+      return;
+    }
+    stack.replacePath(placeholder);
   }
 
   static openDetail(primaryStack: NavPathStack, detailStack: NavPathStack, isSplit: boolean,
     name: string, param?: Object): void {
     const path: NavPathInfo = { name: name, param: param };
     if (isSplit) {
-      detailStack.replacePath(path);
+      const pathNames = detailStack.getAllPathName();
+      if (!pathNames || pathNames.length === 0) {
+        detailStack.pushPath(path);
+      } else {
+        detailStack.replacePath(path);
+      }
       return;
     }
     primaryStack.pushPath(path);
@@ -23,12 +44,7 @@ export class DetailRouter {
     DetailRouter.openDetail(primaryStack, detailStack, isSplit, name);
   }
 
-  static closeDetail(stack: NavPathStack): void {
-    // 页面可能在异步操作期间发生旋转，必须按实际所属栈决定关闭方式。
-    if (stack === DetailRouter.detailStack) {
-      stack.replacePath({ name: EntryRouter.DetailPlaceholder });
-      return;
-    }
-    stack.pop();
+  static closeDetail(): void {
+    DetailRouter.closeHandler?.();
   }
 }

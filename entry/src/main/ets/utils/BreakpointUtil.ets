@@ -26,6 +26,7 @@ export class BreakpointUtil {
     AppStorage.setOrCreate<Breakpoint>('breakpoint', Breakpoint.SM);
     AppStorage.setOrCreate<Orientation>('orientation', Orientation.PORTRAIT);
     AppStorage.setOrCreate<boolean>('isSplitView', false);
+    AppStorage.setOrCreate<boolean>('activeSplitView', false);
   }
 
   static dispose(): void {

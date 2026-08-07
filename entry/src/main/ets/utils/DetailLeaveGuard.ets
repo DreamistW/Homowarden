@@ -12,6 +12,8 @@ export class DetailLeaveGuard {
   static unregister(handler: DetailLeaveHandler): void {
     if (DetailLeaveGuard.handler === handler) {
       DetailLeaveGuard.handler = null;
+      // 持有未决请求的详情页已销毁，复位请求态，避免后续 requestLeave 被永久拦截。
+      DetailLeaveGuard.isRequesting = false;
     }
   }
 

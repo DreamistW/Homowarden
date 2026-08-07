@@ -8,74 +8,11 @@ import { DataPreferences } from '@abner/datastore';
 import { HdsNavDestination } from '@hms.hds.hdsBaseComponent';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 import { AdaptiveTextButton } from '../component/AdaptiveButton';
+import { FormDialog } from '../component/FormDialog';
 import { TwoFactorProvider } from '../model/AccessToken';
 import { AppText, AppTextKey } from '../localization/AppText';
 import { AppTextResolver } from '../localization/AppTextResolver';
 import { VaultViewModel } from '../viewmodel/VaultViewModel';
-
-// 验证码弹框原生容器：系统提供弹框外壳，内容由调用方注入。
-@CustomDialog
-struct VerificationDialogContent {
-  dialogController?: CustomDialogController
-  @BuilderParam contentBuilder: () => void
-  title: ResourceStr = ''
-  cancel: () => void = () => {
-  }
-  confirm: () => Promise<void> = async () => {
-  }
-  @State submitting: boolean = false
-
-  private async submit(): Promise<void> {
-    if (this.submitting) {
-      return;
-    }
-    this.submitting = true;
-    try {
-      await this.confirm();
-    } finally {
-      this.submitting = false;
-    }
-  }
-
-  build() {
-    Column() {
-      Column() {
-        Text(this.title)
-          .fontSize(20)
-          .fontWeight(FontWeight.Medium)
-          .margin({ bottom: 12 })
-
-        this.contentBuilder()
-      }
-      .padding({ left: 24, right: 24, top: 24, bottom: 16 })
-
-      Divider()
-
-      Row() {
-        Button($r('app.string.common_cancel'))
-          .layoutWeight(1)
-          .height(48)
-          .fontSize(16)
-          .buttonStyle(ButtonStyleMode.TEXTUAL)
-          .enabled(!this.submitting)
-          .onClick(() => {
-            this.dialogController?.close();
-            this.cancel();
-          })
-        Button($r('app.string.common_confirm'))
-          .layoutWeight(1)
-          .height(48)
-          .fontSize(16)
-          .fontColor($r('app.color.button_background_color'))
-          .buttonStyle(ButtonStyleMode.TEXTUAL)
-          .enabled(!this.submitting)
-          .onClick(() => {
-            void this.submit();
-          })
-      }
-    }
-  }
-}
 
 @Builder
 export function LoginPageBuilder() {
@@ -99,7 +36,7 @@ export struct LoginPage {
 
   // 两步验证弹框控制器（系统原生 @CustomDialog 容器）
   twoFactorDialogController: CustomDialogController = new CustomDialogController({
-    builder: VerificationDialogContent({
+    builder: FormDialog({
       title: $r('app.string.login_two_factor_title'),
       contentBuilder: (): void => this.twoFactorInputContent(),
       cancel: () => {
@@ -125,7 +62,7 @@ export struct LoginPage {
 
   // 新设备验证弹框控制器
   newDeviceDialogController: CustomDialogController = new CustomDialogController({
-    builder: VerificationDialogContent({
+    builder: FormDialog({
       title: $r('app.string.login_new_device_title'),
       contentBuilder: (): void => this.newDeviceInputContent(),
       cancel: () => {

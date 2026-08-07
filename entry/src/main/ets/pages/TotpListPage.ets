@@ -3,7 +3,7 @@ import { TotpListItem } from '../component/TotpListItem';
 import { TotpListViewModel } from '../viewmodel/TotpListViewModel';
 import { AppText, AppTextKey } from '../localization/AppText';
 import { AppTextResolver } from '../localization/AppTextResolver';
-import { AppDialog, AppDialogAction } from '../component/AppDialog';
+import { FormDialog } from '../component/FormDialog';
 
 /** 从密码库共享数据中筛选并展示 TOTP 条目的页签内容。 */
 @Component
@@ -16,12 +16,24 @@ export struct TotpListPage {
   @State viewModel: TotpListViewModel = new TotpListViewModel();
   @State currentTime: number = Date.now();
   @State isLoading: boolean = true;
-  @State showPasswordDialog: boolean = false;
   @State passwordInput: string = '';
   @State passwordError: ResourceStr = '';
   @State pendingCipher: Cipher | null = null;
   private timerId: number = -1;
   private loadedRevision: number = -1;
+  private passwordDialogController: CustomDialogController = new CustomDialogController({
+    builder: FormDialog({
+      title: $r('app.string.totp_master_title'),
+      contentBuilder: (): void => this.masterPasswordContent(),
+      cancel: () => {},
+      confirm: async (): Promise<void> => {
+        await this.confirmMasterPassword();
+      }
+    }),
+    autoCancel: false,
+    alignment: DialogAlignment.Center,
+    customStyle: false
+  });
 
   aboutToAppear(): void {
     if (this.isActive) {
@@ -89,7 +101,7 @@ export struct TotpListPage {
       this.pendingCipher = cipher;
       this.passwordInput = '';
       this.passwordError = '';
-      this.showPasswordDialog = true;
+      this.passwordDialogController.open();
     } else {
       this.doNavigateToDetail(cipher);
     }
@@ -98,6 +110,41 @@ export struct TotpListPage {
   private doNavigateToDetail(cipher: Cipher): void {
     const params: CipherDetailParams = { cipher: cipher, symmetricKey: this.symmetricKey };
     this.onNavigateToDetail(params);
+  }
+
+  // 密码验证弹框点击确认时调用：校验通过则跳转详情并关闭弹框，否则回填错误文案并保持打开。
+  private async confirmMasterPassword(): Promise<void> {
+    const result = await this.verifyMasterPassword();
+    if (result) {
+      if (this.pendingCipher) {
+        this.doNavigateToDetail(this.pendingCipher);
+        this.pendingCipher = null;
+      }
+      this.passwordDialogController.close();
+    }
+  }
+
+  @Builder
+  masterPasswordContent() {
+    Column() {
+      Text($r('app.string.totp_master_prompt'))
+        .fontSize(16)
+        .fontWeight(FontWeight.Medium)
+        .margin({ bottom: 12 })
+      TextInput({ placeholder: $r('app.string.unlock_enter_master_password'), text: this.passwordInput })
+        .accessibilityText($r('app.string.unlock_enter_master_password'))
+        .type(InputType.Password)
+        .onChange((value: string) => {
+          this.passwordInput = value;
+          this.passwordError = '';
+        })
+      if (this.passwordError) {
+        Text(this.passwordError)
+          .fontSize(14)
+          .fontColor(Color.Red)
+          .margin({ top: 8 })
+      }
+    }
   }
 
   build() {
@@ -145,25 +192,6 @@ export struct TotpListPage {
         .layoutWeight(1)
         .padding({ left: 16, right: 16 })
       }
-
-      AppDialog({
-        visible: $showPasswordDialog,
-        title: $r('app.string.totp_master_title'),
-        showCancelButton: true,
-        closeOnClickOverlay: false,
-        defaultBuilder: (): void => this.passwordVerifyDialogContent(),
-        beforeClose: async (action) => {
-          if (action === AppDialogAction.CANCEL) {
-            return true;
-          }
-          const result = await this.verifyMasterPassword();
-          if (result && this.pendingCipher) {
-            this.doNavigateToDetail(this.pendingCipher);
-            this.pendingCipher = null;
-          }
-          return result;
-        }
-      })
     }
     .width('100%')
     .height('100%')
@@ -174,35 +202,10 @@ export struct TotpListPage {
     if (result) {
       this.passwordInput = '';
       this.passwordError = '';
-      this.showPasswordDialog = false;
       return true;
     }
     this.passwordError = AppTextResolver.resource(this.viewModel.errorMessage ??
       new AppText(AppTextKey.VERIFICATION_FAILED));
     return false;
-  }
-
-  @Builder
-  passwordVerifyDialogContent() {
-    Column({ space: 16 }) {
-      Text($r('app.string.totp_master_prompt'))
-        .fontSize(16)
-        .fontWeight(FontWeight.Medium)
-      TextInput({ placeholder: $r('app.string.unlock_enter_master_password'), text: this.passwordInput })
-        .accessibilityText($r('app.string.unlock_enter_master_password'))
-        .type(InputType.Password)
-        .onChange((value: string) => {
-          this.passwordInput = value;
-          this.passwordError = '';
-        })
-        .margin({ left: 12, right: 12 })
-      if (this.passwordError) {
-        Text(this.passwordError)
-          .fontSize(14)
-          .fontColor(Color.Red)
-          .margin({ left: 12, right: 12 })
-      }
-    }
-    .padding({ top: 12, bottom: 12 })
   }
 }

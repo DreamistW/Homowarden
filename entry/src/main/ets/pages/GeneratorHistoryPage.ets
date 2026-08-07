@@ -6,6 +6,7 @@ import { GeneratorHistoryItem, GeneratorRecordType } from '../model/GeneratorHis
 import { AdaptiveIconButton } from '../component/AdaptiveButton';
 import { AppToast } from '../utils/AppToast';
 import { DetailRouter } from '../utils/DetailRouter';
+import { ConfirmDialog } from '../component/ConfirmDialog';
 
 @Builder
 export function GeneratorHistoryPageBuilder() {
@@ -15,7 +16,7 @@ export function GeneratorHistoryPageBuilder() {
 @Component
 struct GeneratorHistory {
   @StorageLink('localeRevision') @Watch('handleLocaleRevision') localeRevision: number = 0;
-  @StorageLink('isSplitView') isSplitView: boolean = false;
+  @StorageLink('activeSplitView') isSplitView: boolean = false;
   pathInfos: NavPathStack = new NavPathStack();
   @State historyList: GeneratorHistoryItem[] = [];
   @State inSelectionMode: boolean = false;
@@ -58,6 +59,38 @@ struct GeneratorHistory {
       clearInterval(this.refreshTimer);
       this.refreshTimer = -1;
     }
+    // 旋转跨栈迁移会销毁本页，随之关闭未决确认框（等同取消）。
+    this.confirmController.close();
+  }
+
+  @State confirmTitle: ResourceStr = '';
+  @State confirmMessage: ResourceStr = '';
+  @State confirmText: ResourceStr = $r('app.string.common_confirm');
+  private confirmAction: () => Promise<boolean> = async () => true;
+  private confirmController: CustomDialogController = new CustomDialogController({
+    builder: ConfirmDialog({
+      title: $confirmTitle,
+      message: $confirmMessage,
+      confirmText: $confirmText,
+      onConfirm: async (): Promise<boolean> => {
+        return await this.confirmAction();
+      }
+    }),
+    autoCancel: false,
+    alignment: DialogAlignment.Center,
+    customStyle: false
+  });
+
+  private showConfirm(title: ResourceStr, message: ResourceStr, action: () => void,
+    confirmText: ResourceStr = $r('app.string.common_confirm')): void {
+    this.confirmTitle = title;
+    this.confirmMessage = message;
+    this.confirmText = confirmText;
+    this.confirmAction = async (): Promise<boolean> => {
+      action();
+      return true;
+    };
+    this.confirmController.open();
   }
 
   private handleLocaleRevision(): void {
@@ -104,37 +137,15 @@ struct GeneratorHistory {
 
   // 弹出确认对话框请求删除单条记录。
   private requestDelete(item: GeneratorHistoryItem): void {
-    this.getUIContext().showAlertDialog({
-      title: $r('app.string.generator_history_delete_confirm'),
-      message: item.content,
-      secondaryButton: {
-        value: $r('app.string.common_cancel'),
-        action: () => {}
-      },
-      primaryButton: {
-        value: $r('app.string.common_confirm'),
-        action: () => {
-          void this.doDelete(item);
-        }
-      }
+    this.showConfirm($r('app.string.generator_history_delete_confirm'), item.content, () => {
+      void this.doDelete(item);
     });
   }
 
   // 弹出确认对话框请求清空全部记录。
   private requestClearAll(): void {
-    this.getUIContext().showAlertDialog({
-      title: $r('app.string.common_confirm'),
-      message: $r('app.string.generator_history_clear_confirm'),
-      secondaryButton: {
-        value: $r('app.string.common_cancel'),
-        action: () => {}
-      },
-      primaryButton: {
-        value: $r('app.string.common_confirm'),
-        action: () => {
-          void this.doClearAll();
-        }
-      }
+    this.showConfirm($r('app.string.common_confirm'), $r('app.string.generator_history_clear_confirm'), () => {
+      void this.doClearAll();
     });
   }
 
@@ -217,20 +228,9 @@ struct GeneratorHistory {
     if (this.selectedIds.length === 0) {
       return;
     }
-    this.getUIContext().showAlertDialog({
-      title: $r('app.string.common_delete'),
-      message: $r('app.string.history_delete_selected_confirm'),
-      secondaryButton: {
-        value: $r('app.string.common_cancel'),
-        action: () => {}
-      },
-      primaryButton: {
-        value: $r('app.string.common_delete'),
-        action: () => {
-          void this.doDeleteSelected();
-        }
-      }
-    });
+    this.showConfirm($r('app.string.common_delete'), $r('app.string.history_delete_selected_confirm'), () => {
+      void this.doDeleteSelected();
+    }, $r('app.string.common_delete'));
   }
 
   // 删除选中的记录并刷新列表。
@@ -341,7 +341,7 @@ struct GeneratorHistory {
         return true;
       }
       if (this.isSplitView) {
-        DetailRouter.closeDetail(this.pathInfos);
+        DetailRouter.closeDetail();
         return true;
       }
       return false;
