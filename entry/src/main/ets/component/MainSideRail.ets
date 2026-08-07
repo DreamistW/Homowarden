@@ -1,4 +1,4 @@
-import { MainTab } from './MainBottomNavigation';
+import { MainNavigationItem, mainNavigationItems, MainTab } from './MainNavigationItems';
 
 /** 宽屏主导航，页签语义与手机底部导航保持一致。 */
 @Component
@@ -41,11 +41,9 @@ export struct MainSideRail {
 
   build() {
     Column() {
-      this.navigationItem(MainTab.VAULT, $r('app.string.nav_vault'), $r('app.media.icon_home'))
-      this.navigationItem(MainTab.TOTP, $r('app.string.nav_totp'), $r('app.media.icon_key'))
-      this.navigationItem(MainTab.GENERATOR, $r('app.string.nav_generator'), $r('app.media.icon_password'))
-      this.navigationItem(MainTab.SHARE, $r('app.string.nav_share'), $r('app.media.icon_share'))
-      this.navigationItem(MainTab.SETTINGS, $r('app.string.nav_settings'), $r('app.media.icon_settings'))
+      ForEach(mainNavigationItems(), (item: MainNavigationItem) => {
+        this.navigationItem(item.tab, item.label, item.icon)
+      }, (item: MainNavigationItem) => item.tab.toString())
     }
     .width(80)
     .height('100%')

@@ -17,7 +17,8 @@ import {
 import { hdsMaterial } from '@kit.UIDesignKit';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 import { VaultChangeNotifier, VaultLocalChange, VaultLocalChangeType } from '../utils/VaultChangeNotifier';
-import { MainBottomNavigation, MainTab } from '../component/MainBottomNavigation';
+import { MainBottomNavigation } from '../component/MainBottomNavigation';
+import { MainTab } from '../component/MainNavigationItems';
 import { TotpListPage } from './TotpListPage';
 import { Sure2SharePage } from './Sure2Share';
 import { SettingsPage } from './SettingsPage';
@@ -890,8 +891,15 @@ export struct VaultPage {
     .onAppear(() => {
       this.activeSplitView = this.isSplitView;
       DetailRouter.registerCloseHandler(this.closeDetailHandler);
-      this.detailStack.disableAnimation(true);
-      this.showDetailPlaceholder();
+      // onAppear 可能处于 ArkUI 初始渲染流水线中，延迟初始化详情栈，避免同步修改
+      // @State detailStack；若期间已打开详情，则不再用占位页覆盖。
+      setTimeout(() => {
+        this.detailStack.disableAnimation(true);
+        const pathNames = this.detailStack.getAllPathName();
+        if (!pathNames || pathNames.length === 0) {
+          this.showDetailPlaceholder();
+        }
+      }, 0);
     })
     .onBackPressed(() => {
       const currentTime = Date.now();
