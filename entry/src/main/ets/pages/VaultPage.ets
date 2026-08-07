@@ -4,7 +4,8 @@ import { VaultViewModel } from '../viewmodel/VaultViewModel';
 import { common } from '@kit.AbilityKit';
 import { AppToast } from '../utils/AppToast';
 import { AppDropdown } from '../component/AppDropdown';
-import { AppDialog, AppDialogAction } from '../component/AppDialog';
+import { FormDialog } from '../component/FormDialog';
+import { ConfirmDialog } from '../component/ConfirmDialog';
 import { DataPreferences } from '@abner/datastore';
 import {
   FilterType, LOGIN_STATUS_KEY, NEED_RELOAD_CIPHERS
@@ -16,7 +17,8 @@ import {
 import { hdsMaterial } from '@kit.UIDesignKit';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 import { VaultChangeNotifier, VaultLocalChange, VaultLocalChangeType } from '../utils/VaultChangeNotifier';
-import { MainBottomNavigation, MainTab } from '../component/MainBottomNavigation';
+import { MainBottomNavigation } from '../component/MainBottomNavigation';
+import { MainTab } from '../component/MainNavigationItems';
 import { TotpListPage } from './TotpListPage';
 import { Sure2SharePage } from './Sure2Share';
 import { SettingsPage } from './SettingsPage';
@@ -26,6 +28,10 @@ import { AppTextResolver } from '../localization/AppTextResolver';
 import { AdaptiveIconButton } from '../component/AdaptiveButton';
 import { AppDropdownOption } from '../model/AppUiModels';
 import { AppOptionFactory } from '../localization/AppOptionFactory';
+import { DetailRouter } from '../utils/DetailRouter';
+import { MainSideRail } from '../component/MainSideRail';
+import { AdaptiveShell } from '../component/AdaptiveShell';
+import { DetailLeaveGuard } from '../utils/DetailLeaveGuard';
 
 @Builder
 export function VaultPageBuilder() {
@@ -35,6 +41,7 @@ export function VaultPageBuilder() {
 @Component
 struct VaultContent {
   @StorageLink('localeRevision') @Watch('handleLocaleRevision') localeRevision: number = 0;
+  @StorageLink('vaultCommittedChangeRevision') @Watch('handleCommittedChange') committedChangeRevision: number = 0;
   @Prop @Watch('handleActivationRevision') activationRevision: number = 0;
   onVaultDataChanged: (ciphers: Cipher[], symmetricKey: string) => void = () => {};
   onNavigateToDetail: (params: CipherDetailParams) => void = () => {};
@@ -42,29 +49,80 @@ struct VaultContent {
   @State viewModel: VaultViewModel = new VaultViewModel();
   private listScroller: ListScroller = new ListScroller();
   @State searchText: string = '';
-  @State needReLogin: boolean = false;
   @State selectedType: FilterType = FilterType.ALL;
   @State filterOptions: AppDropdownOption[] = AppOptionFactory.vaultFilters(0, 0, 0, 0, 0, 0, 0);
   @State displayCiphers: Cipher[] = [];
   @State isInitialLoading: boolean = true;
   @State isLoading: boolean = false;
-  @State showPasswordDialog: boolean = false;
   @State passwordInput: string = '';
   @State passwordError: ResourceStr = '';
   @State pendingCipher: Cipher | null = null;
   groupId: string = 'filter_menu';
+  private needReLogin: boolean = false;
+  private passwordDialogController: CustomDialogController = new CustomDialogController({
+    builder: FormDialog({
+      title: $r('app.string.totp_master_title'),
+      contentBuilder: (): void => this.masterPasswordContent(),
+      cancel: () => {},
+      confirm: async (): Promise<void> => {
+        await this.confirmMasterPassword();
+      }
+    }),
+    autoCancel: false,
+    alignment: DialogAlignment.Center,
+    customStyle: false
+  });
+  @State reloginTitle: ResourceStr = $r('app.string.vault_relogin_title');
+  @State reloginMessage: ResourceStr = $r('app.string.vault_relogin_message');
+  @State reloginConfirmText: ResourceStr = $r('app.string.common_confirm');
+  private isReloginDialogOpen: boolean = false;
+  private reloginDialogController: CustomDialogController = new CustomDialogController({
+    builder: ConfirmDialog({
+      title: $reloginTitle,
+      message: $reloginMessage,
+      confirmText: $reloginConfirmText,
+      showCancel: false,
+      onConfirm: async (): Promise<boolean> => {
+        this.isReloginDialogOpen = false;
+        DataPreferences.getInstance().putSync(LOGIN_STATUS_KEY, 0);
+        void WindowPrivacyUtil.applyForCurrentState();
+        this.onRelogin();
+        return true;
+      }
+    }),
+    autoCancel: false,
+    alignment: DialogAlignment.Center,
+    customStyle: false
+  });
 
   async aboutToAppear(): Promise<void> {
     await this.loadCiphersWithBackgroundSync();
+    this.consumeCommittedChange();
+  }
+
+  aboutToDisappear(): void {
+    this.isReloginDialogOpen = false;
+    this.reloginDialogController.close();
+    this.passwordDialogController.close();
   }
 
   private handleActivationRevision(): void {
-    // 页面重新激活时消费一次本地变更，避免返回列表后重复应用同一通知。
-    const result = DataPreferences.getInstance().getSync<number>(NEED_RELOAD_CIPHERS);
-    if (result === 1) {
-      DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 0);
-      void this.handleLocalVaultChange(VaultChangeNotifier.consumeChange());
+    this.consumeCommittedChange();
+  }
+
+  private handleCommittedChange(): void {
+    // 分栏下列表始终挂载，直接消费提交事件而不依赖页面重新激活。
+    this.consumeCommittedChange();
+  }
+
+  private consumeCommittedChange(): void {
+    const change = VaultChangeNotifier.consumeChange();
+    const needReload = DataPreferences.getInstance().getSync<number>(NEED_RELOAD_CIPHERS) === 1;
+    if (!change && !needReload) {
+      return;
     }
+    DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 0);
+    void this.handleLocalVaultChange(change);
   }
 
   private handleLocaleRevision(): void {
@@ -93,6 +151,7 @@ struct VaultContent {
     // 设置重新登录回调
     this.viewModel.onReLoginRequired = () => {
       this.needReLogin = true;
+      this.showReloginDialog();
     };
 
     this.isInitialLoading = true;
@@ -172,6 +231,7 @@ struct VaultContent {
   private async loadCiphers(forceSync: boolean = true): Promise<void> {
     this.viewModel.onReLoginRequired = () => {
       this.needReLogin = true;
+      this.showReloginDialog();
     };
 
     this.isLoading = true;
@@ -196,36 +256,13 @@ struct VaultContent {
     }
   }
 
-  @Builder
-  reLoginDialogContent() {
-    Column() {
-      Text($r('app.string.vault_relogin_message'))
-        .margin(12)
+  // 后台同步判定会话失效时，用 ConfirmDialog 提示重新登录（无取消按钮，只能确认）。
+  private showReloginDialog(): void {
+    if (this.isReloginDialogOpen) {
+      return;
     }
-  }
-
-  @Builder
-  passwordVerifyDialogContent() {
-    Column({ space: 16 }) {
-      Text($r('app.string.totp_master_prompt'))
-        .fontSize(16)
-        .fontWeight(FontWeight.Medium)
-      TextInput({ placeholder: $r('app.string.unlock_enter_master_password'), text: this.passwordInput })
-        .accessibilityText($r('app.string.unlock_enter_master_password'))
-        .type(InputType.Password)
-        .onChange((value: string) => {
-          this.passwordInput = value;
-          this.passwordError = '';
-        })
-        .margin({ left: 12, right: 12 })
-      if (this.passwordError) {
-        Text(this.passwordError)
-          .fontSize(14)
-          .fontColor(Color.Red)
-          .margin({ left: 12, right: 12 })
-      }
-    }
-    .padding({ top: 12, bottom: 12 })
+    this.isReloginDialogOpen = true;
+    this.reloginDialogController.open();
   }
 
   @Builder
@@ -354,49 +391,6 @@ struct VaultContent {
             .layoutWeight(1)
           }
 
-          // 重新登录弹框
-          AppDialog({
-            visible: $needReLogin,
-            title: $r('app.string.vault_relogin_title'),
-            showCancelButton: false,
-            closeOnClickOverlay: false,
-            defaultBuilder: (): void => this.reLoginDialogContent(),
-            beforeClose: async (action: AppDialogAction) => {
-              if (action === AppDialogAction.CANCEL) {
-                return false;
-              }
-              DataPreferences.getInstance().putSync(LOGIN_STATUS_KEY, 0);
-              void WindowPrivacyUtil.applyForCurrentState();
-              this.onRelogin();
-              return true;
-            }
-          })
-
-          // 主密码验证弹框
-          AppDialog({
-            visible: $showPasswordDialog,
-            title: $r('app.string.totp_master_title'),
-            showCancelButton: true,
-            closeOnClickOverlay: false,
-            defaultBuilder: (): void => this.passwordVerifyDialogContent(),
-            beforeClose: async (action) => {
-              if (action === AppDialogAction.CANCEL) {
-                return true;
-              }
-              const result = await this.verifyMasterPassword();
-              if (result) {
-                // 验证成功，导航到详情页
-                if (this.pendingCipher) {
-                  this.doNavigateToDetail(this.pendingCipher);
-                  this.pendingCipher = null;
-                }
-                return true;
-              } else {
-                return false;
-              }
-            }
-          })
-
         }
         .width('100%')
         .height('100%')
@@ -412,7 +406,7 @@ struct VaultContent {
       this.pendingCipher = cipher;
       this.passwordInput = '';
       this.passwordError = '';
-      this.showPasswordDialog = true;
+      this.passwordDialogController.open();
     } else {
       this.doNavigateToDetail(cipher);
     }
@@ -423,6 +417,41 @@ struct VaultContent {
     this.onNavigateToDetail(params);
   }
 
+  // 密码验证弹框点击确认时调用：校验通过则跳转详情并关闭弹框，否则回填错误文案并保持打开。
+  private async confirmMasterPassword(): Promise<void> {
+    const result = await this.verifyMasterPassword();
+    if (result) {
+      if (this.pendingCipher) {
+        this.doNavigateToDetail(this.pendingCipher);
+        this.pendingCipher = null;
+      }
+      this.passwordDialogController.close();
+    }
+  }
+
+  @Builder
+  masterPasswordContent() {
+    Column() {
+      Text($r('app.string.totp_master_prompt'))
+        .fontSize(16)
+        .fontWeight(FontWeight.Medium)
+        .margin({ bottom: 12 })
+      TextInput({ placeholder: $r('app.string.unlock_enter_master_password'), text: this.passwordInput })
+        .accessibilityText($r('app.string.unlock_enter_master_password'))
+        .type(InputType.Password)
+        .onChange((value: string) => {
+          this.passwordInput = value;
+          this.passwordError = '';
+        })
+      if (this.passwordError) {
+        Text(this.passwordError)
+          .fontSize(14)
+          .fontColor(Color.Red)
+          .margin({ top: 8 })
+      }
+    }
+  }
+
   /**
    * 验证主密码
    */
@@ -431,7 +460,6 @@ struct VaultContent {
     if (result) {
       this.passwordInput = '';
       this.passwordError = '';
-      this.showPasswordDialog = false;
       return true;
     } else {
       this.passwordError = AppTextResolver.resource(this.viewModel.errorMessage ??
@@ -445,6 +473,8 @@ struct VaultContent {
 @Component
 export struct VaultPage {
   @StorageLink('localeRevision') localeRevision: number = 0;
+  @StorageLink('isSplitView') @Watch('handleSplitViewChange') isSplitView: boolean = false;
+  @StorageLink('activeSplitView') activeSplitView: boolean = false;
   @State selectedMainTab: MainTab = MainTab.VAULT;
   @State sharedCiphers: Cipher[] = [];
   @State sharedSymmetricKey: string = '';
@@ -453,12 +483,25 @@ export struct VaultPage {
   private tabsController: TabsController = new TabsController();
   private exitTime: number = 0;
   @State pathInfos: NavPathStack = new NavPathStack();
+  @State detailStack: NavPathStack = new NavPathStack();
+  private closeDetailHandler: () => void = (): void => {
+    this.applyPendingSplitViewChange();
+    if (this.activeSplitView) {
+      this.showDetailPlaceholder();
+      return;
+    }
+    this.pathInfos.pop();
+  };
+
+  aboutToDisappear(): void {
+    DetailRouter.unregisterCloseHandler(this.closeDetailHandler);
+  }
   historyBtn: HdsNavigationBadgeIconOptions = {
     content: {
       label: $r('app.string.common_history'),
       icon: $r('app.media.icon_history'),
       action: () => {
-        this.pathInfos.pushPath({ name: EntryRouter.ShareHistoryPage });
+        this.openDetail(EntryRouter.ShareHistoryPage);
       }
     }
   };
@@ -467,7 +510,7 @@ export struct VaultPage {
       label: $r('app.string.common_history'),
       icon: $r('app.media.icon_history'),
       action: () => {
-        this.pathInfos.pushPath({ name: EntryRouter.GeneratorHistoryPage });
+        this.openDetail(EntryRouter.GeneratorHistoryPage);
       }
     }
   };
@@ -489,6 +532,20 @@ export struct VaultPage {
   }
 
   private selectTab(tab: MainTab): void {
+    if (this.selectedMainTab === tab) {
+      return;
+    }
+    if (this.activeSplitView) {
+      DetailLeaveGuard.requestLeave(() => {
+        this.applyPendingSplitViewChange();
+        if (this.activeSplitView) {
+          this.showDetailPlaceholder();
+        }
+        this.selectedMainTab = tab;
+        this.tabsController.changeIndex(tab);
+      });
+      return;
+    }
     this.selectedMainTab = tab;
     this.tabsController.changeIndex(tab);
   }
@@ -524,7 +581,7 @@ export struct VaultPage {
       this.getUIContext().getPromptAction().showToast({ message: $r('app.string.common_loading') });
       return;
     }
-    this.pathInfos.pushPath({ name: EntryRouter.AddCipherPage, param: this.sharedSymmetricKey });
+    this.openDetail(EntryRouter.AddCipherPage, this.sharedSymmetricKey);
   }
 
   private updateVaultData(ciphers: Cipher[], symmetricKey: string): void {
@@ -535,7 +592,88 @@ export struct VaultPage {
   }
 
   private navigateToCipherDetail(params: CipherDetailParams): void {
-    this.pathInfos.pushPath({ name: EntryRouter.CipherDetailPage, param: params });
+    this.openDetail(EntryRouter.CipherDetailPage, params);
+  }
+
+  private openDetail(name: string, param?: Object): void {
+    if (!this.activeSplitView) {
+      DetailRouter.openDetail(this.pathInfos, this.detailStack, false, name, param);
+      return;
+    }
+    DetailLeaveGuard.requestLeave(() => {
+      this.applyPendingSplitViewChange();
+      DetailRouter.openDetail(this.pathInfos, this.detailStack, this.activeSplitView, name, param);
+    });
+  }
+
+  private showDetailPlaceholder(): void {
+    DetailRouter.showPlaceholder(this.detailStack);
+  }
+
+  private handleSplitViewChange(): void {
+    if (this.isSplitView === this.activeSplitView) {
+      return;
+    }
+    // 旋转是系统事件，无法“取消”，不应走“放弃改动”二次确认——否则取消后布局会卡在
+    // 与朝向不符的模式（竖屏卡分栏 / 横屏卡单栏）。按设计 §8.6 直接迁移详情即可。
+    // 注意：断点变化源自 Index.onAreaChange（处于渲染流水线中），同步改 @State 会被
+    // 判为 "changed during render" 而丢弃，故延迟到当前帧结束后执行。
+    // 未保存的编辑在跨栈迁移时会按原始数据重建而不保留（与“确认放弃”结果一致）。
+    setTimeout(() => {
+      this.applySplitViewChange();
+    }, 0);
+  }
+
+  private applySplitViewChange(): void {
+    // 幂等守卫：断点抖动（如折叠屏折叠/展开中途宽度短暂跌破阈值又回升）会让
+    // handleSplitViewChange 入队的延迟调用在"模式已一致"时才触发。若不拦截，LG 分支
+    // 会把当前显示的详情 replace 成占位页，导致用户正在看的详情凭空消失。
+    if (this.isSplitView === this.activeSplitView) {
+      return;
+    }
+    if (this.isSplitView) {
+      const primaryPath = this.getTopDetailPath(this.pathInfos);
+      if (primaryPath) {
+        this.pathInfos.pop();
+        const detailPathNames = this.detailStack.getAllPathName();
+        if (!detailPathNames || detailPathNames.length === 0) {
+          this.detailStack.pushPath(primaryPath);
+        } else {
+          this.detailStack.replacePath(primaryPath);
+        }
+      } else {
+        this.showDetailPlaceholder();
+      }
+      this.activeSplitView = true;
+      return;
+    }
+
+    const detailPath = this.getTopDetailPath(this.detailStack);
+    this.showDetailPlaceholder();
+    this.activeSplitView = false;
+    if (detailPath) {
+      this.pathInfos.pushPath(detailPath);
+    }
+  }
+
+  private applyPendingSplitViewChange(): void {
+    if (this.isSplitView !== this.activeSplitView) {
+      this.applySplitViewChange();
+    }
+  }
+
+  private getTopDetailPath(stack: NavPathStack): NavPathInfo | null {
+    const paths = stack.getPathStack();
+    if (!paths || paths.length === 0) {
+      return null;
+    }
+    const path = paths[paths.length - 1];
+    return this.isDetailPath(path.name) ? path : null;
+  }
+
+  private isDetailPath(name: string): boolean {
+    return name === EntryRouter.CipherDetailPage || name === EntryRouter.AddCipherPage ||
+      name === EntryRouter.ShareHistoryPage || name === EntryRouter.GeneratorHistoryPage;
   }
 
   private lockVault(): void {
@@ -546,35 +684,119 @@ export struct VaultPage {
     this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
   }
 
-  build() {
-    HdsNavDestination() {
-      Stack({ alignContent: Alignment.BottomEnd }) {
-        Column() {
-          Tabs({ barPosition: BarPosition.End, controller: this.tabsController }) {
+  @Builder
+  private vaultContent() {
+    VaultContent({
+      activationRevision: this.vaultActivationRevision,
+      onVaultDataChanged: (ciphers: Cipher[], symmetricKey: string) => {
+        this.updateVaultData(ciphers, symmetricKey);
+      },
+      onNavigateToDetail: (params: CipherDetailParams) => {
+        this.navigateToCipherDetail(params);
+      },
+      onRelogin: () => {
+        this.logout();
+      }
+    })
+  }
+
+  @Builder
+  private totpContent() {
+    TotpListPage({
+      ciphers: this.sharedCiphers,
+      symmetricKey: this.sharedSymmetricKey,
+      isActive: this.selectedMainTab === MainTab.TOTP,
+      dataRevision: this.vaultDataRevision,
+      onNavigateToDetail: (params: CipherDetailParams) => {
+        this.navigateToCipherDetail(params);
+      }
+    })
+  }
+
+  @Builder
+  private splitListPane() {
+    Stack({ alignContent: Alignment.BottomEnd }) {
+      Column() {
+        Row() {
+          Text(this.getTitle()).fontSize(24).fontWeight(FontWeight.Medium).layoutWeight(1)
+          if (this.selectedMainTab === MainTab.SHARE || this.selectedMainTab === MainTab.GENERATOR) {
+            Image($r('app.media.icon_history'))
+              .width(24)
+              .height(24)
+              .accessibilityText($r('app.string.common_history'))
+              .onClick(() => {
+                const name = this.selectedMainTab === MainTab.SHARE ?
+                  EntryRouter.ShareHistoryPage : EntryRouter.GeneratorHistoryPage;
+                this.openDetail(name);
+              })
+          }
+        }
+        .height(56)
+        .padding({ left: 16, right: 16 })
+
+        if (this.selectedMainTab === MainTab.VAULT) {
+          this.vaultContent()
+        } else if (this.selectedMainTab === MainTab.TOTP) {
+          this.totpContent()
+        } else if (this.selectedMainTab === MainTab.GENERATOR) {
+          GeneratorPage({ bottomContentInset: 0 })
+        } else if (this.selectedMainTab === MainTab.SHARE) {
+          Sure2SharePage()
+        } else {
+          SettingsPage({
+            isActive: true,
+            onLockVault: () => this.lockVault(),
+            onLogout: () => this.logout()
+          })
+        }
+      }
+      .width('100%')
+      .height('100%')
+
+      if (this.selectedMainTab === MainTab.VAULT && this.sharedSymmetricKey.length > 0) {
+        AdaptiveIconButton({
+          icon: $r('app.media.icon_add'),
+          accessibilityLabel: $r('app.string.cipher_add_title'),
+          iconWidth: 25,
+          iconHeight: 25,
+          contentPadding: 8,
+          barBottomMargin: 0,
+          onButtonClick: () => this.addCipher()
+        }).margin({ right: 8, bottom: 8 })
+      }
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  @Builder
+  private splitRail() {
+    MainSideRail({
+      selectedMainTab: this.selectedMainTab,
+      onSelect: (tab: MainTab) => this.selectTab(tab)
+    })
+  }
+
+  @Builder
+  private splitDetailPane() {
+    Navigation(this.detailStack) {
+    }
+    .width('100%')
+    .height('100%')
+    .mode(NavigationMode.Stack)
+    .hideTitleBar(true)
+  }
+
+  @Builder
+  private compactContent() {
+    Stack({ alignContent: Alignment.BottomEnd }) {
+      Column() {
+        Tabs({ barPosition: BarPosition.End, index: this.selectedMainTab, controller: this.tabsController }) {
           TabContent() {
-            VaultContent({
-              activationRevision: this.vaultActivationRevision,
-              onVaultDataChanged: (ciphers: Cipher[], symmetricKey: string) => {
-                this.updateVaultData(ciphers, symmetricKey);
-              },
-              onNavigateToDetail: (params: CipherDetailParams) => {
-                this.navigateToCipherDetail(params);
-              },
-              onRelogin: () => {
-                this.logout();
-              }
-            })
+            this.vaultContent()
           }
           TabContent() {
-            TotpListPage({
-              ciphers: this.sharedCiphers,
-              symmetricKey: this.sharedSymmetricKey,
-              isActive: this.selectedMainTab === MainTab.TOTP,
-              dataRevision: this.vaultDataRevision,
-              onNavigateToDetail: (params: CipherDetailParams) => {
-                this.navigateToCipherDetail(params);
-              }
-            })
+            this.totpContent()
           }
           TabContent() {
             GeneratorPage({ bottomContentInset: 0 })
@@ -593,41 +815,54 @@ export struct VaultPage {
               }
             })
           }
+        }
+        .barHeight(0)
+        .scrollable(true)
+        .layoutWeight(1)
+        .onChange((index: number) => {
+          this.selectedMainTab = this.getTabByIndex(index);
+        })
+
+        MainBottomNavigation({
+          selectedMainTab: this.selectedMainTab,
+          onSelect: (tab: MainTab) => {
+            this.selectTab(tab);
           }
-          .barHeight(0)
-          .scrollable(true)
-          .layoutWeight(1)
-          .onChange((index: number) => {
-            this.selectedMainTab = this.getTabByIndex(index);
-          })
-
-          MainBottomNavigation({
-            selectedMainTab: this.selectedMainTab,
-            onSelect: (tab: MainTab) => {
-              this.selectTab(tab);
-            }
-          })
-        }
-        .width('100%')
-        .height('100%')
-
-        if (this.selectedMainTab === MainTab.VAULT && this.sharedSymmetricKey.length > 0) {
-          AdaptiveIconButton({
-            icon: $r('app.media.icon_add'),
-            accessibilityLabel: $r('app.string.cipher_add_title'),
-            iconWidth: 25,
-            iconHeight: 25,
-            contentPadding: 8,
-            barBottomMargin: 0,
-            onButtonClick: () => {
-              this.addCipher();
-            }
-          })
-            .margin({ right: 8, bottom: 72 })
-        }
+        })
       }
       .width('100%')
       .height('100%')
+
+      if (this.selectedMainTab === MainTab.VAULT && this.sharedSymmetricKey.length > 0) {
+        AdaptiveIconButton({
+          icon: $r('app.media.icon_add'),
+          accessibilityLabel: $r('app.string.cipher_add_title'),
+          iconWidth: 25,
+          iconHeight: 25,
+          contentPadding: 8,
+          barBottomMargin: 0,
+          onButtonClick: () => {
+            this.addCipher();
+          }
+        })
+          .margin({ right: 8, bottom: 72 })
+      }
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  build() {
+    HdsNavDestination() {
+      if (this.activeSplitView) {
+        AdaptiveShell({
+          railBuilder: (): void => this.splitRail(),
+          listBuilder: (): void => this.splitListPane(),
+          detailBuilder: (): void => this.splitDetailPane()
+        })
+      } else {
+        this.compactContent()
+      }
     }
     .titleBar({
       content: {
@@ -642,13 +877,29 @@ export struct VaultPage {
         }
       }
     })
+    .hideTitleBar(this.activeSplitView)
     .hideBackButton(true)
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
+      DetailRouter.registerCloseHandler(this.closeDetailHandler);
     })
     .onActive(() => {
       // NavDestination 返回前台时通知密码库内容消费本地增删改。
       this.vaultActivationRevision++;
+      this.applyPendingSplitViewChange();
+    })
+    .onAppear(() => {
+      this.activeSplitView = this.isSplitView;
+      DetailRouter.registerCloseHandler(this.closeDetailHandler);
+      // onAppear 可能处于 ArkUI 初始渲染流水线中，延迟初始化详情栈，避免同步修改
+      // @State detailStack；若期间已打开详情，则不再用占位页覆盖。
+      setTimeout(() => {
+        this.detailStack.disableAnimation(true);
+        const pathNames = this.detailStack.getAllPathName();
+        if (!pathNames || pathNames.length === 0) {
+          this.showDetailPlaceholder();
+        }
+      }, 0);
     })
     .onBackPressed(() => {
       const currentTime = Date.now();

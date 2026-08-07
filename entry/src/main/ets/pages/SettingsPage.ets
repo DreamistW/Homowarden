@@ -18,6 +18,7 @@ import { Logger } from '@nzy/logger';
 import { AppToast } from '../utils/AppToast';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 import { AdaptiveTextButton } from '../component/AdaptiveButton';
+import { ConfirmDialog } from '../component/ConfirmDialog';
 import { AntiPeepUtil } from '../utils/AntiPeepUtil';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
 import { GENERATOR_HISTORY_TABLE, GeneratorDatabaseUtil } from '../utils/GeneratorDatabaseUtil';
@@ -37,6 +38,33 @@ export struct SettingsPage {
   @State versionName: string = '1.0.0';
   @State serverAddressText: string = '';
   email: string = '';
+  @State confirmTitle: ResourceStr = '';
+  @State confirmMessage: ResourceStr = '';
+  @State confirmText: ResourceStr = $r('app.string.common_confirm');
+  private confirmAction: () => Promise<boolean> = async () => true;
+  private confirmController: CustomDialogController = new CustomDialogController({
+    builder: ConfirmDialog({
+      title: $confirmTitle,
+      message: $confirmMessage,
+      confirmText: $confirmText,
+      onConfirm: async (): Promise<boolean> => {
+        return await this.confirmAction();
+      }
+    }),
+    autoCancel: false,
+    alignment: DialogAlignment.Center,
+    customStyle: false
+  });
+
+  private showConfirm(title: ResourceStr, message: ResourceStr, action: () => void): void {
+    this.confirmTitle = title;
+    this.confirmMessage = message;
+    this.confirmAction = async (): Promise<boolean> => {
+      action();
+      return true;
+    };
+    this.confirmController.open();
+  }
 
   aboutToAppear(): void {
     this.refreshSettings();
@@ -576,19 +604,8 @@ export struct SettingsPage {
   }
 
   private logout() {
-    this.getUIContext().showAlertDialog({
-      title: $r('app.string.common_confirm'),
-      message: $r('app.string.settings_logout_confirm'),
-      secondaryButton: {
-        value: $r('app.string.common_cancel'),
-        action: () => {}
-      },
-      primaryButton: {
-        value: $r('app.string.common_confirm'),
-        action: () => {
-          void this.performLogout();
-        }
-      }
+    this.showConfirm($r('app.string.common_confirm'), $r('app.string.settings_logout_confirm'), () => {
+      void this.performLogout();
     });
   }
 

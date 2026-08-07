@@ -34,6 +34,11 @@
       "name": "GeneratorHistoryPage",
       "pageSourceFile": "src/main/ets/pages/GeneratorHistoryPage.ets",
       "buildFunction": "GeneratorHistoryPageBuilder"
+    },
+    {
+      "name": "DetailPlaceholder",
+      "pageSourceFile": "src/main/ets/component/DetailPlaceholder.ets",
+      "buildFunction": "DetailPlaceholderBuilder"
     }
   ]
 }

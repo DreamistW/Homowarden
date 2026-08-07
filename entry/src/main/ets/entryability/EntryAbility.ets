@@ -7,6 +7,8 @@ import { ShareDatabaseUtil } from '../utils/ShareDatabaseUtil';
 import { GeneratorDatabaseUtil } from '../utils/GeneratorDatabaseUtil';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 import { LocaleState } from '../localization/LocaleState';
+import { BreakpointUtil } from '../utils/BreakpointUtil';
+import { VaultChangeNotifier } from '../utils/VaultChangeNotifier';
 
 const DOMAIN = 0x0000;
 export default class EntryAbility extends UIAbility {
@@ -16,8 +18,10 @@ export default class EntryAbility extends UIAbility {
     LocaleState.notifyChanged();
   }
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
-    // 必须先创建全局语言修订状态，页面的 @StorageLink 才能稳定订阅。
+    // 页面创建前先注册全局状态，确保后续 @StorageLink 可以稳定订阅。
     LocaleState.initialize();
+    BreakpointUtil.initialize();
+    VaultChangeNotifier.initialize();
     this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
     DataPreferences.getInstance().init(this.context);

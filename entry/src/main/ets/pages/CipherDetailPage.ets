@@ -15,7 +15,6 @@ import { CustomFieldEditItem } from '../component/CustomFieldEditItem';
 import { AppDropdown } from '../component/AppDropdown';
 import { AppDropdownOption } from '../model/AppUiModels';
 import { AppToast } from '../utils/AppToast';
-import { AppDialog, AppDialogAction } from '../component/AppDialog';
 import { Logger } from '@nzy/logger';
 import { DataPreferences } from '@abner/datastore';
 import { hdsMaterial, HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
@@ -25,6 +24,9 @@ import { AppOptionFactory } from '../localization/AppOptionFactory';
 import { CipherDisplayMapping } from '../domain/CipherDisplayMapping';
 import { LocaleUtil } from '../localization/LocaleUtil';
 import { DeviceUtil } from '../utils/DeviceUtil';
+import { DetailRouter } from '../utils/DetailRouter';
+import { DetailLeaveGuard, DetailLeaveHandler } from '../utils/DetailLeaveGuard';
+import { ConfirmDialog } from '../component/ConfirmDialog';
 
 @Builder
 export function CipherDetailPageBuilder() {
@@ -34,13 +36,13 @@ export function CipherDetailPageBuilder() {
 @Component
 export struct CipherDetailPage {
   @StorageLink('localeRevision') @Watch('handleLocaleRevision') localeRevision: number = 0;
+  @StorageLink('activeSplitView') isSplitView: boolean = false;
   @State cipher: Cipher = {} as Cipher;
   @State isLoading: boolean = true;
   @State isSaving: boolean = false;
   @State showHideField: boolean = false;
   @State isEditable: boolean = false;
   @State isDetailLoaded: boolean = false;
-  @State showDeleteDialog: boolean = false;
   @State selectedCardBrand: CardBrandType = CardBrandType.NONE;
   @State selectedIdentityTitle: IdentityTitleType = IdentityTitleType.NONE;
   @State editUris: CipherUri[] = [] as CipherUri[];
@@ -59,6 +61,61 @@ export struct CipherDetailPage {
   // 下拉菜单选项
   private identityTitleOptions: AppDropdownOption[] = AppOptionFactory.identityTitles();
   private cardBrandOptions: AppDropdownOption[] = AppOptionFactory.cardBrands();
+  private leaveHandler: DetailLeaveHandler = (onLeave: () => void, onStay: () => void): void => {
+    if (!this.isEditable) {
+      onLeave();
+      return;
+    }
+    if (this.hasUnsavedChanges()) {
+      this.showDiscardConfirm(() => {
+        // exitEditMode 会置 isEditable=false 并 loadCipherDetail 还原成修改前内容，
+        // 不能只改 isEditable，否则页面仍显示编辑后的值。
+        this.exitEditMode();
+        onLeave();
+      }, onStay);
+      return;
+    }
+    this.exitEditMode();
+    onLeave();
+  };
+
+  aboutToDisappear(): void {
+    DetailLeaveGuard.unregister(this.leaveHandler);
+    // 旋转跨栈迁移会销毁本页，随之关闭未决确认框（等同取消）。
+    this.confirmController.close();
+  }
+
+  @State confirmTitle: ResourceStr = '';
+  @State confirmMessage: ResourceStr = '';
+  @State confirmText: ResourceStr = $r('app.string.common_confirm');
+  private confirmAction: () => Promise<boolean> = async () => true;
+  private confirmCancel: () => void = () => {};
+  private confirmController: CustomDialogController = new CustomDialogController({
+    builder: ConfirmDialog({
+      title: $confirmTitle,
+      message: $confirmMessage,
+      confirmText: $confirmText,
+      onConfirm: async (): Promise<boolean> => {
+        return await this.confirmAction();
+      },
+      onCancel: (): void => {
+        this.confirmCancel();
+      }
+    }),
+    autoCancel: false,
+    alignment: DialogAlignment.Center,
+    customStyle: false
+  });
+
+  private showConfirm(title: ResourceStr, message: ResourceStr, action: () => Promise<boolean>,
+    cancel: () => void = () => {}, confirmText: ResourceStr = $r('app.string.common_confirm')): void {
+    this.confirmTitle = title;
+    this.confirmMessage = message;
+    this.confirmText = confirmText;
+    this.confirmAction = action;
+    this.confirmCancel = cancel;
+    this.confirmController.open();
+  }
 
   private handleLocaleRevision(): void {
     this.identityTitleOptions = AppOptionFactory.identityTitles();
@@ -194,21 +251,6 @@ export struct CipherDetailPage {
     }
   }
 
-  @Builder
-  deleteCipherConfirmDialogContent() {
-    Column() {
-      if (this.cipher.deletedDate) {
-        Text($r('app.string.cipher_delete_forever_confirm', this.cipher.name))
-          .fontSize(16)
-          .margin(12)
-      } else {
-        Text($r('app.string.cipher_move_trash_confirm', this.cipher.name))
-          .fontSize(16)
-          .margin(12)
-      }
-    }
-  }
-
   /**
    * 加载密码项详情
    */
@@ -251,6 +293,11 @@ export struct CipherDetailPage {
   // 退出编辑模式并重新加载详情。
   private exitEditMode(): void {
     this.isEditable = false;
+    // getCipherDetail 基于传入对象原地刷新 login/fields 等嵌套字段，但不会回滚 name/notes
+    // 等标量；先从进入编辑时的快照整体还原 this.cipher，再加载详情，确保完全回到修改前。
+    if (this.originalCipherSnapshot) {
+      this.cipher = JSON.parse(this.originalCipherSnapshot) as Cipher;
+    }
     this.loadCipherDetail();
   }
 
@@ -270,21 +317,12 @@ export struct CipherDetailPage {
     return this.isEditable && JSON.stringify(this.cipher) !== this.originalCipherSnapshot;
   }
 
-  // 弹出“放弃改动”二次确认；点击确认执行 onConfirm，点击取消则停留在当前界面。
-  private showDiscardConfirm(onConfirm: () => void): void {
-    this.getUIContext().showAlertDialog({
-      message: $r('app.string.cipher_discard_changes_confirm'),
-      secondaryButton: {
-        value: $r('app.string.common_cancel'),
-        action: () => {}
-      },
-      primaryButton: {
-        value: $r('app.string.common_confirm'),
-        action: () => {
-          onConfirm();
-        }
-      }
-    });
+  // 弹出“放弃改动”二次确认；点击确认执行 onConfirm，点击取消执行 onCancel（停留当前界面）。
+  private showDiscardConfirm(onConfirm: () => void, onCancel: () => void = () => {}): void {
+    this.showConfirm('', $r('app.string.cipher_discard_changes_confirm'), async (): Promise<boolean> => {
+      onConfirm();
+      return true;
+    }, onCancel);
   }
 
   /**
@@ -305,10 +343,10 @@ export struct CipherDetailPage {
       // ViewModel 在内部完成明文到密文的转换，页面对象仍保持明文供后续展示。
       VaultChangeNotifier.markLocalChangePending();
       this.cipher = await this.viewModel.updateCipher(this.cipher);
-      VaultChangeNotifier.setUpdatedCipher(this.cipher);
       // 保存成功，退出编辑模式
       this.isEditable = false;
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
+      VaultChangeNotifier.setUpdatedCipher(this.cipher);
       AppToast.show(this.getUIContext(), $r('app.string.common_success'));
       // 重新加载密码项
       await this.loadCipherDetail();
@@ -356,8 +394,8 @@ export struct CipherDetailPage {
       VaultChangeNotifier.markLocalChangePending();
       this.cipher = await this.viewModel.restoreCipher(this.cipher);
       this.refreshFormattedDates();
-      VaultChangeNotifier.setUpdatedCipher(this.cipher);
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
+      VaultChangeNotifier.setUpdatedCipher(this.cipher);
       // 显示成功提示
       AppToast.show(this.getUIContext(), $r('app.string.common_success'));
     } catch (error) {
@@ -542,21 +580,6 @@ export struct CipherDetailPage {
           .edgeEffect(EdgeEffect.Spring)
           .scrollable(ScrollDirection.Vertical)
         }
-
-        // 删除确认对话框
-        AppDialog({
-          visible: $showDeleteDialog,
-          showCancelButton: true,
-          closeOnClickOverlay: false,
-          title: $r('app.string.cipher_delete_title'),
-          defaultBuilder: (): void => this.deleteCipherConfirmDialogContent(),
-          beforeClose: async (action: AppDialogAction) => {
-            if (action === AppDialogAction.CANCEL) {
-              return true;
-            }
-            return await this.doDeleteCipher();
-          }
-        })
       }
       .width('100%')
       .height('100%')
@@ -578,20 +601,28 @@ export struct CipherDetailPage {
         }
       }
     })
+    .hideBackButton(this.isSplitView)
     .onReady((ctx: NavDestinationContext) => {
       // NavDestination 就绪后才能取得当前页面栈和调用方传入的密钥上下文。
       this.pathInfos = ctx.pathStack;
       const param = ctx.pathInfo.param as CipherDetailParams;
       if (param.cipher && param.cipher.id) {
-        this.cipher = param.cipher;
+        // 深拷贝：避免编辑 this.cipher 时污染 param.cipher（同一引用会连累列表数据，
+        // 且旋转跨栈迁移重建时新实例会读到被改过的 param，显示修改后内容）。
+        this.cipher = JSON.parse(JSON.stringify(param.cipher)) as Cipher;
         this.viewModel.symmetricKey = param.symmetricKey;
         this.loadCipherDetail();
       }
+      DetailLeaveGuard.register(this.leaveHandler);
     })
     .onBackPressed((): boolean => {
       if (this.isEditable) {
         // 编辑模式下按返回退回查看模式（若有改动则二次确认），而非直接离开页面。
         this.requestCancelEdit();
+        return true;
+      }
+      if (this.pathInfos.getAllPathName().length > 0) {
+        DetailRouter.closeDetail();
         return true;
       }
       return false;
@@ -1144,7 +1175,13 @@ export struct CipherDetailPage {
   }
 
   private deleteCipher() {
-    this.showDeleteDialog = true;
+    // 与生成器/分享历史一致，使用可关闭的 ConfirmDialog 二次确认。
+    const message: ResourceStr = this.cipher.deletedDate
+      ? $r('app.string.cipher_delete_forever_confirm', this.cipher.name)
+      : $r('app.string.cipher_move_trash_confirm', this.cipher.name);
+    this.showConfirm($r('app.string.cipher_delete_title'), message, async (): Promise<boolean> => {
+      return await this.doDeleteCipher();
+    });
   }
 
   /**
@@ -1161,15 +1198,14 @@ export struct CipherDetailPage {
       // 显示成功提示
       AppToast.show(this.getUIContext(), $r('app.string.common_delete_success'));
 
+      DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
       if (changedCipher) {
         VaultChangeNotifier.setUpdatedCipher(changedCipher);
       } else {
         VaultChangeNotifier.setDeletedCipher(this.cipher.id);
       }
-      DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
 
-      // 返回上一页
-      this.pathInfos.pop();
+      DetailRouter.closeDetail();
       return true;
     } catch (error) {
       Logger.error('Failed to delete cipher:', error);
@@ -1177,7 +1213,6 @@ export struct CipherDetailPage {
       // 显示失败提示
       AppToast.show(this.getUIContext(), $r('app.string.error_delete_failed'));
 
-      this.showDeleteDialog = false;
       return false;
     }
   }

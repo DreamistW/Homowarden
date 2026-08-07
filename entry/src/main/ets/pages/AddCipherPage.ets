@@ -17,6 +17,9 @@ import { AddCipherViewModel } from '../viewmodel/AddCipherViewModel';
 import { hdsMaterial, HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
 import { VaultChangeNotifier } from '../utils/VaultChangeNotifier';
 import { AppOptionFactory } from '../localization/AppOptionFactory';
+import { DetailRouter } from '../utils/DetailRouter';
+import { DetailLeaveGuard, DetailLeaveHandler } from '../utils/DetailLeaveGuard';
+import { ConfirmDialog } from '../component/ConfirmDialog';
 
 @Builder
 export function AddCipherPageBuilder() {
@@ -25,6 +28,7 @@ export function AddCipherPageBuilder() {
 
 @Component
 export struct AddCipherPage {
+  @StorageLink('activeSplitView') isSplitView: boolean = false;
   @State viewModel: AddCipherViewModel = new AddCipherViewModel();
   @State cipherType: CipherItemType = CipherItemType.LOGIN;
   @State isSubmitting: boolean = false;
@@ -42,6 +46,54 @@ export struct AddCipherPage {
   pathInfos: NavPathStack = new NavPathStack();
   // 表单初始快照，用于判断是否有未保存改动。
   private initialViewModelSnapshot: string = '';
+  private leaveHandler: DetailLeaveHandler = (onLeave: () => void, onStay: () => void): void => {
+    if (this.hasUnsavedChanges()) {
+      this.showDiscardConfirm(onLeave, onStay);
+      return;
+    }
+    onLeave();
+  };
+
+  aboutToDisappear(): void {
+    DetailLeaveGuard.unregister(this.leaveHandler);
+    // 旋转跨栈迁移会销毁本页，随之关闭未决确认框（等同取消）。
+    this.confirmController.close();
+  }
+
+  @State confirmTitle: ResourceStr = '';
+  @State confirmMessage: ResourceStr = '';
+  @State confirmText: ResourceStr = $r('app.string.common_confirm');
+  private confirmAction: () => Promise<boolean> = async () => true;
+  private confirmCancel: () => void = () => {};
+  private confirmController: CustomDialogController = new CustomDialogController({
+    builder: ConfirmDialog({
+      title: $confirmTitle,
+      message: $confirmMessage,
+      confirmText: $confirmText,
+      onConfirm: async (): Promise<boolean> => {
+        return await this.confirmAction();
+      },
+      onCancel: (): void => {
+        this.confirmCancel();
+      }
+    }),
+    autoCancel: false,
+    alignment: DialogAlignment.Center,
+    customStyle: false
+  });
+
+  private showConfirm(title: ResourceStr, message: ResourceStr, action: () => void,
+    cancel: () => void = () => {}, confirmText: ResourceStr = $r('app.string.common_confirm')): void {
+    this.confirmTitle = title;
+    this.confirmMessage = message;
+    this.confirmText = confirmText;
+    this.confirmAction = async (): Promise<boolean> => {
+      action();
+      return true;
+    };
+    this.confirmCancel = cancel;
+    this.confirmController.open();
+  }
   ConfirmBtn: HdsNavigationBadgeIconOptions = {
     content: {
       label: $r('app.string.common_confirm'),
@@ -806,6 +858,7 @@ export struct AddCipherPage {
         }
       }
     })
+    .hideBackButton(this.isSplitView)
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
       const param = ctx.pathInfo.param as string;
@@ -813,12 +866,17 @@ export struct AddCipherPage {
         this.viewModel.symmetricKey = param;
       }
       this.initialViewModelSnapshot = JSON.stringify(this.viewModel);
+      DetailLeaveGuard.register(this.leaveHandler);
     })
     .onBackPressed((): boolean => {
       if (this.hasUnsavedChanges()) {
         this.showDiscardConfirm(() => {
-          this.pathInfos.pop();
+          DetailRouter.closeDetail();
         });
+        return true;
+      }
+      if (this.pathInfos.getAllPathName().length > 0) {
+        DetailRouter.closeDetail();
         return true;
       }
       return false;
@@ -836,27 +894,18 @@ export struct AddCipherPage {
     return JSON.stringify(this.viewModel) !== this.initialViewModelSnapshot;
   }
 
-  // 弹出“放弃改动”二次确认；点击确认执行 onConfirm，点击取消则停留在当前界面。
-  private showDiscardConfirm(onConfirm: () => void): void {
-    this.getUIContext().showAlertDialog({
-      message: $r('app.string.cipher_discard_changes_confirm'),
-      secondaryButton: {
-        value: $r('app.string.common_cancel'),
-        action: () => {}
-      },
-      primaryButton: {
-        value: $r('app.string.common_confirm'),
-        action: () => {
-          onConfirm();
-        }
-      }
-    });
+  // 弹出“放弃改动”二次确认；点击确认执行 onConfirm，点击取消执行 onCancel（停留当前界面）。
+  private showDiscardConfirm(onConfirm: () => void, onCancel: () => void = () => {}): void {
+    this.showConfirm('', $r('app.string.cipher_discard_changes_confirm'), onConfirm, onCancel);
   }
 
   /**
    * 提交明文表单，由 ViewModel 完成加密与远端创建后再通知密码库刷新。
    */
   private async saveCipher() {
+    if (this.isSubmitting) {
+      return;
+    }
     if (!this.allowSave) {
       AppToast.show(this.getUIContext(), $r('app.string.cipher_name_required'));
       return;
@@ -868,9 +917,9 @@ export struct AddCipherPage {
     this.isSubmitting = false;
     if (createdCipher) {
       AppToast.show(this.getUIContext(), $r('app.string.cipher_create_success'));
-      VaultChangeNotifier.setUpdatedCipher(createdCipher);
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
-      this.pathInfos.pop();
+      VaultChangeNotifier.setUpdatedCipher(createdCipher);
+      DetailRouter.closeDetail();
     } else if (this.viewModel.errorMessage && this.viewModel.errorMessage.length > 0) {
       AppToast.show(this.getUIContext(), this.viewModel.errorMessage === 'cipher_name_required' ?
         $r('app.string.cipher_name_required') : $r('app.string.error_save_failed'));

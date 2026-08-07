@@ -7,6 +7,8 @@ import { common } from '@kit.AbilityKit';
 import { getShareLink } from '../utils/ParseLinkUtil';
 import { hdsMaterial, HdsNavDestination } from '@kit.UIDesignKit';
 import { AdaptiveIconButton } from '../component/AdaptiveButton';
+import { DetailRouter } from '../utils/DetailRouter';
+import { ConfirmDialog } from '../component/ConfirmDialog';
 
 @Builder
 export function HistoryPageBuilder() {
@@ -16,6 +18,7 @@ export function HistoryPageBuilder() {
 @Component
 struct History {
   @StorageLink('localeRevision') @Watch('handleLocaleRevision') localeRevision: number = 0;
+  @StorageLink('activeSplitView') isSplitView: boolean = false;
   pathInfos: NavPathStack = new NavPathStack();
   @State searchText: string = '';
   @State historyList: HistoryItem[] = [];
@@ -53,6 +56,38 @@ struct History {
       clearInterval(this.refreshTimer);
       this.refreshTimer = -1;
     }
+    // 旋转跨栈迁移会销毁本页，随之关闭未决确认框（等同取消）。
+    this.confirmController.close();
+  }
+
+  @State confirmTitle: ResourceStr = '';
+  @State confirmMessage: ResourceStr = '';
+  @State confirmText: ResourceStr = $r('app.string.common_confirm');
+  private confirmAction: () => Promise<boolean> = async () => true;
+  private confirmController: CustomDialogController = new CustomDialogController({
+    builder: ConfirmDialog({
+      title: $confirmTitle,
+      message: $confirmMessage,
+      confirmText: $confirmText,
+      onConfirm: async (): Promise<boolean> => {
+        return await this.confirmAction();
+      }
+    }),
+    autoCancel: false,
+    alignment: DialogAlignment.Center,
+    customStyle: false
+  });
+
+  private showConfirm(title: ResourceStr, message: ResourceStr, action: () => void,
+    confirmText: ResourceStr = $r('app.string.common_confirm')): void {
+    this.confirmTitle = title;
+    this.confirmMessage = message;
+    this.confirmText = confirmText;
+    this.confirmAction = async (): Promise<boolean> => {
+      action();
+      return true;
+    };
+    this.confirmController.open();
   }
 
   private handleLocaleRevision(): void {
@@ -142,19 +177,8 @@ struct History {
 
   // 弹出确认对话框请求删除单条记录。
   requestDelete(item: HistoryItem): void {
-    this.getUIContext().showAlertDialog({
-      title: $r('app.string.share_history_delete_confirm'),
-      message: item.content,
-      secondaryButton: {
-        value: $r('app.string.common_cancel'),
-        action: () => {}
-      },
-      primaryButton: {
-        value: $r('app.string.common_confirm'),
-        action: () => {
-          void this.doDelete(item);
-        }
-      }
+    this.showConfirm($r('app.string.share_history_delete_confirm'), item.content, () => {
+      void this.doDelete(item);
     });
   }
 
@@ -226,20 +250,9 @@ struct History {
     if (this.selectedIds.length === 0) {
       return;
     }
-    this.getUIContext().showAlertDialog({
-      title: $r('app.string.common_delete'),
-      message: $r('app.string.history_delete_selected_confirm'),
-      secondaryButton: {
-        value: $r('app.string.common_cancel'),
-        action: () => {}
-      },
-      primaryButton: {
-        value: $r('app.string.common_delete'),
-        action: () => {
-          void this.doDeleteSelected();
-        }
-      }
-    });
+    this.showConfirm($r('app.string.common_delete'), $r('app.string.history_delete_selected_confirm'), () => {
+      void this.doDeleteSelected();
+    }, $r('app.string.common_delete'));
   }
 
   // 删除选中的记录并刷新列表。
@@ -351,12 +364,17 @@ struct History {
         }
       }
     })
+    .hideBackButton(this.isSplitView)
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
     })
     .onBackPressed((): boolean => {
       if (this.inSelectionMode) {
         this.exitSelectionMode();
+        return true;
+      }
+      if (this.isSplitView) {
+        DetailRouter.closeDetail();
         return true;
       }
       return false;

@@ -16,6 +16,7 @@ import { HdsNavigation } from '@kit.UIDesignKit';
 import { window } from '@kit.ArkUI';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 import { AntiPeepUtil } from '../utils/AntiPeepUtil';
+import { BreakpointUtil } from '../utils/BreakpointUtil';
 
 @CustomDialog
 struct PrivacyDialogContent {
@@ -100,6 +101,7 @@ struct Index {
   aboutToDisappear(): void {
     this.privacyDialogController.close();
     AntiPeepUtil.dispose();
+    BreakpointUtil.dispose();
   }
 
   onPageShow(): void {
@@ -215,6 +217,10 @@ struct Index {
     }
     .width('100%')
     .height('100%')
+    // 直接使用 ArkUI 实际布局尺寸，兼容媒体方向上报不准确的折叠屏形态。
+    .onAreaChange((_oldValue: Area, newValue: Area) => {
+      BreakpointUtil.updateViewport(Number(newValue.width), Number(newValue.height));
+    })
     .foregroundBlurStyle(this.showPrivacyMask ? BlurStyle.Thick : BlurStyle.NONE)
   }
 }
