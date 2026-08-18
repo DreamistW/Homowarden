@@ -58,6 +58,8 @@ export interface Cipher {
   // 保留姓名分量，以便语言切换后按目标语言顺序重新组合。
   identityFirstName?: string;
   identityLastName?: string;
+  // 仅记录登录项是否配置 TOTP，列表不保留 TOTP 密钥明文。
+  hasTotp?: boolean;
 }
 
 /**
@@ -267,10 +269,16 @@ export interface VaultSyncResponse {
   userDecryption?: Object | null;
 }
 
+export enum CipherDetailMode {
+  VIEW = 0,
+  EDIT = 1
+}
+
 /*
  * 从密码库跳转到详情页的参数
  */
 export interface CipherDetailParams {
   cipher: Cipher;
   symmetricKey: string;
+  initialMode?: CipherDetailMode;
 }

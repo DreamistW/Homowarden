@@ -1,16 +1,16 @@
 import { EntryRouter } from '../../../../EntryRouter';
-import { Cipher, CipherDetailParams } from '../model/CipherModels';
+import { Cipher, CipherDetailMode, CipherDetailParams, CipherIdentity } from '../model/CipherModels';
 import { VaultViewModel } from '../viewmodel/VaultViewModel';
-import { common } from '@kit.AbilityKit';
+import { common, Want } from '@kit.AbilityKit';
 import { AppToast } from '../utils/AppToast';
 import { AppDropdown } from '../component/AppDropdown';
 import { FormDialog } from '../component/FormDialog';
 import { ConfirmDialog } from '../component/ConfirmDialog';
 import { DataPreferences } from '@abner/datastore';
 import {
-  FilterType, LOGIN_STATUS_KEY, NEED_RELOAD_CIPHERS
+  CipherItemType, FilterType, LOGIN_STATUS_KEY, NEED_RELOAD_CIPHERS
 } from '../utils/Constants';
-import { CipherItem } from '../component/CipherItem';
+import { CipherCopyField, CipherItem } from '../component/CipherItem';
 import {
   HdsNavDestination, HdsNavigationBadgeIconOptions
 } from '@hms.hds.hdsBaseComponent';
@@ -32,10 +32,24 @@ import { DetailRouter } from '../utils/DetailRouter';
 import { MainSideRail } from '../component/MainSideRail';
 import { AdaptiveShell } from '../component/AdaptiveShell';
 import { DetailLeaveGuard } from '../utils/DetailLeaveGuard';
+import { CipherDetailViewModel } from '../viewmodel/CipherDetailViewModel';
+import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
+import { Logger } from '@nzy/logger';
+import { TOTPUtil } from '../utils/TOTPUtil';
+import { promptAction } from '@kit.ArkUI';
 
 @Builder
 export function VaultPageBuilder() {
   VaultPage();
+}
+
+class QuickActionMenuButton implements promptAction.Button {
+  text: string;
+  color: string = '#0A59F7';
+
+  constructor(text: string) {
+    this.text = text;
+  }
 }
 
 @Component
@@ -56,14 +70,17 @@ struct VaultContent {
   @State isLoading: boolean = false;
   @State passwordInput: string = '';
   @State passwordError: ResourceStr = '';
-  @State pendingCipher: Cipher | null = null;
   groupId: string = 'filter_menu';
   private needReLogin: boolean = false;
+  private pendingProtectedAction: (() => void) | null = null;
+  private isQuickActionLoading: boolean = false;
   private passwordDialogController: CustomDialogController = new CustomDialogController({
     builder: FormDialog({
       title: $r('app.string.totp_master_title'),
       contentBuilder: (): void => this.masterPasswordContent(),
-      cancel: () => {},
+      cancel: () => {
+        this.pendingProtectedAction = null;
+      },
       confirm: async (): Promise<void> => {
         await this.confirmMasterPassword();
       }
@@ -102,6 +119,7 @@ struct VaultContent {
 
   aboutToDisappear(): void {
     this.isReloginDialogOpen = false;
+    this.pendingProtectedAction = null;
     this.reloginDialogController.close();
     this.passwordDialogController.close();
   }
@@ -332,6 +350,19 @@ struct VaultContent {
                 cipher: cipher,
                 onTap: () => {
                   this.navigateToDetail(cipher);
+                },
+                onCopyField: (field: CipherCopyField) => {
+                  this.requestProtectedAction(cipher, () => {
+                    void this.copyCipherField(cipher, field);
+                  });
+                },
+                onEdit: () => {
+                  this.navigateToEdit(cipher);
+                },
+                onOpenUrl: () => {
+                  this.requestProtectedAction(cipher, () => {
+                    void this.openCipherUrl(cipher);
+                  });
                 }
               })
             }
@@ -401,19 +432,34 @@ struct VaultContent {
     }
 
   private navigateToDetail(cipher: Cipher): void {
-    // 检查是否需要验证主密码
-    if (cipher.reprompt === 1) {
-      this.pendingCipher = cipher;
-      this.passwordInput = '';
-      this.passwordError = '';
-      this.passwordDialogController.open();
-    } else {
-      this.doNavigateToDetail(cipher);
-    }
+    this.requestProtectedAction(cipher, () => {
+      this.doNavigateToDetail(cipher, CipherDetailMode.VIEW);
+    });
   }
 
-  private doNavigateToDetail(cipher: Cipher): void {
-    const params: CipherDetailParams = { cipher: cipher, symmetricKey: this.viewModel.symmetricKey };
+  private navigateToEdit(cipher: Cipher): void {
+    this.requestProtectedAction(cipher, () => {
+      this.doNavigateToDetail(cipher, CipherDetailMode.EDIT);
+    });
+  }
+
+  private requestProtectedAction(cipher: Cipher, action: () => void): void {
+    if (cipher.reprompt !== 1) {
+      action();
+      return;
+    }
+    this.pendingProtectedAction = action;
+    this.passwordInput = '';
+    this.passwordError = '';
+    this.passwordDialogController.open();
+  }
+
+  private doNavigateToDetail(cipher: Cipher, initialMode: CipherDetailMode): void {
+    const params: CipherDetailParams = {
+      cipher: cipher,
+      symmetricKey: this.viewModel.symmetricKey,
+      initialMode: initialMode
+    };
     this.onNavigateToDetail(params);
   }
 
@@ -421,11 +467,10 @@ struct VaultContent {
   private async confirmMasterPassword(): Promise<void> {
     const result = await this.verifyMasterPassword();
     if (result) {
-      if (this.pendingCipher) {
-        this.doNavigateToDetail(this.pendingCipher);
-        this.pendingCipher = null;
-      }
+      const action = this.pendingProtectedAction;
+      this.pendingProtectedAction = null;
       this.passwordDialogController.close();
+      action?.();
     }
   }
 
@@ -466,6 +511,193 @@ struct VaultContent {
         new AppText(AppTextKey.VERIFICATION_FAILED));
       return false;
     }
+  }
+
+  private async loadQuickActionCipher(cipher: Cipher): Promise<Cipher | null> {
+    if (this.isQuickActionLoading) {
+      return null;
+    }
+    if (!this.viewModel.symmetricKey) {
+      AppToast.show(this.getUIContext(), $r('app.string.common_loading'));
+      return null;
+    }
+    this.isQuickActionLoading = true;
+    try {
+      const detailViewModel = new CipherDetailViewModel();
+      detailViewModel.symmetricKey = this.viewModel.symmetricKey;
+      const detail = JSON.parse(JSON.stringify(cipher)) as Cipher;
+      return await detailViewModel.getCipherDetail(detail);
+    } catch (error) {
+      const err = error as Error;
+      Logger.error(`Failed to load cipher for quick action: ${err.message}`);
+      AppToast.show(this.getUIContext(), $r('app.string.error_load_failed'));
+      return null;
+    } finally {
+      this.isQuickActionLoading = false;
+    }
+  }
+
+  private async copyCipherField(cipher: Cipher, field: CipherCopyField): Promise<void> {
+    const detail = await this.loadQuickActionCipher(cipher);
+    if (!detail) {
+      return;
+    }
+    const value = await this.getCopyFieldValue(detail, field);
+    if (value.length === 0) {
+      AppToast.show(this.getUIContext(), $r('app.string.vault_copy_field_empty'));
+      return;
+    }
+    await this.copyQuickActionText(value);
+  }
+
+  private async getCopyFieldValue(cipher: Cipher, field: CipherCopyField): Promise<string> {
+    if (field === CipherCopyField.USERNAME) {
+      if (cipher.type === CipherItemType.LOGIN) {
+        return cipher.login?.username ?? '';
+      }
+      if (cipher.type === CipherItemType.IDENTITY) {
+        return cipher.identity?.username ?? '';
+      }
+    }
+    if (field === CipherCopyField.PASSWORD && cipher.type === CipherItemType.LOGIN) {
+      return cipher.login?.password ?? '';
+    }
+    if (field === CipherCopyField.TOTP && cipher.type === CipherItemType.LOGIN && cipher.login?.totp) {
+      const code = await TOTPUtil.generateTOTP(cipher.login.totp);
+      return code === '------' ? '' : code;
+    }
+    if (field === CipherCopyField.CARD_NUMBER && cipher.type === CipherItemType.CARD) {
+      return cipher.card?.number ?? '';
+    }
+    if (field === CipherCopyField.SECURITY_CODE && cipher.type === CipherItemType.CARD) {
+      return cipher.card?.code ?? '';
+    }
+    if (field === CipherCopyField.EMAIL && cipher.type === CipherItemType.IDENTITY) {
+      return cipher.identity?.email ?? '';
+    }
+    if (field === CipherCopyField.PHONE && cipher.type === CipherItemType.IDENTITY) {
+      return cipher.identity?.phone ?? '';
+    }
+    if (field === CipherCopyField.ADDRESS && cipher.type === CipherItemType.IDENTITY && cipher.identity) {
+      return this.buildIdentityAddress(cipher.identity);
+    }
+    return '';
+  }
+
+  private buildIdentityAddress(identity: CipherIdentity): string {
+    const lines: string[] = [];
+    this.appendAddressPart(lines, identity.address1);
+    this.appendAddressPart(lines, identity.address2);
+    this.appendAddressPart(lines, identity.address3);
+    const localityParts: string[] = [];
+    this.appendAddressPart(localityParts, identity.city);
+    this.appendAddressPart(localityParts, identity.state);
+    this.appendAddressPart(localityParts, identity.postalCode);
+    if (localityParts.length > 0) {
+      lines.push(localityParts.join(' '));
+    }
+    this.appendAddressPart(lines, identity.country);
+    return lines.join('\n');
+  }
+
+  private appendAddressPart(parts: string[], value: string | null | undefined): void {
+    const normalized = value?.trim() ?? '';
+    if (normalized.length > 0) {
+      parts.push(normalized);
+    }
+  }
+
+  private async copyQuickActionText(text: string): Promise<void> {
+    try {
+      const pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, text);
+      await pasteboard.getSystemPasteboard().setData(pasteData);
+      AppToast.show(this.getUIContext(), $r('app.string.totp_copied'));
+    } catch (error) {
+      const err = error as BusinessError;
+      Logger.error(`Failed to copy cipher quick action value: ${err.message}`);
+      AppToast.show(this.getUIContext(), $r('app.string.totp_copy_failed'));
+    }
+  }
+
+  private async openCipherUrl(cipher: Cipher): Promise<void> {
+    const detail = await this.loadQuickActionCipher(cipher);
+    if (!detail) {
+      return;
+    }
+    const uris: string[] = [];
+    for (const item of detail.login?.uris ?? []) {
+      const uri = item.uri.trim();
+      if (uri.length > 0) {
+        uris.push(uri);
+      }
+      if (uris.length === 6) {
+        break;
+      }
+    }
+    if (uris.length === 0) {
+      AppToast.show(this.getUIContext(), $r('app.string.vault_no_url'));
+      return;
+    }
+    if (uris.length === 1) {
+      await this.launchUrl(uris[0]);
+      return;
+    }
+    try {
+      const selectedIndex = await this.showQuickActionMenu(uris);
+      if (selectedIndex >= 0 && selectedIndex < uris.length) {
+        await this.launchUrl(uris[selectedIndex]);
+      }
+    } catch (_) {
+      return;
+    }
+  }
+
+  private async launchUrl(value: string): Promise<void> {
+    try {
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      const uri = /^[A-Za-z][A-Za-z0-9+.-]*:/.test(value) ? value : `http://${value}`;
+      const want: Want = { uri: uri };
+      await context.startAbility(want);
+    } catch (error) {
+      const err = error as Error;
+      Logger.error(`Failed to open cipher URL: ${err.message}`);
+      AppToast.show(this.getUIContext(), $r('app.string.error_open_website'));
+    }
+  }
+
+  private resolveResource(resource: Resource): string {
+    return this.getUIContext().getHostContext()?.resourceManager.getStringSync(resource.id) ?? '';
+  }
+
+  private async showQuickActionMenu(labels: string[]): Promise<number> {
+    const buttons: promptAction.Button[] = labels.slice(0, 6)
+      .map((label: string) => new QuickActionMenuButton(label));
+    let menuOptions: promptAction.ActionMenuOptions;
+    switch (buttons.length) {
+      case 1:
+        menuOptions = { buttons: [buttons[0]] };
+        break;
+      case 2:
+        menuOptions = { buttons: [buttons[0], buttons[1]] };
+        break;
+      case 3:
+        menuOptions = { buttons: [buttons[0], buttons[1], buttons[2]] };
+        break;
+      case 4:
+        menuOptions = { buttons: [buttons[0], buttons[1], buttons[2], buttons[3]] };
+        break;
+      case 5:
+        menuOptions = { buttons: [buttons[0], buttons[1], buttons[2], buttons[3], buttons[4]] };
+        break;
+      case 6:
+        menuOptions = { buttons: [buttons[0], buttons[1], buttons[2], buttons[3], buttons[4], buttons[5]] };
+        break;
+      default:
+        return -1;
+    }
+    const result: promptAction.ActionMenuSuccessResponse =
+      await this.getUIContext().getPromptAction().showActionMenu(menuOptions);
+    return result.index;
   }
 }
 
@@ -734,21 +966,25 @@ export struct VaultPage {
         .height(56)
         .padding({ left: 16, right: 16 })
 
-        if (this.selectedMainTab === MainTab.VAULT) {
-          this.vaultContent()
-        } else if (this.selectedMainTab === MainTab.TOTP) {
-          this.totpContent()
-        } else if (this.selectedMainTab === MainTab.GENERATOR) {
-          GeneratorPage({ bottomContentInset: 0 })
-        } else if (this.selectedMainTab === MainTab.SHARE) {
-          Sure2SharePage()
-        } else {
-          SettingsPage({
-            isActive: true,
-            onLockVault: () => this.lockVault(),
-            onLogout: () => this.logout()
-          })
+        Column() {
+          if (this.selectedMainTab === MainTab.VAULT) {
+            this.vaultContent()
+          } else if (this.selectedMainTab === MainTab.TOTP) {
+            this.totpContent()
+          } else if (this.selectedMainTab === MainTab.GENERATOR) {
+            GeneratorPage({ bottomContentInset: 0 })
+          } else if (this.selectedMainTab === MainTab.SHARE) {
+            Sure2SharePage()
+          } else {
+            SettingsPage({
+              isActive: true,
+              onLockVault: () => this.lockVault(),
+              onLogout: () => this.logout()
+            })
+          }
         }
+        .width('100%')
+        .layoutWeight(1)
       }
       .width('100%')
       .height('100%')

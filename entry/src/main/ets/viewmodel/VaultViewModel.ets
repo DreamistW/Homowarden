@@ -314,6 +314,7 @@ export class VaultViewModel {
       const rawRevisionDate = cipherData.revision_date as string;
       const cipherId = cipherData.id as string;
       const keyData = cipherKeysById.get(cipherId);
+      const loginData = loginsById.get(cipherId);
       const cipher: Cipher = {
         id: cipherId,
         type: cipherData.type as CipherItemType,
@@ -335,6 +336,8 @@ export class VaultViewModel {
         secureNote: null,
         card: null
       };
+      cipher.hasTotp = cipher.type === CipherItemType.LOGIN &&
+        loginData?.totp !== null && loginData?.totp !== undefined && loginData.totp.toString().length > 0;
       cipher.displayNameKind = CipherDisplayNameKind.USER_VALUE;
       cipher.displaySubtitleKind = CipherDisplaySubtitleKind.USER_VALUE;
       try {
@@ -611,7 +614,8 @@ export class VaultViewModel {
       displaySubtitleKind: subtitle.length > 0 ? CipherDisplaySubtitleKind.USER_VALUE :
         this.getTypeSubtitleKind(cipher.type),
       identityFirstName: identityFirstName,
-      identityLastName: identityLastName
+      identityLastName: identityLastName,
+      hasTotp: cipher.hasTotp || (cipher.type === CipherItemType.LOGIN && !!cipher.login?.totp)
     };
   }
 

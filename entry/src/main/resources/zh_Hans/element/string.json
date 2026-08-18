@@ -37,6 +37,10 @@
       "value": "编辑"
     },
     {
+      "name": "common_view",
+      "value": "查看"
+    },
+    {
       "name": "common_delete",
       "value": "删除"
     },
@@ -463,6 +467,54 @@
     {
       "name": "vault_decryption_failed_subtitle",
       "value": "解密失败"
+    },
+    {
+      "name": "vault_item_menu",
+      "value": "密码项操作"
+    },
+    {
+      "name": "vault_menu_open_url",
+      "value": "前往 URL"
+    },
+    {
+      "name": "vault_copy_username",
+      "value": "复制用户名"
+    },
+    {
+      "name": "vault_copy_password",
+      "value": "复制密码"
+    },
+    {
+      "name": "vault_copy_totp",
+      "value": "复制验证码"
+    },
+    {
+      "name": "vault_copy_card_number",
+      "value": "复制卡号"
+    },
+    {
+      "name": "vault_copy_security_code",
+      "value": "复制安全码"
+    },
+    {
+      "name": "vault_copy_email",
+      "value": "复制邮箱"
+    },
+    {
+      "name": "vault_copy_phone",
+      "value": "复制电话号码"
+    },
+    {
+      "name": "vault_copy_address",
+      "value": "复制地址"
+    },
+    {
+      "name": "vault_copy_field_empty",
+      "value": "该字段为空"
+    },
+    {
+      "name": "vault_no_url",
+      "value": "此密码项未配置 URL"
     },
     {
       "name": "cipher_add_title",

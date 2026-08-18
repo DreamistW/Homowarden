@@ -1,4 +1,4 @@
-import { Cipher, CipherDetailParams, CipherField, CipherUri } from '../model/CipherModels';
+import { Cipher, CipherDetailMode, CipherDetailParams, CipherField, CipherUri } from '../model/CipherModels';
 import {
   CardBrandType,
   CipherFieldType,
@@ -54,6 +54,7 @@ export struct CipherDetailPage {
   @State newFieldEditType: CipherFieldType = CipherFieldType.TEXT;
   pathInfos: NavPathStack = new NavPathStack();
   private viewModel: CipherDetailViewModel = new CipherDetailViewModel();
+  private initialMode: CipherDetailMode = CipherDetailMode.VIEW;
   // 进入编辑模式时的明文快照，用于判断是否有未保存改动。
   private originalCipherSnapshot: string = '';
   private identityTitleGroup: string = 'identityTitleSelector';
@@ -199,12 +200,7 @@ export struct CipherDetailPage {
       label: $r('app.string.common_edit'),
       icon: $r('app.media.icon_edit'),
       action: () => {
-        if (!this.isDetailLoaded) {
-          AppToast.show(this.getUIContext(), $r('app.string.error_encryption'));
-          return;
-        }
-        this.originalCipherSnapshot = JSON.stringify(this.cipher);
-        this.isEditable = true;
+        this.enterEditMode();
       }
     }
   }
@@ -280,6 +276,10 @@ export struct CipherDetailPage {
           this.totpSecret = '';
         }
         this.isDetailLoaded = true;
+        if (this.initialMode === CipherDetailMode.EDIT) {
+          this.initialMode = CipherDetailMode.VIEW;
+          this.enterEditMode();
+        }
       }
     } catch (error) {
       Logger.error('Failed to load cipher detail:', error);
@@ -288,6 +288,15 @@ export struct CipherDetailPage {
     } finally {
       this.isLoading = false;
     }
+  }
+
+  private enterEditMode(): void {
+    if (!this.isDetailLoaded || !this.cipher.edit || this.cipher.deletedDate) {
+      AppToast.show(this.getUIContext(), $r('app.string.error_encryption'));
+      return;
+    }
+    this.originalCipherSnapshot = JSON.stringify(this.cipher);
+    this.isEditable = true;
   }
 
   // 退出编辑模式并重新加载详情。
@@ -611,7 +620,8 @@ export struct CipherDetailPage {
         // 且旋转跨栈迁移重建时新实例会读到被改过的 param，显示修改后内容）。
         this.cipher = JSON.parse(JSON.stringify(param.cipher)) as Cipher;
         this.viewModel.symmetricKey = param.symmetricKey;
-        this.loadCipherDetail();
+        this.initialMode = param.initialMode ?? CipherDetailMode.VIEW;
+        void this.loadCipherDetail();
       }
       DetailLeaveGuard.register(this.leaveHandler);
     })
