@@ -13,6 +13,10 @@
       "value": "Homowarden"
     },
     {
+      "name": "tray_open",
+      "value": "\u6253\u5f00"
+    },
+    {
       "name": "camera_permission_reason",
       "value": "需要使用相机扫描 TOTP 二维码"
     },

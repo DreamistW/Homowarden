@@ -9,6 +9,7 @@ import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 import { LocaleState } from '../localization/LocaleState';
 import { BreakpointUtil } from '../utils/BreakpointUtil';
 import { VaultChangeNotifier } from '../utils/VaultChangeNotifier';
+import { SystemTrayManager } from '../utils/SystemTrayManager';
 
 const DOMAIN = 0x0000;
 export default class EntryAbility extends UIAbility {
@@ -64,6 +65,7 @@ export default class EntryAbility extends UIAbility {
         return;
       }
       hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
+      void SystemTrayManager.initialize(this.context, windowStage);
     });
   }
 
