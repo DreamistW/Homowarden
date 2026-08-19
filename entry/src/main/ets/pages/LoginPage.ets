@@ -13,6 +13,7 @@ import { TwoFactorProvider } from '../model/AccessToken';
 import { AppText, AppTextKey } from '../localization/AppText';
 import { AppTextResolver } from '../localization/AppTextResolver';
 import { VaultViewModel } from '../viewmodel/VaultViewModel';
+import { FormFactorUtil } from '../utils/FormFactorUtil';
 
 @Builder
 export function LoginPageBuilder() {
@@ -32,6 +33,7 @@ export struct LoginPage {
   @State pendingEmailLogin: boolean = false;
   @State verificationSubmitting: boolean = false;
   private exitTime: number = 0;
+  private isPc: boolean = FormFactorUtil.isPc();
   pathInfos: NavPathStack = new NavPathStack();
 
   // 两步验证弹框控制器（系统原生 @CustomDialog 容器）
@@ -217,6 +219,7 @@ export struct LoginPage {
   build() {
     HdsNavDestination() {
       Column() {
+        Column() {
         // 邮箱输入框
         TextInput({
           placeholder: $r('app.string.login_email_placeholder'),
@@ -348,10 +351,14 @@ export struct LoginPage {
         //     .fontColor(Color.Gray)
         //     .margin(12)
         // }
+        }
+        .width(this.isPc ? '60%' : '100%')
+        .constraintSize({ maxWidth: 640 })
       }
       .width('100%')
       .height('100%')
       .padding(24)
+      .alignItems(HorizontalAlign.Center)
     }
     .titleBar({
       content: {

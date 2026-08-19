@@ -22,6 +22,7 @@ import { AdaptiveTextButton } from '../component/AdaptiveButton';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
 import { GENERATOR_HISTORY_TABLE, GeneratorDatabaseUtil } from '../utils/GeneratorDatabaseUtil';
 import { VaultViewModel } from '../viewmodel/VaultViewModel';
+import { FormFactorUtil } from '../utils/FormFactorUtil';
 
 @Builder
 export function UnlockPageBuilder() {
@@ -34,13 +35,10 @@ export struct UnlockPage {
   private exitTime: number = 0;
   private masterPassword: string = "";
   @State private biometricEnabled: boolean = false;
+  private isPc: boolean = FormFactorUtil.isPc();
 
   aboutToAppear() {
     this.biometricEnabled = DataPreferences.getInstance().getSync<number>(BIOMETRIC_AUTH) == 1;
-    if (this.biometricEnabled) {
-      // 页面每次出现都可能来自后台锁定，仅在已授权时自动拉起系统认证。
-      this.startBiometricAuth();
-    }
   }
 
   build() {
@@ -50,7 +48,7 @@ export struct UnlockPage {
         Image($r('app.media.app_small_icon'))
           .width(120)
           .height(120)
-          .margin({ top: 100, bottom: 40 })
+          .margin({ bottom: 24 })
 
         // 应用名称
         // Text($r('app.string.app_name'))
@@ -58,23 +56,28 @@ export struct UnlockPage {
         //   .fontWeight(FontWeight.Medium)
         //   .margin({ bottom: 80 })
 
-        Text($r('app.string.unlock_locked_prompt'))
-          .fontSize(14)
-          .fontColor('#666666')
-          .margin({
-            left: 16,
-            right: 16,
-            top: 12,
-            bottom: 12
-          })
+        Column() {
+          Text($r('app.string.unlock_locked_prompt'))
+            .fontSize(14)
+            .fontColor('#666666')
+            .margin({
+              left: 16,
+              right: 16,
+              top: 12,
+              bottom: 12
+            })
 
-        TextInput({ text: this.masterPassword })
-          .accessibilityText($r('app.string.unlock_enter_master_password'))
-          .onChange((v: string) => {
-            this.masterPassword = v;
-          })
-          .margin({ left: 16, right: 16, bottom: 24 })
-          .type(InputType.Password)
+          TextInput({ text: this.masterPassword })
+            .accessibilityText($r('app.string.unlock_enter_master_password'))
+            .onChange((v: string) => {
+              this.masterPassword = v;
+            })
+            .margin({ left: 16, right: 16, bottom: 24 })
+            .type(InputType.Password)
+        }
+        .width(this.isPc ? '60%' : '100%')
+        .constraintSize({ maxWidth: 640 })
+        .alignItems(HorizontalAlign.Center)
 
         // 按钮
         Column({ space: 6 }) {
@@ -169,7 +172,8 @@ export struct UnlockPage {
       }
       .width('100%')
       .height('100%')
-      .justifyContent(FlexAlign.Start)
+      .padding({ top: 24, bottom: 24 })
+      .justifyContent(FlexAlign.Center)
       .alignItems(HorizontalAlign.Center)
     }
     .onReady((ctx: NavDestinationContext) => {
