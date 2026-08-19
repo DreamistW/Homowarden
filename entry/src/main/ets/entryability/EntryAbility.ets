@@ -10,8 +10,11 @@ import { LocaleState } from '../localization/LocaleState';
 import { BreakpointUtil } from '../utils/BreakpointUtil';
 import { VaultChangeNotifier } from '../utils/VaultChangeNotifier';
 import { SystemTrayManager } from '../utils/SystemTrayManager';
+import { FormFactorUtil } from '../utils/FormFactorUtil';
 
 const DOMAIN = 0x0000;
+const PC_MIN_WINDOW_WIDTH = 840;
+const PC_MIN_WINDOW_HEIGHT = 600;
 export default class EntryAbility extends UIAbility {
   onConfigurationUpdate(newConfig: Configuration): void {
     hilog.info(DOMAIN, 'locale', 'Configuration changed: %{public}s', newConfig.language ?? '');
@@ -58,6 +61,7 @@ export default class EntryAbility extends UIAbility {
 
     AppStorage.setOrCreate('windowStage', windowStage);
     void WindowPrivacyUtil.applyForCurrentState();
+    void this.configurePcWindowLimits(windowStage);
 
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {
@@ -67,6 +71,24 @@ export default class EntryAbility extends UIAbility {
       hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
       void SystemTrayManager.initialize(this.context, windowStage);
     });
+  }
+
+  private async configurePcWindowLimits(windowStage: window.WindowStage): Promise<void> {
+    if (!FormFactorUtil.isPc()) {
+      return;
+    }
+
+    try {
+      const mainWindow = windowStage.getMainWindowSync();
+      const appliedLimits = await mainWindow.setWindowLimits({
+        minWidth: PC_MIN_WINDOW_WIDTH,
+        minHeight: PC_MIN_WINDOW_HEIGHT,
+        pixelUnit: window.PixelUnit.VP
+      });
+      hilog.info(DOMAIN, 'windowLimits', 'PC window limits applied: %{public}s', JSON.stringify(appliedLimits));
+    } catch (error) {
+      hilog.error(DOMAIN, 'windowLimits', 'Failed to apply PC window limits: %{public}s', JSON.stringify(error));
+    }
   }
 
   onWindowStageDestroy(): void {

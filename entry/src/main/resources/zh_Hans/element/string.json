@@ -69,6 +69,10 @@
       "value": "加载中…"
     },
     {
+      "name": "common_refresh",
+      "value": "刷新"
+    },
+    {
       "name": "common_pull_to_refresh",
       "value": "下拉刷新"
     },

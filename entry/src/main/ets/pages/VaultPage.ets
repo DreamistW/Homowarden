@@ -37,6 +37,7 @@ import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
 import { Logger } from '@nzy/logger';
 import { TOTPUtil } from '../utils/TOTPUtil';
 import { promptAction } from '@kit.ArkUI';
+import { FormFactorUtil } from '../utils/FormFactorUtil';
 
 @Builder
 export function VaultPageBuilder() {
@@ -57,6 +58,8 @@ struct VaultContent {
   @StorageLink('localeRevision') @Watch('handleLocaleRevision') localeRevision: number = 0;
   @StorageLink('vaultCommittedChangeRevision') @Watch('handleCommittedChange') committedChangeRevision: number = 0;
   @Prop @Watch('handleActivationRevision') activationRevision: number = 0;
+  @Prop @Watch('handleManualRefreshRevision') manualRefreshRevision: number = 0;
+  @Prop pullToRefreshEnabled: boolean = true;
   onVaultDataChanged: (ciphers: Cipher[], symmetricKey: string) => void = () => {};
   onNavigateToDetail: (params: CipherDetailParams) => void = () => {};
   onRelogin: () => void = () => {};
@@ -126,6 +129,12 @@ struct VaultContent {
 
   private handleActivationRevision(): void {
     this.consumeCommittedChange();
+  }
+
+  private handleManualRefreshRevision(): void {
+    if (!this.isLoading) {
+      void this.loadCiphers(true);
+    }
   }
 
   private handleCommittedChange(): void {
@@ -410,16 +419,24 @@ struct VaultContent {
             .width('100%')
             .padding({ left: 16, right: 16, bottom: 8 })
 
-            Refresh({ refreshing: this.isLoading, builder: this.refreshContent() }) {
-              this.listContent()
-            }
-            .onRefreshing(() => {
-              if (!this.isLoading) {
-                void this.loadCiphers(true);
+            if (this.pullToRefreshEnabled) {
+              Refresh({ refreshing: this.isLoading, builder: this.refreshContent() }) {
+                this.listContent()
               }
-            })
-            .width('100%')
-            .layoutWeight(1)
+              .onRefreshing(() => {
+                if (!this.isLoading) {
+                  void this.loadCiphers(true);
+                }
+              })
+              .width('100%')
+              .layoutWeight(1)
+            } else {
+              Column() {
+                this.listContent()
+              }
+              .width('100%')
+              .layoutWeight(1)
+            }
           }
 
         }
@@ -712,6 +729,8 @@ export struct VaultPage {
   @State sharedSymmetricKey: string = '';
   @State vaultDataRevision: number = 0;
   @State vaultActivationRevision: number = 0;
+  @State vaultManualRefreshRevision: number = 0;
+  private isPc: boolean = FormFactorUtil.isPc();
   private tabsController: TabsController = new TabsController();
   private exitTime: number = 0;
   @State pathInfos: NavPathStack = new NavPathStack();
@@ -814,6 +833,10 @@ export struct VaultPage {
       return;
     }
     this.openDetail(EntryRouter.AddCipherPage, this.sharedSymmetricKey);
+  }
+
+  private refreshVault(): void {
+    this.vaultManualRefreshRevision++;
   }
 
   private updateVaultData(ciphers: Cipher[], symmetricKey: string): void {
@@ -920,6 +943,8 @@ export struct VaultPage {
   private vaultContent() {
     VaultContent({
       activationRevision: this.vaultActivationRevision,
+      manualRefreshRevision: this.vaultManualRefreshRevision,
+      pullToRefreshEnabled: !this.isPc,
       onVaultDataChanged: (ciphers: Cipher[], symmetricKey: string) => {
         this.updateVaultData(ciphers, symmetricKey);
       },
@@ -929,6 +954,32 @@ export struct VaultPage {
       onRelogin: () => {
         this.logout();
       }
+    })
+  }
+
+  @Builder
+  private vaultRefreshButton() {
+    AdaptiveIconButton({
+      icon: $r('app.media.icon_restore'),
+      accessibilityLabel: $r('app.string.common_refresh'),
+      iconWidth: 25,
+      iconHeight: 25,
+      contentPadding: 8,
+      barBottomMargin: 0,
+      onButtonClick: () => this.refreshVault()
+    })
+  }
+
+  @Builder
+  private vaultAddButton() {
+    AdaptiveIconButton({
+      icon: $r('app.media.icon_add'),
+      accessibilityLabel: $r('app.string.cipher_add_title'),
+      iconWidth: 25,
+      iconHeight: 25,
+      contentPadding: 8,
+      barBottomMargin: 0,
+      onButtonClick: () => this.addCipher()
     })
   }
 
@@ -990,15 +1041,13 @@ export struct VaultPage {
       .height('100%')
 
       if (this.selectedMainTab === MainTab.VAULT && this.sharedSymmetricKey.length > 0) {
-        AdaptiveIconButton({
-          icon: $r('app.media.icon_add'),
-          accessibilityLabel: $r('app.string.cipher_add_title'),
-          iconWidth: 25,
-          iconHeight: 25,
-          contentPadding: 8,
-          barBottomMargin: 0,
-          onButtonClick: () => this.addCipher()
-        }).margin({ right: 8, bottom: 8 })
+        Column() {
+          if (this.isPc) {
+            this.vaultRefreshButton()
+          }
+          this.vaultAddButton()
+        }
+        .margin({ right: 8, bottom: 8 })
       }
     }
     .width('100%')
@@ -1070,17 +1119,12 @@ export struct VaultPage {
       .height('100%')
 
       if (this.selectedMainTab === MainTab.VAULT && this.sharedSymmetricKey.length > 0) {
-        AdaptiveIconButton({
-          icon: $r('app.media.icon_add'),
-          accessibilityLabel: $r('app.string.cipher_add_title'),
-          iconWidth: 25,
-          iconHeight: 25,
-          contentPadding: 8,
-          barBottomMargin: 0,
-          onButtonClick: () => {
-            this.addCipher();
+        Column() {
+          if (this.isPc) {
+            this.vaultRefreshButton()
           }
-        })
+          this.vaultAddButton()
+        }
           .margin({ right: 8, bottom: 72 })
       }
     }
