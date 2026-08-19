@@ -974,7 +974,35 @@
     },
     {
       "name": "settings_auto_lock_desc",
-      "value": "应用置于后台两分钟后自动锁定密码库。"
+      "value": "应用置于后台达到所选时长后自动锁定密码库。"
+    },
+    {
+      "name": "settings_auto_lock_never",
+      "value": "从不"
+    },
+    {
+      "name": "settings_auto_lock_1_minute",
+      "value": "1分钟"
+    },
+    {
+      "name": "settings_auto_lock_5_minutes",
+      "value": "5分钟"
+    },
+    {
+      "name": "settings_auto_lock_15_minutes",
+      "value": "15分钟"
+    },
+    {
+      "name": "settings_auto_lock_30_minutes",
+      "value": "30分钟"
+    },
+    {
+      "name": "settings_auto_lock_1_hour",
+      "value": "1小时"
+    },
+    {
+      "name": "settings_auto_lock_4_hours",
+      "value": "4小时"
     },
     {
       "name": "settings_block_capture",

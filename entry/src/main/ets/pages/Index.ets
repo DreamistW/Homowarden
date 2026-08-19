@@ -1,6 +1,7 @@
 import { DataPreferences } from '@abner/datastore';
 import {
-  AUTO_LOCK,
+  AUTO_LOCK_TIMEOUT,
+  AutoLockTimeout,
   BACKGROUND_TIMESTAMP,
   BIOMETRIC_AUTH,
   LOGIN_STATUS_KEY,
@@ -17,6 +18,7 @@ import { window } from '@kit.ArkUI';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 import { AntiPeepUtil } from '../utils/AntiPeepUtil';
 import { BreakpointUtil } from '../utils/BreakpointUtil';
+import { AutoLockUtil } from '../utils/AutoLockUtil';
 
 @CustomDialog
 struct PrivacyDialogContent {
@@ -118,11 +120,11 @@ struct Index {
     this.getLoginStatus();
     void WindowPrivacyUtil.applyForCurrentState();
     if (this.isLogin) {
-      const autoLockStatus = DataPreferences.getInstance().getSync<number>(AUTO_LOCK);
-      if (autoLockStatus == 1) {
+      const autoLockTimeoutSeconds = AutoLockUtil.getTimeoutSeconds();
+      if (autoLockTimeoutSeconds !== AutoLockTimeout.NEVER) {
         const currentTime = Math.floor(Date.now() / 1000);
         const backgroundTime = DataPreferences.getInstance().getSync<number>(BACKGROUND_TIMESTAMP);
-        if (currentTime - backgroundTime > 120) {
+        if (currentTime - backgroundTime >= autoLockTimeoutSeconds) {
           this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
         }
       }
@@ -178,8 +180,8 @@ struct Index {
     if (!DataPreferences.getInstance().hasSync(BIOMETRIC_AUTH)) {
       DataPreferences.getInstance().putSync(BIOMETRIC_AUTH, 0);
     }
-    if (!DataPreferences.getInstance().hasSync(AUTO_LOCK)) {
-      DataPreferences.getInstance().putSync(AUTO_LOCK, 0);
+    if (!DataPreferences.getInstance().hasSync(AUTO_LOCK_TIMEOUT)) {
+      DataPreferences.getInstance().putSync(AUTO_LOCK_TIMEOUT, AutoLockTimeout.NEVER);
     }
     if (!DataPreferences.getInstance().hasSync(SCREEN_CAPTURE_PROTECTION)) {
       DataPreferences.getInstance().putSync(SCREEN_CAPTURE_PROTECTION, 1);

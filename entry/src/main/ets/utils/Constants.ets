@@ -75,7 +75,17 @@ export const NEED_RELOAD_CIPHERS = 'need_reload_ciphers';
 
 export const BACKGROUND_TIMESTAMP = 'background_timestamp';
 
-export const AUTO_LOCK = 'auto_lock';
+export const AUTO_LOCK_TIMEOUT = 'auto_lock';
+
+export enum AutoLockTimeout {
+  NEVER = 0,
+  ONE_MINUTE = 60,
+  FIVE_MINUTES = 300,
+  FIFTEEN_MINUTES = 900,
+  THIRTY_MINUTES = 1800,
+  ONE_HOUR = 3600,
+  FOUR_HOURS = 14400
+}
 
 export const SCREEN_CAPTURE_PROTECTION = 'screen_capture_protection';
 

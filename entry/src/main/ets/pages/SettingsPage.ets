@@ -1,6 +1,6 @@
 import { DataPreferences } from '@abner/datastore/src/main/ets/preferences/DataPreferences';
 import {
-  AUTO_LOCK,
+  AutoLockTimeout,
   BIOMETRIC_AUTH,
   EMAIL_KEY,
   SERVER_ADDRESS_KEY,
@@ -23,12 +23,15 @@ import { AntiPeepUtil } from '../utils/AntiPeepUtil';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
 import { GENERATOR_HISTORY_TABLE, GeneratorDatabaseUtil } from '../utils/GeneratorDatabaseUtil';
 import { VaultViewModel } from '../viewmodel/VaultViewModel';
+import { AppDropdown } from '../component/AppDropdown';
+import { AppOptionFactory } from '../localization/AppOptionFactory';
+import { AutoLockUtil } from '../utils/AutoLockUtil';
 
 @Component
 export struct SettingsPage {
   @StorageLink('localeRevision') @Watch('handleLocaleRevision') localeRevision: number = 0;
   @Prop @Watch('handleActiveChanged') isActive: boolean = false;
-  @State autoLockEnabled: boolean = true;
+  @State autoLockTimeoutSeconds: number = AutoLockTimeout.NEVER;
   @State biometricEnabled: boolean = false;
   @State screenCaptureProtectionEnabled: boolean = true;
   @State antiPeepProtectionEnabled: boolean = false;
@@ -92,13 +95,7 @@ export struct SettingsPage {
   }
 
   loadAutoLockStatus() {
-    try {
-      const status = DataPreferences.getInstance().getSync<number>(AUTO_LOCK);
-      this.autoLockEnabled = status == 1;
-    } catch (err) {
-      Logger.error(`Failed to load auto lock status. Error: ${JSON.stringify(err)}`);
-      this.autoLockEnabled = false;
-    }
+    this.autoLockTimeoutSeconds = AutoLockUtil.getTimeoutSeconds();
   }
 
   // 获取应用版本号
@@ -160,12 +157,17 @@ export struct SettingsPage {
 
                 Blank()
 
-                Toggle({ type: ToggleType.Switch, isOn: this.autoLockEnabled })
-                  .accessibilityText($r('app.string.settings_auto_lock'))
-                  .onChange((isOn: boolean) => {
-                    this.autoLockEnabled = isOn;
-                    DataPreferences.getInstance().putSync(AUTO_LOCK, isOn ? 1 : 0);
+                Column() {
+                  AppDropdown({
+                    options: AppOptionFactory.autoLockTimeouts(),
+                    value: this.autoLockTimeoutSeconds,
+                    accessibilityLabel: $r('app.string.settings_auto_lock'),
+                    onChange: (value: number) => {
+                      this.autoLockTimeoutSeconds = AutoLockUtil.setTimeoutSeconds(value);
+                    }
                   })
+                }
+                .width(140)
               }
               .width('100%')
               .padding({ top: 20, bottom: 4 })

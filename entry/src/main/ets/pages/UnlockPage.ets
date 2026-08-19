@@ -33,9 +33,11 @@ export struct UnlockPage {
   pathInfos: NavPathStack = new NavPathStack();
   private exitTime: number = 0;
   private masterPassword: string = "";
+  @State private biometricEnabled: boolean = false;
 
   aboutToAppear() {
-    if (DataPreferences.getInstance().getSync<number>(BIOMETRIC_AUTH) == 1) {
+    this.biometricEnabled = DataPreferences.getInstance().getSync<number>(BIOMETRIC_AUTH) == 1;
+    if (this.biometricEnabled) {
       // 页面每次出现都可能来自后台锁定，仅在已授权时自动拉起系统认证。
       this.startBiometricAuth();
     }
@@ -88,22 +90,19 @@ export struct UnlockPage {
             }
           })
 
-          // 生物识别解锁
-          AdaptiveTextButton({
-            text: $r('app.string.unlock_biometrics'),
-            barWidth: 240,
-            barHeight: 50,
-            fontSize: 18,
-            contentPadding: 6,
-            onButtonClick: () => {
-              if (DataPreferences.getInstance().getSync<number>(BIOMETRIC_AUTH) == 1) {
-                // 点击解锁按钮拉起生物认证
+          if (this.biometricEnabled) {
+            // 生物识别解锁
+            AdaptiveTextButton({
+              text: $r('app.string.unlock_biometrics'),
+              barWidth: 240,
+              barHeight: 50,
+              fontSize: 18,
+              contentPadding: 6,
+              onButtonClick: () => {
                 this.startBiometricAuth();
-              } else {
-                AppToast.show(this.getUIContext(), $r('app.string.unlock_biometrics_disabled'));
               }
-            }
-          })
+            })
+          }
 
           // 注销
           AdaptiveTextButton({

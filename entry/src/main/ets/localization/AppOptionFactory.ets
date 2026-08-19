@@ -1,8 +1,28 @@
 import { AppDropdownOption } from '../model/AppUiModels';
-import { CardBrandType, CipherFieldType, FilterType, IdentityTitleType } from '../utils/Constants';
+import {
+  AutoLockTimeout,
+  CardBrandType,
+  CipherFieldType,
+  FilterType,
+  IdentityTitleType
+} from '../utils/Constants';
 
 /** 集中创建使用本地化资源的下拉选项。 */
 export class AppOptionFactory {
+  static autoLockTimeouts(): AppDropdownOption[] {
+    const options: AppDropdownOption[] = [];
+    options.push(AppDropdownOption.create($r('app.string.settings_auto_lock_never'), AutoLockTimeout.NEVER));
+    options.push(AppDropdownOption.create($r('app.string.settings_auto_lock_1_minute'), AutoLockTimeout.ONE_MINUTE));
+    options.push(AppDropdownOption.create($r('app.string.settings_auto_lock_5_minutes'), AutoLockTimeout.FIVE_MINUTES));
+    options.push(AppDropdownOption.create($r('app.string.settings_auto_lock_15_minutes'),
+      AutoLockTimeout.FIFTEEN_MINUTES));
+    options.push(AppDropdownOption.create($r('app.string.settings_auto_lock_30_minutes'),
+      AutoLockTimeout.THIRTY_MINUTES));
+    options.push(AppDropdownOption.create($r('app.string.settings_auto_lock_1_hour'), AutoLockTimeout.ONE_HOUR));
+    options.push(AppDropdownOption.create($r('app.string.settings_auto_lock_4_hours'), AutoLockTimeout.FOUR_HOURS));
+    return options;
+  }
+
   static identityTitles(): AppDropdownOption[] {
     const options: AppDropdownOption[] = [];
     options.push(AppDropdownOption.create($r('app.string.common_none'), IdentityTitleType.NONE));
