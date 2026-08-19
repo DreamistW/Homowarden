@@ -160,5 +160,6 @@ export struct CipherItem {
     .padding(16)
     .borderRadius(8)
     .margin({ bottom: 4 })
+    .bindContextMenuByResponseType(this.getMenuItems(), ResponseType.RightClick)
   }
 }
