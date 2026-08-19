@@ -5,6 +5,7 @@ import { dlpAntiPeep } from '@kit.DeviceSecurityKit';
 import { DataPreferences } from '@abner/datastore';
 import { Logger } from '@nzy/logger';
 import { ANTI_PEEP_GUIDE_SHOWN, ANTI_PEEP_PROTECTION } from './Constants';
+import { FormFactorUtil } from './FormFactorUtil';
 
 export class AntiPeepUtil {
   private static subscribed: boolean = false;
@@ -15,6 +16,10 @@ export class AntiPeepUtil {
     };
 
   static ensureDefaults(): void {
+    if (!AntiPeepUtil.isSupported()) {
+      return;
+    }
+
     try {
       if (!DataPreferences.getInstance().hasSync(ANTI_PEEP_PROTECTION)) {
         DataPreferences.getInstance().putSync(ANTI_PEEP_PROTECTION, 1);
@@ -25,6 +30,11 @@ export class AntiPeepUtil {
   }
 
   static async initializeFromStartup(context: common.UIAbilityContext): Promise<void> {
+    if (!AntiPeepUtil.isSupported()) {
+      AntiPeepUtil.unsubscribe();
+      return;
+    }
+
     AntiPeepUtil.ensureDefaults();
     if (!AntiPeepUtil.isLocalProtectionEnabled()) {
       AntiPeepUtil.unsubscribe();
@@ -47,6 +57,11 @@ export class AntiPeepUtil {
   }
 
   static async setProtectionEnabled(enabled: boolean, context?: common.UIAbilityContext): Promise<boolean> {
+    if (!AntiPeepUtil.isSupported()) {
+      AntiPeepUtil.unsubscribe();
+      return false;
+    }
+
     AntiPeepUtil.ensureDefaults();
     if (!enabled) {
       AntiPeepUtil.saveLocalProtectionEnabled(false);
@@ -77,6 +92,10 @@ export class AntiPeepUtil {
   }
 
   static async isProtectionActive(): Promise<boolean> {
+    if (!AntiPeepUtil.isSupported()) {
+      return false;
+    }
+
     AntiPeepUtil.ensureDefaults();
     if (!AntiPeepUtil.isLocalProtectionEnabled()) {
       return false;
@@ -90,6 +109,10 @@ export class AntiPeepUtil {
 
   static dispose(): void {
     AntiPeepUtil.unsubscribe();
+  }
+
+  private static isSupported(): boolean {
+    return !FormFactorUtil.isPc();
   }
 
   private static isLocalProtectionEnabled(): boolean {

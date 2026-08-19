@@ -26,6 +26,7 @@ import { VaultViewModel } from '../viewmodel/VaultViewModel';
 import { AppDropdown } from '../component/AppDropdown';
 import { AppOptionFactory } from '../localization/AppOptionFactory';
 import { AutoLockUtil } from '../utils/AutoLockUtil';
+import { FormFactorUtil } from '../utils/FormFactorUtil';
 
 @Component
 export struct SettingsPage {
@@ -45,6 +46,7 @@ export struct SettingsPage {
   @State confirmMessage: ResourceStr = '';
   @State confirmText: ResourceStr = $r('app.string.common_confirm');
   private confirmAction: () => Promise<boolean> = async () => true;
+  private isPc: boolean = FormFactorUtil.isPc();
   private confirmController: CustomDialogController = new CustomDialogController({
     builder: ConfirmDialog({
       title: $confirmTitle,
@@ -202,37 +204,39 @@ export struct SettingsPage {
                 .fontColor('#666666')
                 .alignSelf(ItemAlign.Start)
 
-              Row() {
-                Text($r('app.string.settings_anti_peep'))
-                  .fontSize(16)
+              if (!this.isPc) {
+                Row() {
+                  Text($r('app.string.settings_anti_peep'))
+                    .fontSize(16)
 
-                Blank()
+                  Blank()
 
-                Toggle({ type: ToggleType.Switch, isOn: this.antiPeepProtectionEnabled })
-                  .accessibilityText($r('app.string.settings_anti_peep'))
-                  .onChange(async (isOn: boolean) => {
-                    this.antiPeepProtectionEnabled = isOn;
-                    if (!isOn) {
-                      await AntiPeepUtil.setProtectionEnabled(false);
-                      this.antiPeepProtectionEnabled = false;
-                      return;
-                    }
+                  Toggle({ type: ToggleType.Switch, isOn: this.antiPeepProtectionEnabled })
+                    .accessibilityText($r('app.string.settings_anti_peep'))
+                    .onChange(async (isOn: boolean) => {
+                      this.antiPeepProtectionEnabled = isOn;
+                      if (!isOn) {
+                        await AntiPeepUtil.setProtectionEnabled(false);
+                        this.antiPeepProtectionEnabled = false;
+                        return;
+                      }
 
-                    const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
-                    const enabled = await AntiPeepUtil.setProtectionEnabled(true, context);
-                    this.antiPeepProtectionEnabled = enabled;
-                    if (!enabled) {
-                      AppToast.show(this.getUIContext(), $r('app.string.error_save_failed'));
-                    }
-                  })
+                      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+                      const enabled = await AntiPeepUtil.setProtectionEnabled(true, context);
+                      this.antiPeepProtectionEnabled = enabled;
+                      if (!enabled) {
+                        AppToast.show(this.getUIContext(), $r('app.string.error_save_failed'));
+                      }
+                    })
+                }
+                .width('100%')
+                .padding({ top: 20, bottom: 4 })
+
+                Text($r('app.string.settings_anti_peep_desc'))
+                  .fontSize(12)
+                  .fontColor('#666666')
+                  .alignSelf(ItemAlign.Start)
               }
-              .width('100%')
-              .padding({ top: 20, bottom: 4 })
-
-              Text($r('app.string.settings_anti_peep_desc'))
-                .fontSize(12)
-                .fontColor('#666666')
-                .alignSelf(ItemAlign.Start)
             }
             .width('100%')
             .padding(16)
