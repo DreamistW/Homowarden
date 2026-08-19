@@ -22,23 +22,26 @@ export struct CipherItem {
 
   @Builder
   CipherTypeIcon() {
-    Text(this.getTypeIcon())
-      .fontSize(24)
-      .margin({ right: 8 })
+    Image(this.getTypeIcon())
+      .width(28)
+      .height(28)
+      .objectFit(ImageFit.Contain)
+      .margin({ right: 12 })
+      .accessibilityLevel('no')
   }
 
-  private getTypeIcon(): string {
+  private getTypeIcon(): Resource {
     switch (this.cipher.type) {
       case CipherItemType.LOGIN:
-        return '🔑';
+        return $r('app.media.icon_cipher_login');
       case CipherItemType.NOTE:
-        return '📝';
+        return $r('app.media.icon_cipher_note');
       case CipherItemType.CARD:
-        return '💳';
+        return $r('app.media.icon_cipher_card');
       case CipherItemType.IDENTITY:
-        return '👤';
+        return $r('app.media.icon_cipher_identity');
       default:
-        return '•';
+        return $r('app.media.icon_cipher_unknown');
     }
   }
 
