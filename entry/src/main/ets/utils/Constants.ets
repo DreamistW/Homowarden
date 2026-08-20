@@ -73,8 +73,6 @@ export const BIOMETRIC_AUTH = 'biometric_auth';
 
 export const NEED_RELOAD_CIPHERS = 'need_reload_ciphers';
 
-export const BACKGROUND_TIMESTAMP = 'background_timestamp';
-
 export const AUTO_LOCK_TIMEOUT = 'auto_lock';
 
 export enum AutoLockTimeout {

@@ -5,6 +5,8 @@ import { AUTO_LOCK_TIMEOUT, AutoLockTimeout } from './Constants';
 const LEGACY_AUTO_LOCK_ENABLED = 1;
 
 export class AutoLockUtil {
+  private static lastActivityAtMs: number = Date.now();
+
   static getTimeoutSeconds(): AutoLockTimeout {
     try {
       const storedValue = DataPreferences.getInstance().getSync<number>(AUTO_LOCK_TIMEOUT);
@@ -22,7 +24,20 @@ export class AutoLockUtil {
   static setTimeoutSeconds(timeoutSeconds: number): AutoLockTimeout {
     const normalizedValue = AutoLockUtil.normalizeTimeout(timeoutSeconds);
     DataPreferences.getInstance().putSync(AUTO_LOCK_TIMEOUT, normalizedValue);
+    AutoLockUtil.recordActivity();
     return normalizedValue;
+  }
+
+  static recordActivity(activityAtMs: number = Date.now()): void {
+    AutoLockUtil.lastActivityAtMs = activityAtMs;
+  }
+
+  static hasTimedOut(currentTimeMs: number = Date.now()): boolean {
+    const timeoutSeconds = AutoLockUtil.getTimeoutSeconds();
+    if (timeoutSeconds === AutoLockTimeout.NEVER) {
+      return false;
+    }
+    return currentTimeMs - AutoLockUtil.lastActivityAtMs >= timeoutSeconds * 1000;
   }
 
   private static normalizeTimeout(timeoutSeconds: number): AutoLockTimeout {

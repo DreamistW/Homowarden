@@ -6,7 +6,6 @@ import { common } from '@kit.AbilityKit';
 import { AppToast } from '../utils/AppToast';
 import { DataPreferences } from '@abner/datastore';
 import {
-  BACKGROUND_TIMESTAMP,
   BIOMETRIC_AUTH,
   EMAIL_KEY,
   KDF_PARAM_KEY,
@@ -288,13 +287,12 @@ export struct UnlockPage {
       // 验证派生的主密钥是否与存储的匹配
       if (derivedMasterKey === storedMasterKey) {
         // 解锁只更新时间戳和导航状态，不把输入的主密码持久化。
-        DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
         const info: NavPathInfo[] = this.pathInfos.getPathStack();
         const pathName = info[0].name;
+        VaultViewModel.beginSession();
         // 判断当前页面栈
         if (pathName == EntryRouter.UnlockPage) {
           // 认证成功，跳转到 VaultPage
-          VaultViewModel.beginSession();
           this.pathInfos.replacePath({ name: EntryRouter.VaultPage });
         } else {
           this.pathInfos.pop();
@@ -357,13 +355,12 @@ export struct UnlockPage {
           userAuthInstance.off('result');
 
           if (result.result === userAuth.UserAuthResultCode.SUCCESS) {
-            DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
             const info: NavPathInfo[] = this.pathInfos.getPathStack();
             const pathName = info[0].name;
+            VaultViewModel.beginSession();
             // 判断当前页面栈
             if (pathName == EntryRouter.UnlockPage) {
               // 认证成功，跳转到 VaultPage
-              VaultViewModel.beginSession();
               this.pathInfos.replacePath({ name: EntryRouter.VaultPage });
             } else {
               this.pathInfos.pop();

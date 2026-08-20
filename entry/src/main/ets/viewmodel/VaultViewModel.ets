@@ -22,6 +22,7 @@ import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
 import { AppOptionFactory } from '../localization/AppOptionFactory';
 import { AppText, AppTextKey } from '../localization/AppText';
 import { LocaleUtil } from '../localization/LocaleUtil';
+import { AutoLockUtil } from '../utils/AutoLockUtil';
 
 /**
  * 密码库ViewModel
@@ -139,6 +140,7 @@ export class VaultViewModel {
     VaultViewModel.sessionActive = true;
     VaultViewModel.syncBlocked = false;
     VaultViewModel.syncGeneration++;
+    AutoLockUtil.recordActivity();
   }
 
   static lockSession(): void {

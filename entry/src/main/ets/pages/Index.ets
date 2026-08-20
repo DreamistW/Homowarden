@@ -2,7 +2,6 @@ import { DataPreferences } from '@abner/datastore';
 import {
   AUTO_LOCK_TIMEOUT,
   AutoLockTimeout,
-  BACKGROUND_TIMESTAMP,
   BIOMETRIC_AUTH,
   LOGIN_STATUS_KEY,
   PRIVACY_AGREED_KEY,
@@ -94,9 +93,11 @@ struct Index {
   @State private showPrivacyMask: boolean = false;
   @State private hasInitializedRoute: boolean = false;
   private isLogin: boolean = false;
+  private autoLockTimer: number = -1;
 
   // 检查防窥保护开关并订阅通知
   async aboutToAppear() {
+    this.startAutoLockWatcher();
     const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
     await AntiPeepUtil.initializeFromStartup(context);
   }
@@ -105,6 +106,7 @@ struct Index {
     this.privacyDialogController.close();
     AntiPeepUtil.dispose();
     BreakpointUtil.dispose();
+    this.stopAutoLockWatcher();
   }
 
   onPageShow(): void {
@@ -120,16 +122,13 @@ struct Index {
     AntiPeepUtil.resetMaskState();
     this.getLoginStatus();
     void WindowPrivacyUtil.applyForCurrentState();
-    if (this.hasInitializedRoute && this.isLogin && VaultViewModel.isSessionActive() &&
-      !this.canRestoreUnlockedVault()) {
-      VaultViewModel.lockSession();
-      this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
+    if (this.hasInitializedRoute && this.isLogin) {
+      this.enforceAutoLockOnForeground();
     }
   }
 
   onPageHide(): void {
     Logger.info('Index onPageHide');
-    DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
   }
 
   privacyDialogController: CustomDialogController = new CustomDialogController({
@@ -202,16 +201,51 @@ struct Index {
   }
 
   private canRestoreUnlockedVault(): boolean {
-    const autoLockTimeoutSeconds = AutoLockUtil.getTimeoutSeconds();
-    if (autoLockTimeoutSeconds === AutoLockTimeout.NEVER) {
-      return true;
+    return !AutoLockUtil.hasTimedOut();
+  }
+
+  private startAutoLockWatcher(): void {
+    this.stopAutoLockWatcher();
+    this.autoLockTimer = setInterval(() => {
+      if (VaultViewModel.isSessionActive() && AutoLockUtil.hasTimedOut()) {
+        this.lockVaultForTimeout();
+      }
+    }, 1000);
+  }
+
+  private stopAutoLockWatcher(): void {
+    if (this.autoLockTimer < 0) {
+      return;
     }
-    if (!DataPreferences.getInstance().hasSync(BACKGROUND_TIMESTAMP)) {
-      return false;
+    clearInterval(this.autoLockTimer);
+    this.autoLockTimer = -1;
+  }
+
+  private handleUserActivity(): void {
+    if (!VaultViewModel.isSessionActive()) {
+      return;
     }
-    const currentTime = Math.floor(Date.now() / 1000);
-    const backgroundTime = DataPreferences.getInstance().getSync<number>(BACKGROUND_TIMESTAMP);
-    return currentTime - backgroundTime < autoLockTimeoutSeconds;
+    if (AutoLockUtil.hasTimedOut()) {
+      this.lockVaultForTimeout();
+      return;
+    }
+    AutoLockUtil.recordActivity();
+  }
+
+  private enforceAutoLockOnForeground(): void {
+    if (!VaultViewModel.isSessionActive() || AutoLockUtil.hasTimedOut()) {
+      this.lockVaultForTimeout();
+    }
+  }
+
+  private lockVaultForTimeout(): void {
+    VaultViewModel.lockSession();
+    const paths = this.pathInfos.getPathStack();
+    const activePathName = paths.length > 0 ? paths[paths.length - 1].name : '';
+    if (activePathName === EntryRouter.UnlockPage || activePathName === EntryRouter.LoginPage) {
+      return;
+    }
+    this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
   }
 
   build() {
@@ -234,6 +268,15 @@ struct Index {
     // 直接使用 ArkUI 实际布局尺寸，兼容媒体方向上报不准确的折叠屏形态。
     .onAreaChange((_oldValue: Area, newValue: Area) => {
       BreakpointUtil.updateViewport(Number(newValue.width), Number(newValue.height));
+    })
+    .onTouch(() => {
+      this.handleUserActivity();
+    })
+    .onMouse(() => {
+      this.handleUserActivity();
+    })
+    .onKeyEvent(() => {
+      this.handleUserActivity();
     })
     .foregroundBlurStyle(this.showPrivacyMask ? BlurStyle.Thick : BlurStyle.NONE)
   }

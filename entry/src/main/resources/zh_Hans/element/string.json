@@ -982,7 +982,7 @@
     },
     {
       "name": "settings_auto_lock_desc",
-      "value": "应用置于后台达到所选时长后自动锁定密码库。"
+      "value": "在所选时长内未操作时，自动锁定密码库。"
     },
     {
       "name": "settings_auto_lock_never",
