@@ -250,6 +250,11 @@ export interface CipherJsonRequest {
   encryptedFor: string | null;
 }
 
+export interface CipherPartialRequest {
+  folderId: string | null;
+  favorite: boolean;
+}
+
 export interface CreateCipherInOrganizationRequest {
   Cipher: CipherJsonRequest;
   CollectionIds: string[];

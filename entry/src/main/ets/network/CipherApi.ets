@@ -2,6 +2,7 @@ import { createHttpClient } from './HttpClient';
 import {
   Cipher,
   CipherJsonRequest,
+  CipherPartialRequest,
   CreateCipherInOrganizationRequest,
   VaultSyncResponse
 } from '../model/CipherModels';
@@ -164,6 +165,25 @@ export async function updateCipher(id: string, cipher: Cipher): Promise<Cipher> 
     return response.data;
   }).catch((error: BusinessError) => {
     Logger.error('Failed to update cipher item: ' + error.message);
+    return Promise.reject(error);
+  });
+}
+
+/**
+ * 更新密码项无需重新加密的属性。
+ */
+export async function updateCipherPartial(id: string, request: CipherPartialRequest): Promise<Cipher> {
+  const baseURL = await getApiBaseUrl();
+  const client = createHttpClient(baseURL);
+  const token = await getAccessToken();
+  return client.put(`/ciphers/${id}/partial`, request, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  }).then((response: AxiosResponse<Cipher>) => {
+    return response.data;
+  }).catch((error: BusinessError) => {
+    Logger.error('Failed to update cipher item partially: ' + error.message);
     return Promise.reject(error);
   });
 }

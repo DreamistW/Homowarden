@@ -40,6 +40,8 @@ export struct CipherDetailPage {
   @State cipher: Cipher = {} as Cipher;
   @State isLoading: boolean = true;
   @State isSaving: boolean = false;
+  @State isFavoriteSaving: boolean = false;
+  @State isFavorite: boolean = false;
   @State showHideField: boolean = false;
   @State isEditable: boolean = false;
   @State isDetailLoaded: boolean = false;
@@ -258,6 +260,7 @@ export struct CipherDetailPage {
       const cipherDetail = await this.viewModel.getCipherDetail(this.cipher);
       if (cipherDetail) {
         this.cipher = cipherDetail;
+        this.isFavorite = cipherDetail.favorite;
         this.refreshFormattedDates();
         if (this.cipher.type === CipherItemType.LOGIN && this.cipher.login) {
           this.editUris = this.cipher.login.uris;
@@ -382,6 +385,19 @@ export struct CipherDetailPage {
     };
   }
 
+  private getFavoriteItemBtn(): HdsNavigationBadgeIconOptions {
+    return {
+      content: {
+        label: this.isFavorite ? $r('app.string.cipher_remove_favorite') :
+          $r('app.string.cipher_add_favorite'),
+        icon: this.isFavorite ? $r('app.media.icon_favorite_filled') : $r('app.media.icon_favorite'),
+        action: async () => {
+          await this.toggleFavorite();
+        }
+      }
+    };
+  }
+
   private getTitleMenu(): HdsNavigationBadgeIconOptions[] {
     if (this.isEditable) {
       return [this.CancelEditBtn, this.getConfirmEditBtn()];
@@ -392,7 +408,27 @@ export struct CipherDetailPage {
     if (!this.isDetailLoaded) {
       return [this.DeleteItemBtn];
     }
-    return [this.EditItemBtn, this.DeleteItemBtn];
+    return [this.getFavoriteItemBtn(), this.EditItemBtn, this.DeleteItemBtn];
+  }
+
+  private async toggleFavorite(): Promise<void> {
+    if (this.isFavoriteSaving || !this.isDetailLoaded || this.cipher.deletedDate) {
+      return;
+    }
+    this.isFavoriteSaving = true;
+    try {
+      VaultChangeNotifier.markLocalChangePending();
+      this.cipher = await this.viewModel.updateFavorite(this.cipher, !this.isFavorite);
+      this.isFavorite = this.cipher.favorite;
+      DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
+      VaultChangeNotifier.setUpdatedCipher(this.cipher);
+      AppToast.show(this.getUIContext(), $r('app.string.common_success'));
+    } catch (error) {
+      Logger.error('Failed to update favorite:', error);
+      AppToast.show(this.getUIContext(), $r('app.string.error_save_failed'));
+    } finally {
+      this.isFavoriteSaving = false;
+    }
   }
 
   /**

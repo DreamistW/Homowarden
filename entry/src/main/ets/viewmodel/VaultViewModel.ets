@@ -500,13 +500,12 @@ export class VaultViewModel {
     };
     try {
       for (const cipherData of data) {
-        if (cipherData.favorite as number === 1) {
-          stats.favorite++;
-        }
-
         if (cipherData.deleted_date != null) {
           stats.deleted++;
         } else {
+          if (cipherData.favorite as number === 1) {
+            stats.favorite++;
+          }
           stats.total++;
           switch (cipherData.type as number) {
             case CipherItemType.LOGIN:
@@ -546,12 +545,12 @@ export class VaultViewModel {
     };
 
     for (const cipher of ciphers) {
-      if (cipher.favorite) {
-        stats.favorite++;
-      }
       if (cipher.deletedDate != null) {
         stats.deleted++;
         continue;
+      }
+      if (cipher.favorite) {
+        stats.favorite++;
       }
       stats.total++;
       switch (cipher.type) {

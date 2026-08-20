@@ -15,7 +15,8 @@ import {
   deleteCipher,
   moveCipherToRecycler,
   restoreCipher,
-  updateCipher as updateCipherApi
+  updateCipher as updateCipherApi,
+  updateCipherPartial as updateCipherPartialApi
 } from '../network/CipherApi';
 import { DeviceUtil } from '../utils/DeviceUtil';
 import { relationalStore } from '@kit.ArkData';
@@ -237,6 +238,37 @@ export class CipherDetailViewModel {
     } catch (error) {
       const errorMessage = ErrorMessageUtil.getMessage(error as Object);
       Logger.error(`Failed to update cipher ${cipher.id}: ${errorMessage}`);
+      throw new Error(errorMessage);
+    }
+  }
+
+  /**
+   * 更新收藏状态。该属性无需解密或重新加密密码项正文。
+   */
+  async updateFavorite(cipher: Cipher, favorite: boolean): Promise<Cipher> {
+    try {
+      const updatedCipher = await updateCipherPartialApi(cipher.id, {
+        folderId: cipher.folderId,
+        favorite: favorite
+      });
+      const appliedFavorite = updatedCipher.favorite === undefined ? favorite : updatedCipher.favorite;
+      let cipherData: relationalStore.ValuesBucket = {
+        favorite: appliedFavorite ? 1 : 0
+      };
+      if (updatedCipher.revisionDate) {
+        cipherData.revision_date = updatedCipher.revisionDate;
+      }
+      await DatabaseUtil.getInstance().updateData(DBTableName.MAIN, cipher.id, cipherData);
+      cipher.favorite = appliedFavorite;
+      if (updatedCipher.revisionDate) {
+        cipher.revisionDate = updatedCipher.revisionDate;
+        cipher.lastKnownRevisionDate = updatedCipher.revisionDate;
+      }
+      Logger.info(`Cipher ${cipher.id} favorite updated successfully`);
+      return cipher;
+    } catch (error) {
+      const errorMessage = ErrorMessageUtil.getMessage(error as Object);
+      Logger.error(`Failed to update favorite for cipher ${cipher.id}: ${errorMessage}`);
       throw new Error(errorMessage);
     }
   }

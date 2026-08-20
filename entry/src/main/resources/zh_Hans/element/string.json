@@ -749,6 +749,14 @@
       "value": "密码项详情"
     },
     {
+      "name": "cipher_add_favorite",
+      "value": "添加到收藏"
+    },
+    {
+      "name": "cipher_remove_favorite",
+      "value": "取消收藏"
+    },
+    {
       "name": "identity_mr",
       "value": "先生"
     },
