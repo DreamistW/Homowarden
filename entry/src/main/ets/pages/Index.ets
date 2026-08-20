@@ -19,6 +19,7 @@ import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 import { AntiPeepUtil } from '../utils/AntiPeepUtil';
 import { BreakpointUtil } from '../utils/BreakpointUtil';
 import { AutoLockUtil } from '../utils/AutoLockUtil';
+import { VaultViewModel } from '../viewmodel/VaultViewModel';
 
 @CustomDialog
 struct PrivacyDialogContent {
@@ -119,15 +120,10 @@ struct Index {
     AntiPeepUtil.resetMaskState();
     this.getLoginStatus();
     void WindowPrivacyUtil.applyForCurrentState();
-    if (this.isLogin) {
-      const autoLockTimeoutSeconds = AutoLockUtil.getTimeoutSeconds();
-      if (autoLockTimeoutSeconds !== AutoLockTimeout.NEVER) {
-        const currentTime = Math.floor(Date.now() / 1000);
-        const backgroundTime = DataPreferences.getInstance().getSync<number>(BACKGROUND_TIMESTAMP);
-        if (currentTime - backgroundTime >= autoLockTimeoutSeconds) {
-          this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
-        }
-      }
+    if (this.hasInitializedRoute && this.isLogin && VaultViewModel.isSessionActive() &&
+      !this.canRestoreUnlockedVault()) {
+      VaultViewModel.lockSession();
+      this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
     }
   }
 
@@ -196,10 +192,26 @@ struct Index {
       this.getLoginStatus();
       if (!this.isLogin) {
         this.pathInfos.pushPath({ name: EntryRouter.LoginPage });
+      } else if (VaultViewModel.isSessionActive() && this.canRestoreUnlockedVault()) {
+        this.pathInfos.pushPath({ name: EntryRouter.VaultPage });
       } else {
+        VaultViewModel.lockSession();
         this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
       }
     }
+  }
+
+  private canRestoreUnlockedVault(): boolean {
+    const autoLockTimeoutSeconds = AutoLockUtil.getTimeoutSeconds();
+    if (autoLockTimeoutSeconds === AutoLockTimeout.NEVER) {
+      return true;
+    }
+    if (!DataPreferences.getInstance().hasSync(BACKGROUND_TIMESTAMP)) {
+      return false;
+    }
+    const currentTime = Math.floor(Date.now() / 1000);
+    const backgroundTime = DataPreferences.getInstance().getSync<number>(BACKGROUND_TIMESTAMP);
+    return currentTime - backgroundTime < autoLockTimeoutSeconds;
   }
 
   build() {

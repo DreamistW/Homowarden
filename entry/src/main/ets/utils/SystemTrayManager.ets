@@ -1,4 +1,4 @@
-import { common } from '@kit.AbilityKit';
+import { common, contextConstant, StartOptions, Want } from '@kit.AbilityKit';
 import { emitter } from '@kit.BasicServicesKit';
 import { statusBarManager } from '@kit.DeskTopExtensionKit';
 import { image } from '@kit.ImageKit';
@@ -8,6 +8,9 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 const DOMAIN = 0x0000;
 const TAG = 'SystemTray';
 const OPEN_MENU_CODE = 'open';
+const ENTRY_ABILITY_NAME = 'EntryAbility';
+const KEEP_ALIVE_ABILITY_NAME = 'TrayKeepAliveAbility';
+const ENTRY_MODULE_NAME = 'entry';
 
 /**
  * Manages the PC/2in1 status bar icon and close-to-tray behavior.
@@ -16,23 +19,31 @@ const OPEN_MENU_CODE = 'open';
  */
 export class SystemTrayManager {
   private static isRegistered: boolean = false;
+  private static isKeepAliveReady: boolean = false;
   private static mainWindow: window.Window | null = null;
+  private static fallbackContext: common.UIAbilityContext | null = null;
+  private static keepAliveContext: common.UIAbilityContext | null = null;
 
   private static readonly iconClickCallback = (eventData: emitter.EventData): void => {
     const data = eventData.data;
     if (data && data['iconClickType'] === 'leftClick') {
-      void SystemTrayManager.restoreMainWindow();
+      void SystemTrayManager.openMainWindow();
     }
   };
 
   private static readonly rightMenuClickCallback = (eventData: emitter.EventData): void => {
     const data = eventData.data;
     if (data && data['menuCode'] === OPEN_MENU_CODE) {
-      void SystemTrayManager.restoreMainWindow();
+      void SystemTrayManager.openMainWindow();
     }
   };
 
   private static readonly windowWillCloseCallback = async (): Promise<boolean> => {
+    if (SystemTrayManager.isKeepAliveReady) {
+      hilog.info(DOMAIN, TAG, 'Main window will close while the status bar process remains active.');
+      return false;
+    }
+
     const currentWindow = SystemTrayManager.mainWindow;
     if (!currentWindow) {
       return false;
@@ -56,6 +67,7 @@ export class SystemTrayManager {
         return;
       }
 
+      SystemTrayManager.fallbackContext = context;
       SystemTrayManager.mainWindow = windowStage.getMainWindowSync();
       if (!SystemTrayManager.isRegistered) {
         await SystemTrayManager.addStatusBarIcon(context);
@@ -64,10 +76,53 @@ export class SystemTrayManager {
         SystemTrayManager.isRegistered = true;
       }
 
+      await SystemTrayManager.startKeepAliveAbility(context);
       SystemTrayManager.mainWindow.on('windowWillClose', SystemTrayManager.windowWillCloseCallback);
-      hilog.info(DOMAIN, TAG, 'Status bar icon and close-to-tray behavior are ready.');
+      hilog.info(DOMAIN, TAG, 'Status bar icon and close-to-tray behavior are ready. Keep-alive: %{public}s',
+        SystemTrayManager.isKeepAliveReady ? 'enabled' : 'fallback-to-minimize');
     } catch (error) {
       hilog.error(DOMAIN, TAG, 'Failed to initialize system tray: %{public}s', JSON.stringify(error));
+    }
+  }
+
+  static attachKeepAliveContext(context: common.UIAbilityContext): void {
+    SystemTrayManager.keepAliveContext = context;
+    SystemTrayManager.isKeepAliveReady = true;
+    hilog.info(DOMAIN, TAG, 'Hidden keep-alive ability attached to the status bar item.');
+  }
+
+  static detachKeepAliveContext(): void {
+    SystemTrayManager.keepAliveContext = null;
+    SystemTrayManager.isKeepAliveReady = false;
+    hilog.info(DOMAIN, TAG, 'Hidden keep-alive ability detached from the status bar item.');
+  }
+
+  static detachMainWindow(): void {
+    SystemTrayManager.mainWindow = null;
+    SystemTrayManager.fallbackContext = null;
+  }
+
+  private static async startKeepAliveAbility(context: common.UIAbilityContext): Promise<void> {
+    if (SystemTrayManager.isKeepAliveReady) {
+      return;
+    }
+
+    const want: Want = {
+      bundleName: context.applicationInfo.name,
+      moduleName: ENTRY_MODULE_NAME,
+      abilityName: KEEP_ALIVE_ABILITY_NAME
+    };
+    const options: StartOptions = {
+      processMode: contextConstant.ProcessMode.ATTACH_TO_STATUS_BAR_ITEM,
+      startupVisibility: contextConstant.StartupVisibility.STARTUP_HIDE
+    };
+    try {
+      await context.startAbility(want, options);
+      SystemTrayManager.isKeepAliveReady = true;
+      hilog.info(DOMAIN, TAG, 'Hidden keep-alive ability started.');
+    } catch (error) {
+      SystemTrayManager.isKeepAliveReady = false;
+      hilog.error(DOMAIN, TAG, 'Failed to start hidden keep-alive ability: %{public}s', JSON.stringify(error));
     }
   }
 
@@ -89,8 +144,8 @@ export class SystemTrayManager {
     const openLabel = resourceManager.getStringByNameSync('tray_open');
 
     const openAction: statusBarManager.StatusBarMenuAction = {
-      abilityName: 'EntryAbility',
-      moduleName: 'entry',
+      abilityName: ENTRY_ABILITY_NAME,
+      moduleName: ENTRY_MODULE_NAME,
       notifyOnly: true
     };
     const openMenuItem: statusBarManager.StatusBarMenuItem = {
@@ -107,7 +162,7 @@ export class SystemTrayManager {
         abilityName: '',
         title: appName,
         height: 1,
-        moduleName: 'entry'
+        moduleName: ENTRY_MODULE_NAME
       },
       statusBarGroupMenu: [[openMenuItem]],
       hoverTips: appName
@@ -117,18 +172,28 @@ export class SystemTrayManager {
     hilog.info(DOMAIN, TAG, 'Status bar icon added.');
   }
 
-  private static async restoreMainWindow(): Promise<void> {
-    const currentWindow = SystemTrayManager.mainWindow;
-    if (!currentWindow) {
-      hilog.warn(DOMAIN, TAG, 'Cannot restore main window because it is unavailable.');
-      return;
-    }
-
+  private static async openMainWindow(): Promise<void> {
     try {
-      await currentWindow.restore();
-      hilog.info(DOMAIN, TAG, 'Main window restored from the status bar.');
+      if (!SystemTrayManager.isKeepAliveReady && SystemTrayManager.mainWindow) {
+        await SystemTrayManager.mainWindow.restore();
+        hilog.info(DOMAIN, TAG, 'Main window restored from the status bar fallback.');
+        return;
+      }
+
+      const context = SystemTrayManager.keepAliveContext ?? SystemTrayManager.fallbackContext;
+      if (!context) {
+        hilog.warn(DOMAIN, TAG, 'Cannot open main window because no ability context is available.');
+        return;
+      }
+      const want: Want = {
+        bundleName: context.applicationInfo.name,
+        moduleName: ENTRY_MODULE_NAME,
+        abilityName: ENTRY_ABILITY_NAME
+      };
+      await context.startAbility(want);
+      hilog.info(DOMAIN, TAG, 'Main window opened from the status bar.');
     } catch (error) {
-      hilog.error(DOMAIN, TAG, 'Failed to restore main window: %{public}s', JSON.stringify(error));
+      hilog.error(DOMAIN, TAG, 'Failed to open main window: %{public}s', JSON.stringify(error));
     }
   }
 }

@@ -33,6 +33,7 @@ export class VaultViewModel {
   private static activeDatabaseWritePromise: Promise<void> | null = null;
   private static syncGeneration: number = 0;
   private static syncBlocked: boolean = false;
+  private static sessionActive: boolean = false;
   // 所有密码项
   allCiphers: Cipher[] = [];
   // 筛选后的密码项
@@ -121,6 +122,7 @@ export class VaultViewModel {
   }
 
   static async prepareForLogout(): Promise<void> {
+    VaultViewModel.sessionActive = false;
     VaultViewModel.syncBlocked = true;
     VaultViewModel.syncGeneration++;
     const writePromise = VaultViewModel.activeDatabaseWritePromise;
@@ -134,8 +136,17 @@ export class VaultViewModel {
   }
 
   static beginSession(): void {
+    VaultViewModel.sessionActive = true;
     VaultViewModel.syncBlocked = false;
     VaultViewModel.syncGeneration++;
+  }
+
+  static lockSession(): void {
+    VaultViewModel.sessionActive = false;
+  }
+
+  static isSessionActive(): boolean {
+    return VaultViewModel.sessionActive;
   }
 
   private async performSyncCiphersFromServer(generation: number): Promise<boolean> {

@@ -932,6 +932,7 @@ export struct VaultPage {
   }
 
   private lockVault(): void {
+    VaultViewModel.lockSession();
     this.pathInfos.replacePath({ name: EntryRouter.UnlockPage });
   }
 
