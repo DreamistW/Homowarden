@@ -1,5 +1,5 @@
 import { common, contextConstant, StartOptions, Want } from '@kit.AbilityKit';
-import { emitter } from '@kit.BasicServicesKit';
+import { BusinessError, emitter } from '@kit.BasicServicesKit';
 import { statusBarManager } from '@kit.DeskTopExtensionKit';
 import { image } from '@kit.ImageKit';
 import { window } from '@kit.ArkUI';
@@ -11,6 +11,9 @@ const OPEN_MENU_CODE = 'open';
 const ENTRY_ABILITY_NAME = 'EntryAbility';
 const KEEP_ALIVE_ABILITY_NAME = 'TrayKeepAliveAbility';
 const ENTRY_MODULE_NAME = 'entry';
+const START_OPTIONS_CHECK_FAILED = 16000067;
+const KEEP_ALIVE_START_MAX_ATTEMPTS = 3;
+const KEEP_ALIVE_START_RETRY_DELAY_MS = 100;
 
 /**
  * Manages the PC/2in1 status bar icon and close-to-tray behavior.
@@ -113,17 +116,39 @@ export class SystemTrayManager {
       abilityName: KEEP_ALIVE_ABILITY_NAME
     };
     const options: StartOptions = {
+      // Keep the event listeners and hidden ability in the same process, then
+      // bind that process to the status bar item so icon clicks remain routed.
       processMode: contextConstant.ProcessMode.ATTACH_TO_STATUS_BAR_ITEM,
       startupVisibility: contextConstant.StartupVisibility.STARTUP_HIDE
     };
-    try {
-      await context.startAbility(want, options);
-      SystemTrayManager.isKeepAliveReady = true;
-      hilog.info(DOMAIN, TAG, 'Hidden keep-alive ability started.');
-    } catch (error) {
-      SystemTrayManager.isKeepAliveReady = false;
-      hilog.error(DOMAIN, TAG, 'Failed to start hidden keep-alive ability: %{public}s', JSON.stringify(error));
+    for (let attempt = 1; attempt <= KEEP_ALIVE_START_MAX_ATTEMPTS; attempt++) {
+      try {
+        await context.startAbility(want, options);
+        SystemTrayManager.isKeepAliveReady = true;
+        hilog.info(DOMAIN, TAG, 'Hidden keep-alive ability started on attempt %{public}d.', attempt);
+        return;
+      } catch (error) {
+        const businessError = error as BusinessError;
+        const shouldRetry = businessError.code === START_OPTIONS_CHECK_FAILED &&
+          attempt < KEEP_ALIVE_START_MAX_ATTEMPTS;
+        if (!shouldRetry) {
+          SystemTrayManager.isKeepAliveReady = false;
+          hilog.error(DOMAIN, TAG, 'Failed to start hidden keep-alive ability: %{public}s', JSON.stringify(error));
+          return;
+        }
+
+        hilog.warn(DOMAIN, TAG,
+          'Status bar item is not ready yet; retrying hidden keep-alive ability startup after %{public}d ms.',
+          KEEP_ALIVE_START_RETRY_DELAY_MS);
+        await SystemTrayManager.delay(KEEP_ALIVE_START_RETRY_DELAY_MS);
+      }
     }
+  }
+
+  private static delay(delayMs: number): Promise<void> {
+    return new Promise<void>((resolve: () => void) => {
+      setTimeout(resolve, delayMs);
+    });
   }
 
   private static async addStatusBarIcon(context: common.UIAbilityContext): Promise<void> {
