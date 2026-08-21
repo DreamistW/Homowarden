@@ -19,7 +19,7 @@ export function mainNavigationItems(): MainNavigationItem[] {
     { tab: MainTab.VAULT, label: $r('app.string.nav_vault'), icon: $r('app.media.icon_home') },
     { tab: MainTab.TOTP, label: $r('app.string.nav_totp'), icon: $r('app.media.icon_key') },
     { tab: MainTab.GENERATOR, label: $r('app.string.nav_generator'), icon: $r('app.media.icon_password') },
-    { tab: MainTab.SHARE, label: $r('app.string.nav_share'), icon: $r('app.media.icon_share') },
+    { tab: MainTab.SHARE, label: $r('app.string.nav_share'), icon: $r('app.media.icon_nav_share') },
     { tab: MainTab.SETTINGS, label: $r('app.string.nav_settings'), icon: $r('app.media.icon_settings') }
   ];
 }
