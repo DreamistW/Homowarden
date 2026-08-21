@@ -7,6 +7,8 @@ import { AdaptiveIconButton } from '../component/AdaptiveButton';
 import { AppToast } from '../utils/AppToast';
 import { DetailRouter } from '../utils/DetailRouter';
 import { ConfirmDialog } from '../component/ConfirmDialog';
+import { HistorySelectionBar, HistorySelectionIndicator } from '../component/HistorySelectionControls';
+import { HistoryTimeFormatter } from '../utils/HistoryTimeFormatter';
 
 @Builder
 export function GeneratorHistoryPageBuilder() {
@@ -108,7 +110,7 @@ struct GeneratorHistory {
           id: row.id as string,
           content: row.content as string,
           type: row.type as GeneratorRecordType,
-          timestamp: row.timestamp as number
+          timestamp: Number(row.timestamp)
         };
         items.push(item);
       }
@@ -251,35 +253,6 @@ struct GeneratorHistory {
     }
   }
 
-  // 相对时间格式化
-  private formatTime(timestamp: number): string {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) {
-      return this.getUIContext().getHostContext()?.resourceManager
-        .getStringSync($r('app.string.share_just_now').id) ?? '';
-    } else if (minutes < 60) {
-      const resource: Resource = minutes === 1 ? $r('app.string.share_minute_ago') :
-        $r('app.string.share_minutes_ago');
-      return this.getUIContext().getHostContext()?.resourceManager.getStringSync(resource.id, minutes) ?? '';
-    } else if (hours < 24) {
-      const resource: Resource = hours === 1 ? $r('app.string.share_hour_ago') :
-        $r('app.string.share_hours_ago');
-      return this.getUIContext().getHostContext()?.resourceManager.getStringSync(resource.id, hours) ?? '';
-    } else if (days < 7) {
-      const resource: Resource = days === 1 ? $r('app.string.share_day_ago') :
-        $r('app.string.share_days_ago');
-      return this.getUIContext().getHostContext()?.resourceManager.getStringSync(resource.id, days) ?? '';
-    } else {
-      return date.toLocaleDateString();
-    }
-  }
-
   build() {
     HdsNavDestination() {
       Column() {
@@ -348,76 +321,29 @@ struct GeneratorHistory {
     })
   }
 
-  // 多选模式下的勾选指示器。直接在构建器内部读取选中状态以建立响应式依赖。
+  // 多选模式下的勾选指示器。
   @Builder
   SelectionIndicator(item: GeneratorHistoryItem) {
-    Stack() {
-      if (this.isSelected(item.id)) {
-        Text('✓')
-          .fontSize(14)
-          .fontColor($r('app.color.button_foreground_color'))
-      }
-    }
-    .width(22)
-    .height(22)
-    .borderRadius(11)
-    .backgroundColor(this.isSelected(item.id) ? $r('app.color.button_background_color') : Color.Transparent)
-    .border({ width: this.isSelected(item.id) ? 0 : 1.5, color: '#CCCCCC' })
-    .margin({ right: 12 })
+    HistorySelectionIndicator({ selected: this.isSelected(item.id) })
   }
 
   // 多选模式下的底部操作栏。
   @Builder
   SelectionBarBuilder() {
-    Row({ space: 12 }) {
-      Button($r('app.string.common_cancel'))
-        .type(ButtonType.Normal)
-        .backgroundColor(Color.Transparent)
-        .fontColor($r('app.color.button_background_color'))
-        .fontSize(16)
-        .height(40)
-        .onClick(() => {
-          this.exitSelectionMode();
-        })
-
-      Button(this.isAllSelected() ? $r('app.string.common_deselect_all') : $r('app.string.common_select_all'))
-        .type(ButtonType.Normal)
-        .backgroundColor(Color.Transparent)
-        .fontColor($r('app.color.button_background_color'))
-        .fontSize(16)
-        .height(40)
-        .onClick(() => {
-          this.toggleSelectAll();
-        })
-
-      Blank()
-
-      Text(this.getSelectedCountText())
-        .fontColor('#666666')
-        .fontSize(14)
-
-      Button() {
-        Image($r('app.media.icon_delete'))
-          .width(20)
-          .height(20)
-          .fillColor($r('app.color.button_foreground_color'))
-          .accessibilityLevel('no')
+    HistorySelectionBar({
+      allSelected: this.isAllSelected(),
+      selectedCount: this.selectedIds.length,
+      selectedCountText: this.getSelectedCountText(),
+      onCancel: () => {
+        this.exitSelectionMode();
+      },
+      onToggleAll: () => {
+        this.toggleSelectAll();
+      },
+      onDelete: () => {
+        this.requestDeleteSelected();
       }
-        .type(ButtonType.Circle)
-        .width(40)
-        .height(40)
-        .padding(0)
-        .backgroundColor($r('app.color.button_background_color'))
-        .enabled(this.selectedIds.length > 0)
-        .opacity(this.selectedIds.length > 0 ? 1 : 0.4)
-        .accessibilityText($r('app.string.common_delete'))
-        .onClick(() => {
-          this.requestDeleteSelected();
-        })
-    }
-    .width('100%')
-    .padding({ left: 12, right: 12, top: 8, bottom: 8 })
-    .backgroundColor($r('app.color.start_window_background'))
+    })
   }
 
   // 单条历史记录卡片
@@ -438,7 +364,7 @@ struct GeneratorHistory {
             .padding({ left: 6, right: 6, top: 2, bottom: 2 })
             .borderRadius(4)
             .backgroundColor('#F0F0F0')
-          Text(this.formatTime(item.timestamp))
+          Text(HistoryTimeFormatter.format(item.timestamp))
             .fontSize(12)
             .fontColor('#999999')
         }
