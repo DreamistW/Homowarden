@@ -14,11 +14,10 @@ import { CipherCopyField, CipherItem } from '../component/CipherItem';
 import {
   HdsNavDestination, HdsNavigationBadgeIconOptions
 } from '@hms.hds.hdsBaseComponent';
-import { hdsMaterial } from '@kit.UIDesignKit';
+import { HdsTabs, HdsTabsController, hdsMaterial } from '@kit.UIDesignKit';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 import { VaultChangeNotifier, VaultLocalChange, VaultLocalChangeType } from '../utils/VaultChangeNotifier';
-import { MainBottomNavigation } from '../component/MainBottomNavigation';
-import { MainTab } from '../component/MainNavigationItems';
+import { MainNavigationItem, mainNavigationItems, MainTab } from '../component/MainNavigationItems';
 import { TotpListPage } from './TotpListPage';
 import { Sure2SharePage } from './Sure2Share';
 import { SettingsPage } from './SettingsPage';
@@ -38,6 +37,8 @@ import { Logger } from '@nzy/logger';
 import { TOTPUtil } from '../utils/TOTPUtil';
 import { promptAction } from '@kit.ArkUI';
 import { FormFactorUtil } from '../utils/FormFactorUtil';
+
+const COMPACT_TAB_CONTENT_INSET = 104;
 
 @Builder
 export function VaultPageBuilder() {
@@ -60,6 +61,7 @@ struct VaultContent {
   @Prop @Watch('handleActivationRevision') activationRevision: number = 0;
   @Prop @Watch('handleManualRefreshRevision') manualRefreshRevision: number = 0;
   @Prop pullToRefreshEnabled: boolean = true;
+  @Prop bottomContentInset: number = 0;
   onVaultDataChanged: (ciphers: Cipher[], symmetricKey: string) => void = () => {};
   onNavigateToDetail: (params: CipherDetailParams) => void = () => {};
   onRelogin: () => void = () => {};
@@ -381,6 +383,7 @@ struct VaultContent {
       .width('100%')
       .height('100%')
       .padding({ left: 16, right: 16 })
+      .contentEndOffset(this.bottomContentInset)
       .edgeEffect(EdgeEffect.None)
     }
   }
@@ -731,7 +734,7 @@ export struct VaultPage {
   @State vaultActivationRevision: number = 0;
   @State vaultManualRefreshRevision: number = 0;
   private isPc: boolean = FormFactorUtil.isPc();
-  private tabsController: TabsController = new TabsController();
+  private tabsController: HdsTabsController = new HdsTabsController();
   private exitTime: number = 0;
   @State pathInfos: NavPathStack = new NavPathStack();
   @State detailStack: NavPathStack = new NavPathStack();
@@ -941,8 +944,9 @@ export struct VaultPage {
   }
 
   @Builder
-  private vaultContent() {
+  private vaultContent(bottomContentInset: number) {
     VaultContent({
+      bottomContentInset: bottomContentInset,
       activationRevision: this.vaultActivationRevision,
       manualRefreshRevision: this.vaultManualRefreshRevision,
       pullToRefreshEnabled: !this.isPc,
@@ -985,8 +989,9 @@ export struct VaultPage {
   }
 
   @Builder
-  private totpContent() {
+  private totpContent(bottomContentInset: number) {
     TotpListPage({
+      bottomContentInset: bottomContentInset,
       ciphers: this.sharedCiphers,
       symmetricKey: this.sharedSymmetricKey,
       isActive: this.selectedMainTab === MainTab.TOTP,
@@ -1020,9 +1025,9 @@ export struct VaultPage {
 
         Column() {
           if (this.selectedMainTab === MainTab.VAULT) {
-            this.vaultContent()
+            this.vaultContent(0)
           } else if (this.selectedMainTab === MainTab.TOTP) {
-            this.totpContent()
+            this.totpContent(0)
           } else if (this.selectedMainTab === MainTab.GENERATOR) {
             GeneratorPage({ bottomContentInset: 0 })
           } else if (this.selectedMainTab === MainTab.SHARE) {
@@ -1073,49 +1078,72 @@ export struct VaultPage {
     .hideTitleBar(true)
   }
 
+  private tabBarStyle(tab: MainTab, id: string): BottomTabBarStyle {
+    const item: MainNavigationItem = mainNavigationItems()[tab];
+    return BottomTabBarStyle.of(item.icon, item.label)
+      .id(id)
+      .layoutMode(LayoutMode.VERTICAL)
+      .labelStyle({
+        font: { size: 11 },
+        selectedColor: $r('app.color.main_nav_selected'),
+        unselectedColor: $r('app.color.main_nav_unselected')
+      })
+      .iconStyle({
+        selectedColor: $r('app.color.main_nav_selected'),
+        unselectedColor: $r('app.color.main_nav_unselected')
+      });
+  }
+
   @Builder
   private compactContent() {
     Stack({ alignContent: Alignment.BottomEnd }) {
-      Column() {
-        Tabs({ barPosition: BarPosition.End, index: this.selectedMainTab, controller: this.tabsController }) {
-          TabContent() {
-            this.vaultContent()
-          }
-          TabContent() {
-            this.totpContent()
-          }
-          TabContent() {
-            GeneratorPage({ bottomContentInset: 0 })
-          }
-          TabContent() {
-            Sure2SharePage()
-          }
-          TabContent() {
-            SettingsPage({
-              isActive: this.selectedMainTab === MainTab.SETTINGS,
-              onLockVault: () => {
-                this.lockVault();
-              },
-              onLogout: () => {
-                this.logout();
-              }
-            })
-          }
+      HdsTabs({ barPosition: BarPosition.End, index: this.selectedMainTab, controller: this.tabsController }) {
+        TabContent() {
+          this.vaultContent(COMPACT_TAB_CONTENT_INSET)
         }
-        .barHeight(0)
-        .scrollable(true)
-        .layoutWeight(1)
-        .onChange((index: number) => {
-          this.selectedMainTab = this.getTabByIndex(index);
-        })
-
-        MainBottomNavigation({
-          selectedMainTab: this.selectedMainTab,
-          onSelect: (tab: MainTab) => {
-            this.selectTab(tab);
-          }
-        })
+        .tabBar(this.tabBarStyle(MainTab.VAULT, 'main_tab_vault'))
+        TabContent() {
+          this.totpContent(COMPACT_TAB_CONTENT_INSET)
+        }
+        .tabBar(this.tabBarStyle(MainTab.TOTP, 'main_tab_totp'))
+        TabContent() {
+          GeneratorPage({ bottomContentInset: COMPACT_TAB_CONTENT_INSET })
+        }
+        .tabBar(this.tabBarStyle(MainTab.GENERATOR, 'main_tab_generator'))
+        TabContent() {
+          Sure2SharePage({ bottomContentInset: COMPACT_TAB_CONTENT_INSET })
+        }
+        .tabBar(this.tabBarStyle(MainTab.SHARE, 'main_tab_share'))
+        TabContent() {
+          SettingsPage({
+            bottomContentInset: COMPACT_TAB_CONTENT_INSET,
+            isActive: this.selectedMainTab === MainTab.SETTINGS,
+            onLockVault: () => {
+              this.lockVault();
+            },
+            onLogout: () => {
+              this.logout();
+            }
+          })
+        }
+        .tabBar(this.tabBarStyle(MainTab.SETTINGS, 'main_tab_settings'))
       }
+      .vertical(false)
+      .barMode(BarMode.Fixed)
+      .barOverlap(true)
+      .barFloatingStyle({
+        barBottomMargin: 28,
+        adaptToHandedness: true,
+        thermoCtrl: true,
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
+        }
+      })
+      .scrollable(true)
+      .onChange((index: number) => {
+        this.selectedMainTab = this.getTabByIndex(index);
+      })
       .width('100%')
       .height('100%')
 
@@ -1126,7 +1154,7 @@ export struct VaultPage {
           }
           this.vaultAddButton()
         }
-          .margin({ right: 8, bottom: 72 })
+          .margin({ right: 16, bottom: 96 })
       }
     }
     .width('100%')

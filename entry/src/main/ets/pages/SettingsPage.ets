@@ -31,6 +31,7 @@ import { FormFactorUtil } from '../utils/FormFactorUtil';
 @Component
 export struct SettingsPage {
   @StorageLink('localeRevision') @Watch('handleLocaleRevision') localeRevision: number = 0;
+  @Prop bottomContentInset: number = 0;
   @Prop @Watch('handleActiveChanged') isActive: boolean = false;
   @State autoLockTimeoutSeconds: number = AutoLockTimeout.NEVER;
   @State biometricEnabled: boolean = false;
@@ -428,6 +429,10 @@ export struct SettingsPage {
             .width('100%')
             .padding(16)
             .margin({ bottom: 8 })
+
+            Row()
+              .width('100%')
+              .height(this.bottomContentInset)
           }
           .width('100%')
           .padding({ left: 16, right: 16 })

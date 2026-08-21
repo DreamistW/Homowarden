@@ -8,6 +8,7 @@ import { FormDialog } from '../component/FormDialog';
 /** 从密码库共享数据中筛选并展示 TOTP 条目的页签内容。 */
 @Component
 export struct TotpListPage {
+  @Prop bottomContentInset: number = 0;
   @Prop ciphers: Cipher[] = [];
   @Prop symmetricKey: string = '';
   @Prop @Watch('handleActiveChanged') isActive: boolean = false;
@@ -191,6 +192,7 @@ export struct TotpListPage {
         .height('100%')
         .layoutWeight(1)
         .padding({ left: 16, right: 16 })
+        .contentEndOffset(this.bottomContentInset)
       }
     }
     .width('100%')

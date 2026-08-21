@@ -1,4 +1,4 @@
-/** 主页面底部导航和宽屏侧栏共用的固定页签。 */
+/** 主页面悬浮底栏和宽屏侧栏共用的固定页签。 */
 export enum MainTab {
   VAULT = 0,
   TOTP = 1,
@@ -13,7 +13,7 @@ export interface MainNavigationItem {
   icon: Resource;
 }
 
-/** 集中创建导航资源，避免底栏和侧栏分别维护标签与图标。 */
+/** 集中创建导航资源，避免悬浮底栏和侧栏分别维护标签与图标。 */
 export function mainNavigationItems(): MainNavigationItem[] {
   return [
     { tab: MainTab.VAULT, label: $r('app.string.nav_vault'), icon: $r('app.media.icon_home') },

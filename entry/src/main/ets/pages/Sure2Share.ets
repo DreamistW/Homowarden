@@ -11,6 +11,7 @@ import { AdaptiveMenuTextButton, AdaptivePasteButton, AdaptiveTextButton } from 
 
 @Component
 export struct Sure2SharePage {
+  @Prop bottomContentInset: number = 0;
   @State inputText: string = '';
   @State outputText: string = '';
 
@@ -223,7 +224,7 @@ export struct Sure2SharePage {
           .width('100%')
           .justifyContent(FlexAlign.Center)
       }
-      .padding(20)
+      .padding({ left: 20, right: 20, top: 20, bottom: 20 + this.bottomContentInset })
       .width('100%')
     }
     .scrollBar(BarState.Auto)

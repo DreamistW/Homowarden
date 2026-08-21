@@ -1,7 +1,5 @@
 <svg
         xmlns="http://www.w3.org/2000/svg"
-        width="1024"
-        height="1024"
         viewBox="330 270 420 484">
 
     <!-- 上连接线（用 path 画的“粗线”） -->
