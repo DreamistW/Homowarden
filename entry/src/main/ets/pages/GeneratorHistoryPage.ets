@@ -401,6 +401,7 @@ struct GeneratorHistory {
           .width(20)
           .height(20)
           .fillColor($r('app.color.button_foreground_color'))
+          .accessibilityLevel('no')
       }
         .type(ButtonType.Circle)
         .width(40)
@@ -409,6 +410,7 @@ struct GeneratorHistory {
         .backgroundColor($r('app.color.button_background_color'))
         .enabled(this.selectedIds.length > 0)
         .opacity(this.selectedIds.length > 0 ? 1 : 0.4)
+        .accessibilityText($r('app.string.common_delete'))
         .onClick(() => {
           this.requestDeleteSelected();
         })
@@ -488,6 +490,8 @@ struct GeneratorHistory {
     .borderRadius(8)
     .backgroundColor(this.inSelectionMode && this.isSelected(item.id) ?
       '#1A2B77D9' : $r('app.color.start_window_background'))
+    .accessibilityGroup(this.inSelectionMode)
+    .accessibilitySelected(this.isSelected(item.id))
     .onClick(() => {
       if (this.inSelectionMode) {
         this.toggleSelection(item.id);
