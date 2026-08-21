@@ -333,6 +333,7 @@ export struct SettingsPage {
                   barWidth: 150,
                   barHeight: 50,
                   fontSize: 18,
+                  immersive: true,
                   onButtonClick: () => {
                     this.lockVault();
                   }
@@ -349,6 +350,8 @@ export struct SettingsPage {
                   barWidth: 150,
                   barHeight: 50,
                   fontSize: 18,
+                  immersive: true,
+                  immersiveFontColor: $r('sys.color.warning'),
                   onButtonClick: () => {
                     this.logout();
                   }

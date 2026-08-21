@@ -1,6 +1,17 @@
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
+import { uiMaterial } from '@kit.ArkUI';
 
 const BUTTON_CONTENT_PADDING = 8;
+export const IMMERSIVE_BUTTON_MATERIAL: uiMaterial.Material = new uiMaterial.ImmersiveMaterial({
+  style: uiMaterial.ImmersiveStyle.THIN,
+  colorInvert: true,
+  interactive: true,
+  lightEffect: { color: undefined }
+});
+
+// Security components force background alpha values below 0x1A to fully opaque.
+// Keep the minimum allowed tint so the material underneath remains visible.
+const SECURITY_COMPONENT_MATERIAL_OVERLAY = 0x1AFFFFFF;
 
 function getButtonContainerSize(buttonSize: number, contentPadding: number = BUTTON_CONTENT_PADDING): number {
   return buttonSize + contentPadding * 2;
@@ -20,14 +31,17 @@ export struct AdaptiveTextButton {
   fontSize: number = 18;
   contentPadding: number = BUTTON_CONTENT_PADDING;
   barBottomMargin: number = BUTTON_CONTENT_PADDING;
+  immersive: boolean = false;
+  immersiveFontColor: ResourceColor = $r('sys.color.font_primary');
+  buttonEnabled: boolean = true;
   onButtonClick?: () => void;
 
   build() {
     Stack({ alignContent: Alignment.Center }) {
       Button(this.text)
         .type(ButtonType.Capsule)
-        .backgroundColor($r('app.color.button_background_color'))
-        .fontColor($r('app.color.button_foreground_color'))
+        .backgroundColor(this.immersive ? Color.Transparent : $r('app.color.button_background_color'))
+        .fontColor(this.immersive ? this.immersiveFontColor : $r('app.color.button_foreground_color'))
         .fontSize(this.fontSize)
         .borderColor(Color.Transparent)
         .borderWidth(0)
@@ -35,6 +49,8 @@ export struct AdaptiveTextButton {
         .padding(0)
         .width(this.barWidth)
         .height(this.barHeight)
+        .systemMaterial(this.immersive ? IMMERSIVE_BUTTON_MATERIAL : undefined)
+        .enabled(this.buttonEnabled)
         .onClick(() => {
           this.onButtonClick?.();
         })
@@ -55,6 +71,7 @@ export struct AdaptiveIconButton {
   iconHeight: number = 20;
   contentPadding: number = BUTTON_CONTENT_PADDING;
   barBottomMargin: number = BUTTON_CONTENT_PADDING;
+  immersive: boolean = false;
   onButtonClick?: () => void;
 
   build() {
@@ -63,18 +80,19 @@ export struct AdaptiveIconButton {
         Image(this.icon)
           .width(this.iconWidth)
           .height(this.iconHeight)
-          .fillColor($r('app.color.button_foreground_color'))
+          .fillColor(this.immersive ? $r('sys.color.icon_primary') : $r('app.color.button_foreground_color'))
           .align(Alignment.Center)
           .accessibilityLevel('no')
       }
       .type(ButtonType.Circle)
-      .backgroundColor($r('app.color.button_background_color'))
+      .backgroundColor(this.immersive ? Color.Transparent : $r('app.color.button_background_color'))
       .borderColor(Color.Transparent)
       .borderWidth(0)
       .borderRadius(this.barHeight / 2)
       .padding(0)
       .width(this.barWidth)
       .height(this.barHeight)
+      .systemMaterial(this.immersive ? IMMERSIVE_BUTTON_MATERIAL : undefined)
       .accessibilityText(this.accessibilityLabel)
       .onClick(() => {
         this.onButtonClick?.();
@@ -95,14 +113,15 @@ export struct AdaptiveMenuTextButton {
   fontSize: number = 16;
   contentPadding: number = BUTTON_CONTENT_PADDING;
   barBottomMargin: number = 0;
+  immersive: boolean = false;
 
   build() {
     Stack({ alignContent: Alignment.Center }) {
       Button(this.text)
         .type(ButtonType.Capsule)
         .bindMenu(this.menuItems)
-        .backgroundColor($r('app.color.button_background_color'))
-        .fontColor($r('app.color.button_foreground_color'))
+        .backgroundColor(this.immersive ? Color.Transparent : $r('app.color.button_background_color'))
+        .fontColor(this.immersive ? $r('sys.color.font_primary') : $r('app.color.button_foreground_color'))
         .fontSize(this.fontSize)
         .borderColor(Color.Transparent)
         .borderWidth(0)
@@ -110,6 +129,7 @@ export struct AdaptiveMenuTextButton {
         .padding(0)
         .width(this.barWidth)
         .height(this.barHeight)
+        .systemMaterial(this.immersive ? IMMERSIVE_BUTTON_MATERIAL : undefined)
     }
     .width(getButtonContainerSize(this.barWidth, this.contentPadding))
     .height(getButtonContainerHeight(this.barHeight, this.contentPadding, this.barBottomMargin))
@@ -124,37 +144,53 @@ export struct AdaptivePasteButton {
   fontSize: number = 16;
   contentPadding: number = BUTTON_CONTENT_PADDING;
   barBottomMargin: number = 0;
+  immersive: boolean = false;
   onPaste?: (text: string) => void;
   onPasteError?: (err: BusinessError) => void;
 
   build() {
     Stack({ alignContent: Alignment.Center }) {
-      PasteButton({
-        text: PasteDescription.PASTE,
-        buttonType: ButtonType.Capsule
-      })
-        .backgroundColor($r('app.color.button_background_color'))
-        .fontColor($r('app.color.button_foreground_color'))
-        .fontSize(this.fontSize)
-        .borderColor(Color.Transparent)
-        .borderWidth(0)
-        .borderRadius(this.barHeight / 2)
-        .padding(0)
-        .width(this.barWidth)
-        .height(this.barHeight)
-        .onClick((event: ClickEvent, result: PasteButtonOnClickResult) => {
-          // 仅在系统安全控件授权成功后读取剪贴板。
-          if (PasteButtonOnClickResult.SUCCESS === result) {
-            pasteboard.getSystemPasteboard()
-              .getData((err: BusinessError, pasteData: pasteboard.PasteData) => {
-                if (err) {
-                  this.onPasteError?.(err);
-                  return;
-                }
-                this.onPaste?.(pasteData.getPrimaryText());
-              })
-          }
+      Stack({ alignContent: Alignment.Center }) {
+        if (this.immersive) {
+          Row()
+            .width(this.barWidth)
+            .height(this.barHeight)
+            .borderRadius(this.barHeight / 2)
+            .systemMaterial(IMMERSIVE_BUTTON_MATERIAL)
+            .hitTestBehavior(HitTestMode.None)
+        }
+
+        PasteButton({
+          text: PasteDescription.PASTE,
+          buttonType: ButtonType.Capsule
         })
+          .backgroundColor(this.immersive ? SECURITY_COMPONENT_MATERIAL_OVERLAY :
+            $r('app.color.button_background_color'))
+          .fontColor(this.immersive ? $r('sys.color.font_primary') : $r('app.color.button_foreground_color'))
+          .fontSize(this.fontSize)
+          .borderColor(Color.Transparent)
+          .borderWidth(0)
+          .borderRadius(this.barHeight / 2)
+          .padding(0)
+          .width(this.barWidth)
+          .height(this.barHeight)
+          .onClick((event: ClickEvent, result: PasteButtonOnClickResult) => {
+            // 仅在系统安全控件授权成功后读取剪贴板。
+            if (PasteButtonOnClickResult.SUCCESS === result) {
+              pasteboard.getSystemPasteboard()
+                .getData((err: BusinessError, pasteData: pasteboard.PasteData) => {
+                  if (err) {
+                    this.onPasteError?.(err);
+                    return;
+                  }
+                  this.onPaste?.(pasteData.getPrimaryText());
+                })
+            }
+          })
+      }
+      .width(this.barWidth)
+      .height(this.barHeight)
+      .borderRadius(this.barHeight / 2)
     }
     .width(getButtonContainerSize(this.barWidth, this.contentPadding))
     .height(getButtonContainerHeight(this.barHeight, this.contentPadding, this.barBottomMargin))

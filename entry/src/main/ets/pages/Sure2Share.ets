@@ -125,6 +125,7 @@ export struct Sure2SharePage {
               fontSize: 16,
               contentPadding: 6,
               barBottomMargin: 0,
+              immersive: true,
               onPaste: (text: string) => {
                 this.inputText = text;
                 this.convertLink();
@@ -141,6 +142,7 @@ export struct Sure2SharePage {
               fontSize: 16,
               contentPadding: 6,
               barBottomMargin: 0,
+              immersive: true,
               onButtonClick: () => {
                 try {
                   inputMethod.getController().stopInputSession();
@@ -169,7 +171,7 @@ export struct Sure2SharePage {
             .accessibilityText($r('app.string.share_output_title'))
             .height('20%')
             .width('90%')
-            .margin({ top: 12 })
+            .margin({ top: 12, bottom: 12 })
             .focusable(false)
 
           Row({ space: 0 }) {
@@ -180,6 +182,7 @@ export struct Sure2SharePage {
               fontSize: 16,
               contentPadding: 6,
               barBottomMargin: 0,
+              immersive: true,
               menuItems: [
                 {
                   value: $r('app.string.share_copy_full'),
@@ -204,6 +207,7 @@ export struct Sure2SharePage {
               fontSize: 16,
               contentPadding: 6,
               barBottomMargin: 0,
+              immersive: true,
               menuItems: [
                 {
                   value: $r('app.string.share_full'),

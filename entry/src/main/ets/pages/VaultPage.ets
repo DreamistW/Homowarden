@@ -984,6 +984,7 @@ export struct VaultPage {
       iconHeight: 25,
       contentPadding: 8,
       barBottomMargin: 0,
+      immersive: true,
       onButtonClick: () => this.addCipher()
     })
   }

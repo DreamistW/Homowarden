@@ -7,7 +7,7 @@ import { common } from '@kit.AbilityKit';
 import { DataPreferences } from '@abner/datastore';
 import { HdsNavDestination } from '@hms.hds.hdsBaseComponent';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
-import { AdaptiveTextButton } from '../component/AdaptiveButton';
+import { AdaptiveTextButton, IMMERSIVE_BUTTON_MATERIAL } from '../component/AdaptiveButton';
 import { FormDialog } from '../component/FormDialog';
 import { TwoFactorProvider } from '../model/AccessToken';
 import { AppText, AppTextKey } from '../localization/AppText';
@@ -115,8 +115,11 @@ export struct LoginPage {
           ForEach(this.getVisibleTwoFactorProviders(), (provider: number) => {
             Button(this.getTwoFactorProviderText(provider))
               .width('100%')
+              .backgroundColor(Color.Transparent)
+              .fontColor($r('sys.color.font_primary'))
               .stateEffect(provider !== this.viewModel.twoFactorProvider)
               .enabled(provider !== this.viewModel.twoFactorProvider)
+              .systemMaterial(IMMERSIVE_BUTTON_MATERIAL)
               .onClick(() => {
                 this.viewModel.setTwoFactorProvider(provider);
                 this.twoFactorInputError = false;
@@ -306,26 +309,18 @@ export struct LoginPage {
         }
 
         Column() {
-          // 登录按钮
-          if (!this.isLoading) {
-            AdaptiveTextButton({
-              text: this.isLoading ? $r('app.string.login_in_progress') : $r('app.string.login_action'),
-              barWidth: 150,
-              barHeight: 50,
-              fontSize: 18,
-              onButtonClick: () => {
-                this.handleLogin();
-              }
-            })
-          } else {
-            Button($r('app.string.login_in_progress'))
-              .margin(14)
-              .stateEffect(!this.isLoading)
-              .enabled(false)
-              .width(150)
-              .height(50)
-              .borderRadius(75)
-          }
+          // 登录和加载状态复用同一材质按钮，避免提交期间出现样式跳变。
+          AdaptiveTextButton({
+            text: this.isLoading ? $r('app.string.login_in_progress') : $r('app.string.login_action'),
+            barWidth: 150,
+            barHeight: 50,
+            fontSize: 18,
+            immersive: true,
+            buttonEnabled: !this.isLoading,
+            onButtonClick: () => {
+              this.handleLogin();
+            }
+          })
         }
 
         // 显示错误信息

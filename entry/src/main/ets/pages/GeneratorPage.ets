@@ -12,6 +12,7 @@ import { GeneratorDatabaseUtil, GENERATOR_HISTORY_TABLE } from '../utils/Generat
 import { GeneratorRecordType } from '../model/GeneratorHistoryModel';
 import { PasswordGenerator } from '../utils/PasswordGenerator';
 import { UsernameGenerator, UsernameType } from '../utils/UsernameGenerator';
+import { SegmentButton, SegmentButtonItemTuple, SegmentButtonOptions } from '@kit.ArkUI';
 
 const PASSWORD_LENGTH_MIN: number = 4;
 const PASSWORD_LENGTH_MAX: number = 32;
@@ -22,7 +23,15 @@ const MIN_COUNT_MIN: number = 0;
 @Component
 export struct GeneratorPage {
   @Prop bottomContentInset: number = 0;
-  @State activeSubTab: number = 0;
+  @State activeSubTabIndexes: number[] = [0];
+  @State private subTabOptions: SegmentButtonOptions = SegmentButtonOptions.capsule({
+    buttons: [
+      { text: $r('app.string.generator_tab_password') },
+      { text: $r('app.string.generator_tab_username') }
+    ] as SegmentButtonItemTuple,
+    multiply: false,
+    buttonPadding: { top: 12, right: 8, bottom: 12, left: 8 }
+  });
 
   // 密码模式状态
   @State length: number = PASSWORD_LENGTH_DEFAULT;
@@ -61,7 +70,7 @@ export struct GeneratorPage {
       if (requestId !== this.generationRequestId) {
         return;
       }
-      if (this.activeSubTab === 0) {
+      if (this.activeSubTabIndexes[0] === 0) {
         await this.regeneratePassword(requestId);
       } else {
         await this.regenerateUsername(requestId);
@@ -258,40 +267,24 @@ export struct GeneratorPage {
       .backgroundColor($r('app.color.start_window_background'))
 
       // 分段切换：密码 / 用户名
-      Row({ space: 0 }) {
-        Button($r('app.string.generator_tab_password'))
-          .layoutWeight(1)
-          .height(40)
-          .backgroundColor(this.activeSubTab === 0 ?
-            $r('app.color.button_background_color') : $r('app.color.start_window_background'))
-          .fontColor(this.activeSubTab === 0 ?
-            $r('app.color.button_foreground_color') : '#666666')
-          .fontSize(14)
-          .borderRadius(8)
-          .onClick(async () => {
-            this.activeSubTab = 0;
+      Column() {
+        SegmentButton({
+          options: this.subTabOptions,
+          selectedIndexes: $activeSubTabIndexes,
+          onItemClicked: async (index: number) => {
+            this.activeSubTabIndexes = [index];
             await this.regenerate();
-          })
-        Button($r('app.string.generator_tab_username'))
-          .layoutWeight(1)
-          .height(40)
-          .backgroundColor(this.activeSubTab === 1 ?
-            $r('app.color.button_background_color') : $r('app.color.start_window_background'))
-          .fontColor(this.activeSubTab === 1 ?
-            $r('app.color.button_foreground_color') : '#666666')
-          .fontSize(14)
-          .borderRadius(8)
-          .onClick(async () => {
-            this.activeSubTab = 1;
-            await this.regenerate();
-          })
+          },
+          enableStateAnimation: true
+        })
       }
       .width('100%')
+      .padding({ left: 8, right: 16 })
       .margin({ top: 12, bottom: 12 })
 
       // 单一滚动容器承载当前模式的选项，短内容也顶对齐，避免被居中或遮挡
       Scroll() {
-        if (this.activeSubTab === 0) {
+        if (this.activeSubTabIndexes[0] === 0) {
           this.PasswordControls()
         } else {
           this.UsernameControls()
