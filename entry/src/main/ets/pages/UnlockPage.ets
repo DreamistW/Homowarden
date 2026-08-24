@@ -34,6 +34,7 @@ export struct UnlockPage {
   private exitTime: number = 0;
   private masterPassword: string = "";
   @State private biometricEnabled: boolean = false;
+  @State private isPasswordAuthenticating: boolean = false;
   private isPc: boolean = FormFactorUtil.isPc();
 
   aboutToAppear() {
@@ -65,6 +66,9 @@ export struct UnlockPage {
             .onChange((v: string) => {
               this.masterPassword = v;
             })
+            .onSubmit(async () => {
+              await this.handlePasswordAuth();
+            })
             .margin({ left: 16, right: 16, bottom: 24 })
             .type(InputType.Password)
         }
@@ -82,8 +86,9 @@ export struct UnlockPage {
             fontSize: 18,
             contentPadding: 6,
             immersive: true,
+            buttonEnabled: !this.isPasswordAuthenticating,
             onButtonClick: () => {
-              this.startPasswordAuth();
+              void this.handlePasswordAuth();
             }
           })
 
@@ -183,6 +188,18 @@ export struct UnlockPage {
   /**
    * 使用保存的 KDF 参数重新派生主密钥，验证通过后按原页面栈恢复导航
    */
+  private async handlePasswordAuth(): Promise<void> {
+    if (this.isPasswordAuthenticating) {
+      return;
+    }
+    this.isPasswordAuthenticating = true;
+    try {
+      await this.startPasswordAuth();
+    } finally {
+      this.isPasswordAuthenticating = false;
+    }
+  }
+
   async startPasswordAuth() {
     if (!this.masterPassword || this.masterPassword.length === 0) {
       AppToast.show(this.getUIContext(), $r('app.string.unlock_enter_master_password'));

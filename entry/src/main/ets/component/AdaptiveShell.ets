@@ -12,7 +12,7 @@ export struct AdaptiveShell {
       Column() {
         this.listBuilder()
       }
-      .width(380)
+      .layoutWeight(1)
       .height('100%')
       Divider().vertical(true).width(1).height('100%')
       Column() {

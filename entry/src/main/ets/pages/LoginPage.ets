@@ -136,6 +136,9 @@ export struct LoginPage {
             this.viewModel.twoFactorToken = value;
             this.twoFactorInputError = false;
           })
+          .onSubmit(async () => {
+            await this.handleTwoFactorConfirm();
+          })
           .type(InputType.Number)
       }
 
@@ -189,6 +192,9 @@ export struct LoginPage {
         .onChange(value => {
           this.viewModel.twoFactorToken = value;
           this.twoFactorInputError = false;
+        })
+        .onSubmit(async () => {
+          await this.handleNewDeviceConfirm();
         })
         .type(InputType.Number)
 
@@ -260,6 +266,9 @@ export struct LoginPage {
           .onChange((value: string) => {
             this.viewModel.password = value;
             this.viewModel.clearError();
+          })
+          .onSubmit(async () => {
+            await this.handleLogin();
           })
           .margin(12)
 
@@ -376,6 +385,9 @@ export struct LoginPage {
 
   // 处理登录逻辑
   private async handleLogin(): Promise<void> {
+    if (this.isLoading) {
+      return;
+    }
     if (this.viewModel.email.length == 0 || this.viewModel.password.length == 0) {
       AppToast.show(this.getUIContext(), $r('app.string.error_validation'));
       return;
