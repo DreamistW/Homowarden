@@ -1,5 +1,3 @@
-// HTTP客户端，使用Axios实现
-
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from '@ohos/axios';
 import { Logger } from '@nzy/logger';
 import {
@@ -16,7 +14,7 @@ import { ServerConfig } from '../model/ServerConfig';
 import { LocaleUtil } from '../localization/LocaleUtil';
 
 /**
- * 创建带客户端标识、语言协商和统一错误日志的 HTTP 客户端。
+ * 创建带客户端标识、语言协商和统一错误日志的 HTTP 客户端
  */
 export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
   const instance = axios.create({
@@ -34,13 +32,9 @@ export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
       config.headers['bitwarden-client-version'] = Header_Client_Version;
       config.headers['device-type'] = DeviceUtil.getDeviceType();
       config.headers['Accept-Language'] = LocaleUtil.getAcceptLanguage();
-      // config.headers['accept'] = 'application/json';
-      // config.headers['origin'] = config.baseURL
-      // 正常请求日志不记录可能包含凭据的请求头和请求体。
+      // 正常请求日志不记录可能包含凭据的请求头和请求体
       Logger.info(`[HTTP] Request ${config.method?.toUpperCase()} ${config.baseURL ||
         baseURL}${config.url}`);
-      // Logger.info(`[HTTP] ${config.method?.toUpperCase()} ${config.baseURL ||
-      //   baseURL}${config.url}\nHeader:${JSON.stringify(config.headers)}\nRequest: ${JSON.stringify(config.data)}`);
       return config;
     },
     (error: AxiosError) => {
@@ -52,8 +46,6 @@ export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
   // 响应拦截器
   instance.interceptors.response.use(
     (response: AxiosResponse) => {
-      // Logger.info(`[HTTP] Response ${response.config.baseURL ||
-      //   baseURL}${response.config.url}\nResponse: ${JSON.stringify(response.data)}`);
       return response;
     },
     (error: AxiosError) => {
@@ -69,20 +61,18 @@ export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
 export async function getServerConfig(): Promise<ServerConfig> {
   let serverConfig: ServerConfig = { serverType: ServerType.US, serverAddress: '' };
   await DataPreferences.getInstance().getPromise<ServerType>(SERVER_TYPE_KEY, ServerType.US).then((data) => {
-    // Logger.info(`Server Type preference: ${data}`);
     if (data === ServerType.US || data === ServerType.EU || data === ServerType.SELF_HOSTED) {
       serverConfig.serverType = data;
     }
   })
   await DataPreferences.getInstance().getPromise<string>(SERVER_ADDRESS_KEY, '').then((data) => {
-    // Logger.info(`Server Address preference: ${data}`);
     serverConfig.serverAddress = data ?? '';
   })
   return serverConfig;
 }
 
 /**
- * 仅序列化白名单字段，避免把请求模型中的非协议字段一并发送。
+ * 仅序列化白名单字段，避免把请求模型中的非协议字段一并发送
  */
 export function toFormUrlEncoded<T extends object>(data: T, keys: (keyof T)[]): string {
   return keys

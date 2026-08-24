@@ -36,15 +36,15 @@ export struct AddCipherPage {
   @State cardBrand: CardBrandType = CardBrandType.NONE;
   @State totpSecret: string = '';
   @State newFieldType: CipherFieldType = CipherFieldType.TEXT;
-  // 登录用户名/密码的受控镜像，便于生成器回填后即时显示。
+  // 登录用户名/密码的受控镜像，便于生成器回填后即时显示
   @State loginUsername: string = '';
   @State loginPassword: string = '';
-  // 生成器面板状态。
+  // 生成器面板状态
   @State showGenSheet: boolean = false;
   @State genMode: GeneratorPanelMode = GeneratorPanelMode.PASSWORD;
   allowSave: boolean = false;
   pathInfos: NavPathStack = new NavPathStack();
-  // 表单初始快照，用于判断是否有未保存改动。
+  // 表单初始快照，用于判断是否有未保存改动
   private initialViewModelSnapshot: string = '';
   private leaveHandler: DetailLeaveHandler = (onLeave: () => void, onStay: () => void): void => {
     if (this.hasUnsavedChanges()) {
@@ -56,7 +56,7 @@ export struct AddCipherPage {
 
   aboutToDisappear(): void {
     DetailLeaveGuard.unregister(this.leaveHandler);
-    // 旋转跨栈迁移会销毁本页，随之关闭未决确认框（等同取消）。
+    // 旋转跨栈迁移会销毁本页，随之关闭未决确认框（等同取消）
     this.confirmController.close();
   }
 
@@ -181,7 +181,7 @@ export struct AddCipherPage {
     .alignItems(VerticalAlign.Center)
   }
 
-  // 生成器底部面板内容：按当前模式渲染，"使用"回填到对应输入框。
+  // 生成器底部面板内容：按当前模式渲染，"使用"回填到对应输入框
   @Builder
   generatorSheet() {
     GeneratorPanel({
@@ -773,7 +773,7 @@ export struct AddCipherPage {
             })
             .margin({ left: 16, right: 16, bottom: 24 })
 
-          // 自定义字段区块：所有 cipher 类型共用，与新增密码项主流程一致。
+          // 自定义字段区块：所有 cipher 类型共用，与新增密码项主流程一致
           Text($r('app.string.cipher_custom_fields'))
             .fontSize(16)
             .fontWeight(FontWeight.Medium)
@@ -889,18 +889,18 @@ export struct AddCipherPage {
     this.allowSave = this.viewModel.canSave();
   }
 
-  // 相对初始快照判断表单是否有未保存改动。
+  // 相对初始快照判断表单是否有未保存改动
   private hasUnsavedChanges(): boolean {
     return JSON.stringify(this.viewModel) !== this.initialViewModelSnapshot;
   }
 
-  // 弹出“放弃改动”二次确认；点击确认执行 onConfirm，点击取消执行 onCancel（停留当前界面）。
+  // 弹出“放弃改动”二次确认；点击确认执行 onConfirm，点击取消执行 onCancel（停留当前界面）
   private showDiscardConfirm(onConfirm: () => void, onCancel: () => void = () => {}): void {
     this.showConfirm('', $r('app.string.cipher_discard_changes_confirm'), onConfirm, onCancel);
   }
 
   /**
-   * 提交明文表单，由 ViewModel 完成加密与远端创建后再通知密码库刷新。
+   * 提交明文表单，由 ViewModel 完成加密与远端创建后再通知密码库刷新
    */
   private async saveCipher() {
     if (this.isSubmitting) {
@@ -911,7 +911,7 @@ export struct AddCipherPage {
       return;
     }
     this.isSubmitting = true;
-    // 在异步创建开始前标记本地变更，避免后台同步覆盖尚未回写的结果。
+    // 在异步创建开始前标记本地变更，避免后台同步覆盖尚未回写的结果
     VaultChangeNotifier.markLocalChangePending();
     const createdCipher = await this.viewModel.submitCreate();
     this.isSubmitting = false;

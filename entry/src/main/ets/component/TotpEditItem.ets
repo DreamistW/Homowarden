@@ -31,7 +31,7 @@ export struct TotpEditItem {
           if (result && result.originalValue) {
             Logger.info(`Scan result: ${result.originalValue}`);
 
-            // 只从标准 otpauth URL 提取密钥，不把完整扫码内容直接写入密码项。
+            // 只从标准 otpauth URL 提取密钥，不把完整扫码内容直接写入密码项
             const parsed = TOTPUtil.parseOtpAuthUrl(result.originalValue);
 
             if (parsed.secret) {
@@ -98,16 +98,6 @@ export struct TotpEditItem {
               }
             })
 
-            // Button() {
-            //   Image($r('app.media.icon_cancel'))
-            //     .width(18)
-            // }
-            // .backgroundColor(Color.Transparent)
-            // .margin({ left: 8, right: 8 })
-            // .onClick(() => {
-            //   this.totpSecret = '';
-            //   this.onSecretChange?.('');
-            // })
           }
 
           AdaptiveIconButton({
@@ -124,13 +114,6 @@ export struct TotpEditItem {
             }
           })
 
-          // Button() {
-          //   Image($r('app.media.icon_scan_barcode'))
-          //     .width(18)
-          // }
-          // .backgroundColor(Color.Transparent)
-          // .onClick(() => this.scanQRCode())
-          // .margin({ right: 8 })
         }
         .alignItems(VerticalAlign.Center)
       }

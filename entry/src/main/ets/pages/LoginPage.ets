@@ -161,7 +161,7 @@ export struct LoginPage {
       if (this.viewModel.twoFactorProvider == TwoFactorProvider.EMAIL) {
         Button($r('app.string.login_send_email_code'))
           .onClick(async () => {
-            // 请求未结束前禁用按钮，避免并发发送多个邮箱验证码。
+            // 请求未结束前禁用按钮，避免并发发送多个邮箱验证码
             this.pendingEmailLogin = true;
             const result = await this.viewModel.doSendEmailLogin();
             if (!result) {
@@ -202,7 +202,7 @@ export struct LoginPage {
 
       Button($r('app.string.login_send_email_code'))
         .onClick(async () => {
-          // 新设备验证码重发与 2FA 邮件发送共享防重入状态。
+          // 新设备验证码重发与 2FA 邮件发送共享防重入状态
           this.pendingEmailLogin = true;
           const result = await this.viewModel.doResendNewDeviceOtp();
           if (!result) {
@@ -309,7 +309,7 @@ export struct LoginPage {
         }
 
         Column() {
-          // 登录和加载状态复用同一材质按钮，避免提交期间出现样式跳变。
+          // 登录和加载状态复用同一材质按钮，避免提交期间出现样式跳变
           AdaptiveTextButton({
             text: this.isLoading ? $r('app.string.login_in_progress') : $r('app.string.login_action'),
             barWidth: 150,
@@ -339,13 +339,6 @@ export struct LoginPage {
             .margin(12)
         }
 
-        // 显示预登录信息（可选）
-        // if (this.viewModel.kdfIterations > 0) {
-        //   Text(`KDF迭代次数: ${this.viewModel.kdfIterations}`)
-        //     .fontSize(12)
-        //     .fontColor(Color.Gray)
-        //     .margin(12)
-        // }
         }
         .width(this.isPc ? '60%' : '100%')
         .constraintSize({ maxWidth: 640 })
@@ -414,7 +407,7 @@ export struct LoginPage {
     this.getUIContext().getFocusController().clearFocus();
   }
 
-  // 两步验证确认：异步校验验证码/Passkey，失败时保持弹框打开。
+  // 两步验证确认：异步校验验证码/Passkey，失败时保持弹框打开
   private async handleTwoFactorConfirm(): Promise<void> {
     if (this.verificationSubmitting) {
       return;
@@ -459,7 +452,7 @@ export struct LoginPage {
     await this.navigateToVault();
   }
 
-  // 新设备验证确认：异步校验验证码，失败时保持弹框打开。
+  // 新设备验证确认：异步校验验证码，失败时保持弹框打开
   private async handleNewDeviceConfirm(): Promise<void> {
     if (this.verificationSubmitting) {
       return;
@@ -536,7 +529,6 @@ export struct LoginPage {
     return this.viewModel.availableTwoFactorProviders.filter((provider: number) => {
       return provider !== TwoFactorProvider.WEB_AUTHN;
     });
-    // return this.viewModel.availableTwoFactorProviders
   }
 
   // 获取服务器类型按钮文本

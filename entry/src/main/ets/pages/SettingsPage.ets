@@ -78,7 +78,7 @@ export struct SettingsPage {
 
   private handleActiveChanged(): void {
     if (this.isActive) {
-      // Tabs 页面重新激活时不会重建组件，需要主动同步可能由其他页面修改的设置。
+      // Tabs 页面重新激活时不会重建组件，需要主动同步可能由其他页面修改的设置
       this.refreshSettings();
     }
   }
@@ -190,7 +190,7 @@ export struct SettingsPage {
                   .accessibilityText($r('app.string.settings_block_capture'))
                   .onChange(async (isOn: boolean) => {
                     this.screenCaptureProtectionEnabled = isOn;
-                    // 先保存用户选择并尝试应用窗口属性；系统调用失败时提示用户，开关状态不回滚。
+                    // 先保存用户选择并尝试应用窗口属性；系统调用失败时提示用户，开关状态不回滚
                     const applied = await WindowPrivacyUtil.setScreenCaptureProtectionEnabled(isOn);
                     if (!applied) {
                       AppToast.show(this.getUIContext(), $r('app.string.error_save_failed'));
@@ -243,61 +243,12 @@ export struct SettingsPage {
             .padding(16)
             .margin({ bottom: 8 })
 
-            // 同步设置
-            // Column() {
-            //   Text('同步设置')
-            //     .fontSize(16)
-            //     .fontWeight(FontWeight.Medium)
-            //     .margin({ bottom: 12 })
-            //
-            //   Row() {
-            //     Text('自动同步')
-            //       .fontSize(16)
-            //
-            //     Blank()
-            //
-            //     Toggle({ type: ToggleType.Switch, isOn: this.syncEnabled })
-            //       .onChange((isOn: boolean) => {
-            //         this.syncEnabled = isOn;
-            //       })
-            //   }
-            //   .width('100%')
-            //   .padding({ top: 12, bottom: 12 })
-            // }
-            // .width('100%')
-            // .padding(16)
-            // .margin({ bottom: 8 })
-
             // 账户设置
             Column() {
               Text($r('app.string.settings_account'))
                 .fontSize(16)
                 .fontWeight(FontWeight.Medium)
                 .margin({ bottom: 12 })
-
-              // Button() {
-              //   Text('更改主密码')
-              //     .fontSize(16)
-              //     .fontColor('#333333')
-              // }
-              // .backgroundColor(Color.Transparent)
-              // .width('100%')
-              // .height(48)
-              // .onClick(() => {
-              //   // 跳转到更改主密码页面
-              // })
-              //
-              // Button() {
-              //   Text('导出密码库')
-              //     .fontSize(16)
-              //     .fontColor('#333333')
-              // }
-              // .backgroundColor(Color.Transparent)
-              // .width('100%')
-              // .height(48)
-              // .onClick(() => {
-              //   // 导出密码库
-              // })
 
               Row() {
                 Text($r('app.string.settings_logged_in_as'))
@@ -359,17 +310,6 @@ export struct SettingsPage {
               }
               .margin({ top: 20 })
 
-              // Button() {
-              //   Text('注销')
-              //     .fontSize(16)
-              //     .fontColor('#FF3B30')
-              // }
-              // .backgroundColor(Color.Transparent)
-              // .width('100%')
-              // .height(48)
-              // .onClick(() => {
-              //   this.logout();
-              // })
             }
             .width('100%')
             .padding(16)
@@ -548,12 +488,12 @@ export struct SettingsPage {
   }
 
   /**
-   * 先完成一次系统认证，再持久化生物识别开关，防止未授权启用。
+   * 先完成一次系统认证，再持久化生物识别开关，防止未授权启用
    */
   startBiometricAuth() {
     try {
       const rand = cryptoFramework.createRandom();
-      const len: number = 16; // Generate a 16-byte random number.
+      const len: number = 16; // 生成 16 字节随机数
       let randData: Uint8Array | null = null;
       let retryCount = 0;
       while (retryCount < 3) {
@@ -591,7 +531,7 @@ export struct SettingsPage {
       userAuthInstance.on('result', {
         onResult: (result) => {
           Logger.info(`userAuthInstance callback result: ${JSON.stringify(result)}`);
-          // 结果监听为一次性订阅，及时解除可避免后续认证重复回调当前页面。
+          // 结果监听为一次性订阅，及时解除可避免后续认证重复回调当前页面
           userAuthInstance.off('result');
 
           if (result.result === userAuth.UserAuthResultCode.SUCCESS) {

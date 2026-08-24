@@ -1,12 +1,12 @@
 /**
- * 带内容区（输入框等）的通用对话框基类。
+ * 带内容区（输入框等）的通用对话框基类
  *
  * 由系统提供 @CustomDialog 外壳：标题 + 调用方注入的内容（@BuilderParam）+ 分隔线 +
  * 确认/取消（无背景文字按钮，确认在左、取消在右）。各业务场景只需提供 title、
- * contentBuilder、cancel、confirm，不必重复实现外壳与按钮样式。
+ * contentBuilder、cancel、confirm，不必重复实现外壳与按钮样式
  *
  * 确认按钮点击后异步执行 confirm；confirm 内部自行决定成功时关闭弹框
- * （controller.close()）、失败时保持打开。
+ * （controller.close()）、失败时保持打开
  */
 @CustomDialog
 export struct FormDialog {
@@ -20,7 +20,7 @@ export struct FormDialog {
   @State private submitting: boolean = false;
 
   private async submit(): Promise<void> {
-    // 异步确认完成前禁止再次提交，避免重复触发。
+    // 异步确认完成前禁止再次提交，避免重复触发
     if (this.submitting) {
       return;
     }

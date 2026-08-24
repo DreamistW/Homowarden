@@ -18,11 +18,11 @@ const PC_MIN_WINDOW_HEIGHT = 600;
 export default class EntryAbility extends UIAbility {
   onConfigurationUpdate(newConfig: Configuration): void {
     hilog.info(DOMAIN, 'locale', 'Configuration changed: %{public}s', newConfig.language ?? '');
-    // 系统资源会自行切换语言，修订号用于通知已挂载页面重新解析派生文案。
+    // 系统资源会自行切换语言，修订号用于通知已挂载页面重新解析派生文案
     LocaleState.notifyChanged();
   }
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
-    // 页面创建前先注册全局状态，确保后续 @StorageLink 可以稳定订阅。
+    // 页面创建前先注册全局状态，确保后续 @StorageLink 可以稳定订阅
     LocaleState.initialize();
     BreakpointUtil.initialize();
     VaultChangeNotifier.initialize();
@@ -56,7 +56,6 @@ export default class EntryAbility extends UIAbility {
   }
 
   onWindowStageCreate(windowStage: window.WindowStage): void {
-    // Main window is created, set main page for this ability
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageCreate');
 
     AppStorage.setOrCreate('windowStage', windowStage);
@@ -92,18 +91,15 @@ export default class EntryAbility extends UIAbility {
   }
 
   onWindowStageDestroy(): void {
-    // Main window is destroyed, release UI related resources
     SystemTrayManager.detachMainWindow();
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageDestroy');
   }
 
   onForeground(): void {
-    // Ability has brought to foreground
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onForeground');
   }
 
   onBackground(): void {
-    // Ability has back to background
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onBackground');
   }
 

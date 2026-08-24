@@ -2,7 +2,7 @@ import { appTasks } from '@ohos/hvigor-ohos-plugin';
 import { abnerRouter } from 'ohos-router/router-plugin';
 
 export default {
-  system: appTasks, /* Built-in plugin of Hvigor. It cannot be modified. */
+  system: appTasks, /* Hvigor 内置插件，不可修改 */
   plugins: [
-  ]       /* Custom plugin to extend the functionality of Hvigor. */
+  ]       /* 用于扩展 Hvigor 功能的自定义插件 */
 }

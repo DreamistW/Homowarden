@@ -19,7 +19,7 @@ const PASSWORD_LENGTH_MAX: number = 32;
 const PASSWORD_LENGTH_DEFAULT: number = 16;
 const MIN_COUNT_MIN: number = 0;
 
-/** 密码与用户名生成器页签内容组件。 */
+/** 密码与用户名生成器页签内容组件 */
 @Component
 export struct GeneratorPage {
   @Prop bottomContentInset: number = 0;
@@ -63,7 +63,7 @@ export struct GeneratorPage {
     await this.regenerate();
   }
 
-  /** 依据当前子页签重新生成。 */
+  /** 依据当前子页签重新生成 */
   async regenerate(): Promise<void> {
     const requestId: number = ++this.generationRequestId;
     const task: Promise<void> = this.generationQueue.then(async () => {
@@ -76,12 +76,12 @@ export struct GeneratorPage {
         await this.regenerateUsername(requestId);
       }
     });
-    // 保持队列可继续执行，当前调用仍等待原任务并接收其异常。
+    // 保持队列可继续执行，当前调用仍等待原任务并接收其异常
     this.generationQueue = task.catch(() => {});
     await task;
   }
 
-  // 依据当前密码选项生成密码，成功后写入历史记录。
+  // 依据当前密码选项生成密码，成功后写入历史记录
   private async regeneratePassword(requestId: number): Promise<void> {
     try {
       const value: string = await PasswordGenerator.generate({
@@ -108,10 +108,10 @@ export struct GeneratorPage {
     }
   }
 
-  // 依据当前用户名选项生成用户名，成功后写入历史记录。
+  // 依据当前用户名选项生成用户名，成功后写入历史记录
   private async regenerateUsername(requestId: number): Promise<void> {
     if (this.usernameType === UsernameType.EMAIL_ALIAS) {
-      // 邮箱为空时不生成，避免产生无效别名。
+      // 邮箱为空时不生成，避免产生无效别名
       if (this.email.trim().length === 0) {
         this.output = '';
         return;
@@ -141,7 +141,7 @@ export struct GeneratorPage {
     }
   }
 
-  // 将生成结果写入历史记录表。
+  // 将生成结果写入历史记录表
   private async saveToHistory(content: string, type: GeneratorRecordType): Promise<void> {
     const item: relationalStore.ValuesBucket = {
       id: this.dbUtil.generateId(),
@@ -152,7 +152,7 @@ export struct GeneratorPage {
     await this.dbUtil.insertData(GENERATOR_HISTORY_TABLE, item);
   }
 
-  // 复制当前生成结果到系统剪贴板。
+  // 复制当前生成结果到系统剪贴板
   private async copyOutput(): Promise<void> {
     if (this.output.length === 0) {
       return;
@@ -168,7 +168,7 @@ export struct GeneratorPage {
     }
   }
 
-  // 调整数字最小个数并重新生成。
+  // 调整数字最小个数并重新生成
   private async adjustMinDigits(delta: number): Promise<void> {
     const max: number = this.length - this.minSymbols;
     let next: number = this.minDigits + delta;
@@ -184,7 +184,7 @@ export struct GeneratorPage {
     }
   }
 
-  /** 更新密码长度，并同步归一化数字与符号的最小个数。 */
+  /** 更新密码长度，并同步归一化数字与符号的最小个数 */
   private updatePasswordLength(value: number): void {
     const nextLength: number = Math.min(PASSWORD_LENGTH_MAX,
       Math.max(PASSWORD_LENGTH_MIN, Math.round(value)));
@@ -207,7 +207,7 @@ export struct GeneratorPage {
     this.minSymbols = nextMinSymbols;
   }
 
-  // 调整符号最小个数并重新生成。
+  // 调整符号最小个数并重新生成
   private async adjustMinSymbols(delta: number): Promise<void> {
     const max: number = this.length - this.minDigits;
     let next: number = this.minSymbols + delta;

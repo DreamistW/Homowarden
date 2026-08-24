@@ -291,8 +291,8 @@ export class DatabaseUtil {
   }
 
   /**
-   * 一次性同步查询一张表的指定列，返回每行 ValuesBucket 数组。
-   * 用于把若干按 id 逐条 querySingleData 的同步查询合并为一次，避免在主线程上 N 次串行查询。
+   * 一次性同步查询一张表的指定列，返回每行 ValuesBucket 数组
+   * 用于把若干按 id 逐条 querySingleData 的同步查询合并为一次，避免在主线程上 N 次串行查询
    */
   queryAllRowsSync(table: string, columns: string[]): relationalStore.ValuesBucket[] {
     let result: relationalStore.ValuesBucket[] = [];

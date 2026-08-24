@@ -66,7 +66,7 @@ interface LoginRequestError {
 }
 
 /**
- * 编排预登录、密钥派生、多因素验证及凭据持久化的登录状态。
+ * 编排预登录、密钥派生、多因素验证及凭据持久化的登录状态
  */
 export class LoginViewModel {
   // 登录状态
@@ -87,7 +87,7 @@ export class LoginViewModel {
   twoFactorProvidersData: Record<string, TwoFactorProviderData | null> | null = null;
   ssoEmail2FaSessionToken: string = '';
   // 预登录信息
-  kdfType: number = 0; // 0=PBKDF2, 1=Argon2id
+  kdfType: number = 0; // 0 表示 PBKDF2，1 表示 Argon2id
   kdfIterations: number = 0;
   kdfMemory: number = 0;
   kdfParallelism: number = 0;
@@ -124,7 +124,7 @@ export class LoginViewModel {
         Logger.info(`Device info initialized: type=${this.deviceType}, name=${this.deviceName}, id=${this.deviceIdentifier}`);
       } catch (error) {
         Logger.error(`Failed to initialize device info: ${error}`);
-        // 设备标识获取失败时固定本次实例的 UUID，避免同一次登录重试使用不同设备身份。
+        // 设备标识获取失败时固定本次实例的 UUID，避免同一次登录重试使用不同设备身份
         this.deviceIdentifier = DeviceUtil.generateUUID();
         this.deviceInfoInitialized = true;
       }
@@ -182,7 +182,7 @@ export class LoginViewModel {
   }
 
   /**
-   * 使用服务端下发的 KDF 参数派生主密钥，登录成功后保存到关键资产供解锁使用。
+   * 使用服务端下发的 KDF 参数派生主密钥，登录成功后保存到关键资产供解锁使用
    */
   async deriveMasterKey(): Promise<boolean> {
     try {
@@ -220,7 +220,7 @@ export class LoginViewModel {
     }
   }
 
-  // 二次派生得到服务器验证值，原始主密码不会作为登录请求的 password 发送。
+  // 二次派生得到服务器验证值，原始主密码不会作为登录请求的 password 发送
   async hashMasterKey(): Promise<boolean> {
     try {
       // 将Base64主密钥解码为Uint8Array
@@ -336,7 +336,7 @@ export class LoginViewModel {
   }
 
   private applyRememberedTwoFactor(request: AccessTokenRequest): void {
-    // “记住我”令牌存放在关键资产中，只在首次令牌请求时按专用 provider 回传。
+    // “记住我”令牌存放在关键资产中，只在首次令牌请求时按专用 provider 回传
     const rememberedToken = queryAssetSync(TWO_FACTOR_TOKEN_KEY);
     if (!rememberedToken) {
       return;
@@ -421,7 +421,7 @@ export class LoginViewModel {
   }
 
   private parseRawTwoFactorProviders(errorData?: LoginErrorResponseData): number[] {
-    // 兼容新接口的字典、旧接口的数组及部分自托管服务返回的字符串格式。
+    // 兼容新接口的字典、旧接口的数组及部分自托管服务返回的字符串格式
     if (errorData?.TwoFactorProviders2) {
       return Object.keys(errorData.TwoFactorProviders2)
         .map((provider: string) => Number(provider))
@@ -469,7 +469,7 @@ export class LoginViewModel {
 
   private getCurrentTwoFactorToken(): string {
     if (this.twoFactorProvider === TwoFactorProvider.WEB_AUTHN) {
-      // 通行密钥令牌是完整 JSON，不能像人工输入的验证码一样裁剪内容。
+      // 通行密钥令牌是完整 JSON，不能像人工输入的验证码一样裁剪内容
       return this.twoFactorToken;
     }
 
@@ -508,7 +508,7 @@ export class LoginViewModel {
   }
 
   /**
-   * 串行执行预登录、密钥派生和令牌请求，任一步失败都停止后续敏感操作。
+   * 串行执行预登录、密钥派生和令牌请求，任一步失败都停止后续敏感操作
    */
   async login(): Promise<boolean> {
     // 清除之前的错误信息
@@ -589,7 +589,7 @@ export class LoginViewModel {
   }
 
   /**
-   * 清理旧凭据后逐项保存新凭据及后续解密所需的 KDF 参数。
+   * 清理旧凭据后逐项保存新凭据及后续解密所需的 KDF 参数
    */
   private saveLoginInfo() {
     this.needTwoFactor = false;
@@ -610,7 +610,7 @@ export class LoginViewModel {
     deleteAsset(KDF_PARAM_KEY);
     deleteAsset(TWO_FACTOR_TOKEN_KEY);
     // 保存新的凭据
-    // 访问令牌超过单条边界时拆分；私钥固定按相同边界分段存储。
+    // 访问令牌超过单条边界时拆分；私钥固定按相同边界分段存储
     if (this.accessTokenResponse.access_token.length > 1000) {
       addAsset(this.createAssetModel(ACCESS_TOKEN_KEY_1, this.accessTokenResponse.access_token.substring(0, 1000)));
       addAsset(this.createAssetModel(ACCESS_TOKEN_KEY_2, this.accessTokenResponse.access_token.substring(1000)));
@@ -642,8 +642,6 @@ export class LoginViewModel {
     addAsset(this.createAssetModel(KDF_PARAM_KEY, JSON.stringify(kdfParam)));
 
     DataPreferences.getInstance().putSync(LOGIN_STATUS_KEY, 1);
-
-    // Logger.info(`登录信息: \naccessToken: ${this.accessTokenResponse.access_token},\nrefreshToken: ${this.accessTokenResponse.refresh_token},\nexpiresIn: ${this.accessTokenResponse.expires_in},\n`)
   }
 
   private createAssetModel(alias: string, secret: string, label?: string[]): AssetModel {
@@ -812,9 +810,6 @@ export class LoginViewModel {
 
   // 读取服务器配置
   async loadServerConfig(): Promise<void> {
-    // await DataPreferences.getInstance().getPromise(SERVER_ADDRESS_KEY, '').then((data: string) => {
-    //   this.serverAddress = data;
-    // });
     const serverConfig = await getServerConfig();
     this.serverType = serverConfig.serverType;
     this.serverAddress = serverConfig.serverAddress;

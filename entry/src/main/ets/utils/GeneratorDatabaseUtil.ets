@@ -2,10 +2,10 @@ import { relationalStore } from '@kit.ArkData';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { Context } from '@kit.AbilityKit';
 
-/** 生成器历史记录表名。 */
+/** 生成器历史记录表名 */
 export const GENERATOR_HISTORY_TABLE = 'generator_history';
 
-// 生成器历史记录关系型数据库操作类
+/** 管理生成器历史的加密关系型数据库，并保证建表完成后再执行读写 */
 export class GeneratorDatabaseUtil {
   private static instance: GeneratorDatabaseUtil;
   private static store: relationalStore.RdbStore | null = null;

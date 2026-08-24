@@ -17,7 +17,7 @@ export struct TotpDisplayItem {
 
   async aboutToAppear() {
     await this.updateCode();
-    // 定时器只在组件生命周期内运行，销毁时由 aboutToDisappear 对称释放。
+    // 定时器只在组件生命周期内运行，销毁时由 aboutToDisappear 对称释放
     this.startTimer();
   }
 
@@ -74,7 +74,7 @@ export struct TotpDisplayItem {
    */
   private async copyCode() {
     try {
-      // 验证码属于短期敏感数据，仅在用户主动操作时写入系统剪贴板。
+      // 验证码属于短期敏感数据，仅在用户主动操作时写入系统剪贴板
       const codeToCopy = this.currentCode.replace(/\s/g, '');
       if (codeToCopy === '------') {
         AppToast.show(this.getUIContext(), $r('app.string.totp_invalid'));

@@ -5,6 +5,7 @@ import { AUTO_LOCK_TIMEOUT, AutoLockTimeout } from './Constants';
 const LEGACY_AUTO_LOCK_ENABLED = 1;
 
 export class AutoLockUtil {
+  // 最近活动时间仅保留在当前进程中，每次开始新会话时重新计时
   private static lastActivityAtMs: number = Date.now();
 
   static getTimeoutSeconds(): AutoLockTimeout {

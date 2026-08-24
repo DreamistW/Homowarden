@@ -49,12 +49,6 @@ export struct UnlockPage {
           .height(120)
           .margin({ bottom: 24 })
 
-        // 应用名称
-        // Text($r('app.string.app_name'))
-        //   .fontSize(24)
-        //   .fontWeight(FontWeight.Medium)
-        //   .margin({ bottom: 80 })
-
         Column() {
           Text($r('app.string.unlock_locked_prompt'))
             .fontSize(14)
@@ -123,55 +117,6 @@ export struct UnlockPage {
           })
         }
 
-        // Button() {
-        //   Text('主密码解锁')
-        //     .fontSize(18)
-        //     .fontColor(Color.White)
-        // }
-        // .width(200)
-        // .height(50)
-        // .backgroundColor('#007DFF')
-        // .borderRadius(25)
-        // .onClick(() => {
-        //   // 主密码解锁
-        //   this.startPasswordAuth();
-        // })
-        // .margin({ bottom: 24 })
-
-        // 生物解锁按钮
-        // Button() {
-        //   Text('生物识别解锁')
-        //     .fontSize(18)
-        //     .fontColor(Color.White)
-        // }
-        // .width(200)
-        // .height(50)
-        // .backgroundColor('#007DFF')
-        // .borderRadius(25)
-        // .onClick(() => {
-        //   if (DataPreferences.getInstance().getSync<number>(BIOMETRIC_AUTH) == 1) {
-        //     // 点击解锁按钮拉起生物认证
-        //     this.startBiometricAuth();
-        //   } else {
-        //   }
-        // })
-        // .margin({ bottom: 24 })
-
-        // 注销按钮
-        // Button() {
-        //   Text('注销')
-        //     .fontSize(18)
-        //     .fontColor(Color.White)
-        // }
-        // .width(200)
-        // .height(50)
-        // .backgroundColor('#007DFF')
-        // .borderRadius(25)
-        // .onClick(() => {
-        //   clearAssetAndPreferences();
-        //   // 跳转到登录页面
-        //   this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
-        // })
       }
       .width('100%')
       .height('100%')
@@ -236,7 +181,7 @@ export struct UnlockPage {
   }
 
   /**
-   * 使用保存的 KDF 参数重新派生主密钥，验证通过后按原页面栈恢复导航。
+   * 使用保存的 KDF 参数重新派生主密钥，验证通过后按原页面栈恢复导航
    */
   async startPasswordAuth() {
     if (!this.masterPassword || this.masterPassword.length === 0) {
@@ -290,7 +235,7 @@ export struct UnlockPage {
 
       // 验证派生的主密钥是否与存储的匹配
       if (derivedMasterKey === storedMasterKey) {
-        // 解锁只更新时间戳和导航状态，不把输入的主密码持久化。
+        // 解锁只更新时间戳和导航状态，不把输入的主密码持久化
         const info: NavPathInfo[] = this.pathInfos.getPathStack();
         const pathName = info[0].name;
         VaultViewModel.beginSession();
@@ -313,12 +258,12 @@ export struct UnlockPage {
   }
 
   /**
-   * 使用一次性随机挑战发起系统级认证，成功后恢复被锁定前的页面栈。
+   * 使用一次性随机挑战发起系统级认证，成功后恢复被锁定前的页面栈
    */
   startBiometricAuth() {
     try {
       const rand = cryptoFramework.createRandom();
-      const len: number = 16; // Generate a 16-byte random number.
+      const len: number = 16; // 生成 16 字节随机数
       let randData: Uint8Array | null = null;
       let retryCount = 0;
       while (retryCount < 3) {
@@ -355,7 +300,7 @@ export struct UnlockPage {
       userAuthInstance.on('result', {
         onResult: (result) => {
           Logger.info(`userAuthInstance callback result: ${JSON.stringify(result)}`);
-          // 结果监听为一次性订阅，页面复用时不能残留旧回调。
+          // 结果监听为一次性订阅，页面复用时不能残留旧回调
           userAuthInstance.off('result');
 
           if (result.result === userAuth.UserAuthResultCode.SUCCESS) {

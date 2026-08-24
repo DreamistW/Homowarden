@@ -1,6 +1,6 @@
 import { AppDropdownOption } from '../model/AppUiModels';
 
-/** 将业务选项适配为 ArkUI Select，并统一处理资源文本和无障碍文本。 */
+/** 将业务选项适配为 ArkUI Select，并统一处理资源文本和无障碍文本 */
 @Component
 export struct AppDropdown {
   @Prop options: AppDropdownOption[] = [];
@@ -11,7 +11,7 @@ export struct AppDropdown {
   onChange: (value: number) => void = () => {};
 
   private selectedIndex(): number {
-    // 页面保存业务枚举值，原生 Select 使用数组下标，两者不能直接混用。
+    // 页面保存业务枚举值，原生 Select 使用数组下标，两者不能直接混用
     const index = this.options.findIndex((option: AppDropdownOption) => option.value === this.value);
     return index < 0 ? 0 : index;
   }
@@ -30,7 +30,7 @@ export struct AppDropdown {
       return option.text;
     }
     if (option.formatValue !== undefined) {
-      // 带数量的资源必须传入格式化参数，不能只按资源 ID 读取模板。
+      // 带数量的资源必须传入格式化参数，不能只按资源 ID 读取模板
       return this.getUIContext().getHostContext()?.resourceManager.getStringSync(option.text.id,
         option.formatValue) ?? '';
     }
@@ -65,7 +65,7 @@ export struct AppDropdown {
       .height(40)
       .accessibilityText(this.resolvedAccessibilityLabel())
       .onSelect((index: number) => {
-        // 对外回传稳定业务值，调用方不依赖选项顺序。
+        // 对外回传稳定业务值，调用方不依赖选项顺序
         const option = this.options[index];
         if (option !== undefined) {
           this.onChange(option.value);

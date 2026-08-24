@@ -57,7 +57,7 @@ export struct CipherDetailPage {
   pathInfos: NavPathStack = new NavPathStack();
   private viewModel: CipherDetailViewModel = new CipherDetailViewModel();
   private initialMode: CipherDetailMode = CipherDetailMode.VIEW;
-  // 进入编辑模式时的明文快照，用于判断是否有未保存改动。
+  // 进入编辑模式时的明文快照，用于判断是否有未保存改动
   private originalCipherSnapshot: string = '';
   private identityTitleGroup: string = 'identityTitleSelector';
   private cardBrandGroup: string = 'cardBrandSelector';
@@ -72,7 +72,7 @@ export struct CipherDetailPage {
     if (this.hasUnsavedChanges()) {
       this.showDiscardConfirm(() => {
         // exitEditMode 会置 isEditable=false 并 loadCipherDetail 还原成修改前内容，
-        // 不能只改 isEditable，否则页面仍显示编辑后的值。
+        // 不能只改 isEditable，否则页面仍显示编辑后的值
         this.exitEditMode();
         onLeave();
       }, onStay);
@@ -84,7 +84,7 @@ export struct CipherDetailPage {
 
   aboutToDisappear(): void {
     DetailLeaveGuard.unregister(this.leaveHandler);
-    // 旋转跨栈迁移会销毁本页，随之关闭未决确认框（等同取消）。
+    // 旋转跨栈迁移会销毁本页，随之关闭未决确认框（等同取消）
     this.confirmController.close();
   }
 
@@ -256,7 +256,7 @@ export struct CipherDetailPage {
     this.isLoading = true;
     this.isDetailLoaded = false;
     try {
-      // cipher 初始值是列表精简模型，详情加载完成后才替换为可编辑的完整明文数据。
+      // cipher 初始值是列表精简模型，详情加载完成后才替换为可编辑的完整明文数据
       const cipherDetail = await this.viewModel.getCipherDetail(this.cipher);
       if (cipherDetail) {
         this.cipher = cipherDetail;
@@ -302,18 +302,18 @@ export struct CipherDetailPage {
     this.isEditable = true;
   }
 
-  // 退出编辑模式并重新加载详情。
+  // 退出编辑模式并重新加载详情
   private exitEditMode(): void {
     this.isEditable = false;
     // getCipherDetail 基于传入对象原地刷新 login/fields 等嵌套字段，但不会回滚 name/notes
-    // 等标量；先从进入编辑时的快照整体还原 this.cipher，再加载详情，确保完全回到修改前。
+    // 等标量；先从进入编辑时的快照整体还原 this.cipher，再加载详情，确保完全回到修改前
     if (this.originalCipherSnapshot) {
       this.cipher = JSON.parse(this.originalCipherSnapshot) as Cipher;
     }
     this.loadCipherDetail();
   }
 
-  // 取消编辑：若有未保存改动则二次确认，确认后放弃改动退出编辑。
+  // 取消编辑：若有未保存改动则二次确认，确认后放弃改动退出编辑
   private requestCancelEdit(): void {
     if (this.hasUnsavedChanges()) {
       this.showDiscardConfirm(() => {
@@ -324,12 +324,12 @@ export struct CipherDetailPage {
     }
   }
 
-  // 编辑模式下相对快照判断是否有未保存改动。
+  // 编辑模式下相对快照判断是否有未保存改动
   private hasUnsavedChanges(): boolean {
     return this.isEditable && JSON.stringify(this.cipher) !== this.originalCipherSnapshot;
   }
 
-  // 弹出“放弃改动”二次确认；点击确认执行 onConfirm，点击取消执行 onCancel（停留当前界面）。
+  // 弹出“放弃改动”二次确认；点击确认执行 onConfirm，点击取消执行 onCancel（停留当前界面）
   private showDiscardConfirm(onConfirm: () => void, onCancel: () => void = () => {}): void {
     this.showConfirm('', $r('app.string.cipher_discard_changes_confirm'), async (): Promise<boolean> => {
       onConfirm();
@@ -352,7 +352,7 @@ export struct CipherDetailPage {
         this.cipher.login.uris = filteredUris;
       }
 
-      // ViewModel 在内部完成明文到密文的转换，页面对象仍保持明文供后续展示。
+      // ViewModel 在内部完成明文到密文的转换，页面对象仍保持明文供后续展示
       VaultChangeNotifier.markLocalChangePending();
       this.cipher = await this.viewModel.updateCipher(this.cipher);
       // 保存成功，退出编辑模式
@@ -481,11 +481,6 @@ export struct CipherDetailPage {
         } else if (this.cipher && this.cipher.id) {
           Scroll() {
             Column() {
-              // Text(this.cipher.name)
-              //   .fontSize(16)
-              //   .fontWeight(FontWeight.Bold)
-              //   .margin({ top: 8, bottom: 8 })
-
               Row() {
                 // 项目名称
                 CipherDetailTextItem({
@@ -522,7 +517,7 @@ export struct CipherDetailPage {
                 this.buildSecureNoteSection();
               }
 
-              // 自定义字段：查看模式下仅当存在字段时才渲章节；编辑模式下必须显示以容纳"添加字段"入口。
+              // 自定义字段：查看模式下仅当存在字段时才渲章节；编辑模式下必须显示以容纳"添加字段"入口
               if (this.isEditable || (this.cipher.fields && this.cipher.fields.length > 0)) {
                 this.buildCustomFieldsSection();
               }
@@ -648,12 +643,12 @@ export struct CipherDetailPage {
     })
     .hideBackButton(this.isSplitView)
     .onReady((ctx: NavDestinationContext) => {
-      // NavDestination 就绪后才能取得当前页面栈和调用方传入的密钥上下文。
+      // NavDestination 就绪后才能取得当前页面栈和调用方传入的密钥上下文
       this.pathInfos = ctx.pathStack;
       const param = ctx.pathInfo.param as CipherDetailParams;
       if (param.cipher && param.cipher.id) {
         // 深拷贝：避免编辑 this.cipher 时污染 param.cipher（同一引用会连累列表数据，
-        // 且旋转跨栈迁移重建时新实例会读到被改过的 param，显示修改后内容）。
+        // 且旋转跨栈迁移重建时新实例会读到被改过的 param，显示修改后内容）
         this.cipher = JSON.parse(JSON.stringify(param.cipher)) as Cipher;
         this.viewModel.symmetricKey = param.symmetricKey;
         this.initialMode = param.initialMode ?? CipherDetailMode.VIEW;
@@ -663,7 +658,7 @@ export struct CipherDetailPage {
     })
     .onBackPressed((): boolean => {
       if (this.isEditable) {
-        // 编辑模式下按返回退回查看模式（若有改动则二次确认），而非直接离开页面。
+        // 编辑模式下按返回退回查看模式（若有改动则二次确认），而非直接离开页面
         this.requestCancelEdit();
         return true;
       }
@@ -749,19 +744,6 @@ export struct CipherDetailPage {
           })
         }
 
-        // Button() {
-        //   Text('添加网站')
-        //     .fontSize(18)
-        //     .fontColor(Color.White)
-        // }
-        // .width(150)
-        // .height(40)
-        // .backgroundColor('#007DFF')
-        // .borderRadius(25)
-        // .margin({ top: 24, bottom: 24 })
-        // .onClick(() => {
-        //   this.addUriEdit();
-        // })
       }
 
       // TOTP验证码显示（仅查看模式且有TOTP密钥时）
@@ -1150,7 +1132,7 @@ export struct CipherDetailPage {
         .margin({ bottom: 12 })
 
       if (this.isEditable) {
-        // 编辑模式：可增删改；每个 row 通过回调就地修改字段并整组重新赋值触发 ForEach 重渲。
+        // 编辑模式：可增删改；每个 row 通过回调就地修改字段并整组重新赋值触发 ForEach 重渲
         ForEach(this.cipher.fields ?? [], (field: CipherField) => {
           CustomFieldEditItem({
             field: field,
@@ -1203,7 +1185,7 @@ export struct CipherDetailPage {
         }
         .margin({ top: 8 })
       } else {
-        // 查看模式：沿用现有只读 CipherDetailTextItem 渲染。
+        // 查看模式：沿用现有只读 CipherDetailTextItem 渲染
         ForEach(this.cipher.fields as CipherField[], (field: CipherField) => {
           CipherDetailTextItem({
             label: field.name,
@@ -1221,7 +1203,7 @@ export struct CipherDetailPage {
   }
 
   private deleteCipher() {
-    // 与生成器/分享历史一致，使用可关闭的 ConfirmDialog 二次确认。
+    // 与生成器/分享历史一致，使用可关闭的 ConfirmDialog 二次确认
     const message: ResourceStr = this.cipher.deletedDate
       ? $r('app.string.cipher_delete_forever_confirm', this.cipher.name)
       : $r('app.string.cipher_move_trash_confirm', this.cipher.name);
@@ -1235,7 +1217,7 @@ export struct CipherDetailPage {
    */
   private async doDeleteCipher(): Promise<boolean> {
     try {
-      // 已在回收站中的条目再次删除时才执行永久删除。
+      // 已在回收站中的条目再次删除时才执行永久删除
       const isRealDelete = this.cipher.deletedDate ? true : false;
       VaultChangeNotifier.markLocalChangePending();
       const changedCipher = await this.viewModel.deleteCipher(this.cipher, isRealDelete);

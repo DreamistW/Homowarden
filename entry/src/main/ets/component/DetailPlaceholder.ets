@@ -5,7 +5,7 @@ export function DetailPlaceholderBuilder() {
   DetailPlaceholder();
 }
 
-/** 分栏未选择内容时仅展示弱化的应用图标。 */
+/** 分栏未选择内容时仅展示弱化的应用图标 */
 @Component
 export struct DetailPlaceholder {
   private exitTime: number = 0;

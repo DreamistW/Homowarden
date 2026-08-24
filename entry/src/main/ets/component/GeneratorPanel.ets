@@ -13,7 +13,7 @@ import { GeneratorRecordType } from '../model/GeneratorHistoryModel';
 import { PasswordGenerator } from '../utils/PasswordGenerator';
 import { UsernameGenerator, UsernameType } from '../utils/UsernameGenerator';
 
-/** 面板支持的生成模式：固定由调用方按字段指定。 */
+/** 面板支持的生成模式：固定由调用方按字段指定 */
 export enum GeneratorPanelMode {
   PASSWORD = 0,
   USERNAME = 1
@@ -26,7 +26,7 @@ const MIN_COUNT_MIN: number = 0;
 
 /**
  * 生成器面板：在添加密码项页面以底部面板形式复用生成能力，固定单一模式，
- * 成功生成后写入历史，点击"使用"通过 onUse 回填到目标输入框。
+ * 成功生成后写入历史，点击"使用"通过 onUse 回填到目标输入框
  */
 @Component
 export struct GeneratorPanel {
@@ -63,7 +63,7 @@ export struct GeneratorPanel {
     await this.regenerate();
   }
 
-  /** 依据当前模式重新生成。 */
+  /** 依据当前模式重新生成 */
   async regenerate(): Promise<void> {
     const requestId: number = ++this.generationRequestId;
     const task: Promise<void> = this.generationQueue.then(async () => {
@@ -80,7 +80,7 @@ export struct GeneratorPanel {
     await task;
   }
 
-  // 依据当前密码选项生成密码，成功后写入历史记录。
+  // 依据当前密码选项生成密码，成功后写入历史记录
   private async regeneratePassword(requestId: number): Promise<void> {
     try {
       const value: string = await PasswordGenerator.generate({
@@ -107,10 +107,10 @@ export struct GeneratorPanel {
     }
   }
 
-  // 依据当前用户名选项生成用户名，成功后写入历史记录。
+  // 依据当前用户名选项生成用户名，成功后写入历史记录
   private async regenerateUsername(requestId: number): Promise<void> {
     if (this.usernameType === UsernameType.EMAIL_ALIAS) {
-      // 邮箱为空时不生成，避免产生无效别名。
+      // 邮箱为空时不生成，避免产生无效别名
       if (this.email.trim().length === 0) {
         this.output = '';
         return;
@@ -140,7 +140,7 @@ export struct GeneratorPanel {
     }
   }
 
-  // 将生成结果写入历史记录表。
+  // 将生成结果写入历史记录表
   private async saveToHistory(content: string, type: GeneratorRecordType): Promise<void> {
     const item: relationalStore.ValuesBucket = {
       id: this.dbUtil.generateId(),
@@ -151,7 +151,7 @@ export struct GeneratorPanel {
     await this.dbUtil.insertData(GENERATOR_HISTORY_TABLE, item);
   }
 
-  // 调整数字最小个数并重新生成。
+  // 调整数字最小个数并重新生成
   private async adjustMinDigits(delta: number): Promise<void> {
     const max: number = this.length - this.minSymbols;
     let next: number = this.minDigits + delta;
@@ -167,7 +167,7 @@ export struct GeneratorPanel {
     }
   }
 
-  // 调整符号最小个数并重新生成。
+  // 调整符号最小个数并重新生成
   private async adjustMinSymbols(delta: number): Promise<void> {
     const max: number = this.length - this.minDigits;
     let next: number = this.minSymbols + delta;
@@ -183,7 +183,7 @@ export struct GeneratorPanel {
     }
   }
 
-  /** 更新密码长度，并同步归一化数字与符号的最小个数。 */
+  /** 更新密码长度，并同步归一化数字与符号的最小个数 */
   private updatePasswordLength(value: number): void {
     const nextLength: number = Math.min(PASSWORD_LENGTH_MAX,
       Math.max(PASSWORD_LENGTH_MIN, Math.round(value)));
@@ -259,7 +259,7 @@ export struct GeneratorPanel {
       .layoutWeight(1)
       .margin({ top: 12 })
 
-      // 使用按钮：回填到目标输入框并关闭面板。
+      // 使用按钮：回填到目标输入框并关闭面板
       Button($r('app.string.cipher_use_generated'))
         .type(ButtonType.Capsule)
         .width('100%')

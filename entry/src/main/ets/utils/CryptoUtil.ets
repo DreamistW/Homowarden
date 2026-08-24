@@ -34,8 +34,8 @@ export class CryptoUtil {
   }
 
   /**
-   * 单次迭代 PBKDF2-SHA256，用于生成服务端登录验证值。
-   * 单次迭代结果等于 HMAC-SHA256(password, salt || INT32_BE(1))。
+   * 单次迭代 PBKDF2-SHA256，用于生成服务端登录验证值
+   * 单次迭代结果等于 HMAC-SHA256(password, salt || INT32_BE(1))
    */
   static async deriveKeyPBKDF2SingleIteration(password: Uint8Array, salt: string): Promise<string> {
     const saltBytes: Uint8Array = new util.TextEncoder().encodeInto(salt);
@@ -97,7 +97,7 @@ export class CryptoUtil {
     parallelism: number, keyLen: number = 32): Promise<string> {
     const passwordBuffer = new util.TextEncoder().encodeInto(password);
     const saltBuffer = new util.TextEncoder().encodeInto(salt.trim().toLowerCase());
-    // Bitwarden 使用邮箱的 SHA-256 摘要作为 Argon2id 的盐，而不是邮箱原始字节。
+    // Bitwarden 使用邮箱的 SHA-256 摘要作为 Argon2id 的盐，而不是邮箱原始字节
     const saltDigest = cryptoFramework.createMd('SHA256');
     await saltDigest.update({ data: saltBuffer });
     const saltHash = await saltDigest.digest();
@@ -146,14 +146,11 @@ export class CryptoUtil {
       const cipherBlob: cryptoFramework.DataBlob =
         { data: new util.Base64Helper().decodeSync(partsOfText[1]) };
       const symKey = await CryptoUtil.genSymKeyByData(key);
-      // Logger.info(`cipherText length: ${cipherBlob.data.length}`);
-      // Logger.info(`key length: ${key.length}`);
       const decoder = cryptoFramework.createCipher('AES256|CBC|PKCS7');
       const paramSpec: cryptoFramework.IvParamsSpec = {
         algName: 'IvParamsSpec',
         iv: { data: new util.Base64Helper().decodeSync(partsOfText[0]) },
       }
-      // Logger.info(`iv length: ${paramSpec.iv.data.length}`);
       await decoder.init(cryptoFramework.CryptoMode.DECRYPT_MODE, symKey, paramSpec);
       const decryptedData = await decoder.doFinal(cipherBlob);
       return new util.Base64Helper().encodeToStringSync(decryptedData.data)
@@ -256,7 +253,7 @@ export class CryptoUtil {
   /**
    * AES-256-CBC加密
    * @param plainText 明文
-   * @param iv
+   * @param iv 初始化向量
    * @param key 对称密钥
    * @returns 加密后的base64字符串
    */
@@ -285,7 +282,7 @@ export class CryptoUtil {
 
   /**
    * 生成HMAC
-   * @param iv
+   * @param iv 初始化向量
    * @param cipherText base64密文字符串
    * @param macKey 生成MAC的密钥
    * @returns HMAC的base64字符串

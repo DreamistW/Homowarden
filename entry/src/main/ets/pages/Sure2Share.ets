@@ -16,7 +16,7 @@ export struct Sure2SharePage {
   @State outputText: string = '';
 
   /**
-   * 解析原始分享文本、展开短链并去除跟踪信息，成功后写入历史记录。
+   * 解析原始分享文本、展开短链并去除跟踪信息，成功后写入历史记录
    */
   async convertLink() {
     const shareLink = await getShareLink(this.inputText);
@@ -35,7 +35,7 @@ export struct Sure2SharePage {
       return;
     }
     AppToast.show(this.getUIContext(), $r('app.string.share_convert_success'));
-    // 转换结果不含密码库密文，但可能包含用户分享内容，仅写入应用本地历史库。
+    // 转换结果不含密码库密文，但可能包含用户分享内容，仅写入应用本地历史库
     const dbUtil = ShareDatabaseUtil.getInstance();
     const item: relationalStore.ValuesBucket = {
       id: dbUtil.generateId(),
@@ -46,7 +46,7 @@ export struct Sure2SharePage {
   }
 
   /**
-   * 将转换结果写入系统剪贴板，跨应用暴露由用户显式触发。
+   * 将转换结果写入系统剪贴板，跨应用暴露由用户显式触发
    */
   async copyLink(text: string): Promise<void> {
     if (text == "") {
@@ -65,7 +65,7 @@ export struct Sure2SharePage {
   }
 
   /**
-   * 根据内容类型拉起系统分享面板，不在应用内选择或缓存接收方。
+   * 根据内容类型拉起系统分享面板，不在应用内选择或缓存接收方
    */
   shareLink(text: string, shareLink: boolean) {
     if (text == "") {

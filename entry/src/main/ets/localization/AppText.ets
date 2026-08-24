@@ -1,4 +1,4 @@
-/** 可跨 ViewModel 和 UI 层传递的本地化文案键。 */
+/** 可跨 ViewModel 和 UI 层传递的本地化文案键 */
 export enum AppTextKey {
   UNKNOWN_ERROR = 'error_unknown',
   NETWORK_ERROR = 'error_network',
@@ -35,7 +35,7 @@ export enum AppTextKey {
   VERIFICATION_FAILED = 'unlock_verification_failed'
 }
 
-/** 以稳定键表示业务文案，避免在 ViewModel 中固化具体语言。 */
+/** 以稳定键表示业务文案，避免在 ViewModel 中固化具体语言 */
 export class AppText {
   key: AppTextKey;
 
@@ -44,14 +44,14 @@ export class AppText {
   }
 }
 
-/** UI 消息的展示语义。 */
+/** UI 消息的展示语义 */
 export enum UiMessageKind {
   ERROR = 0,
   SUCCESS = 1,
   INFO = 2
 }
 
-/** 携带消息类型及本地化文案的 UI 消息。 */
+/** 携带消息类型及本地化文案的 UI 消息 */
 export class UiMessage {
   kind: UiMessageKind;
   text: AppText;

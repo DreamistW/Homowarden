@@ -1,6 +1,6 @@
 import { AppText, AppTextKey } from './AppText';
 
-/** 将业务层文案键解析为 ArkUI 资源。 */
+/** 将业务层文案键解析为 ArkUI 资源 */
 export class AppTextResolver {
   static resource(text: AppText): Resource {
     switch (text.key) {

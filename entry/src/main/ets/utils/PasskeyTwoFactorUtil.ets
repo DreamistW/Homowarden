@@ -7,7 +7,7 @@ type ProviderDataValue = Object | string | number | boolean | null | undefined;
 type ProviderDataRecord = Record<string, ProviderDataValue>;
 
 /**
- * 将 Bitwarden 两步验证数据转换为系统 FIDO2 请求并返回服务端可接受的响应 JSON。
+ * 将 Bitwarden 两步验证数据转换为系统 FIDO2 请求并返回服务端可接受的响应 JSON
  */
 export class PasskeyTwoFactorUtil {
   static async authenticate(
@@ -24,7 +24,7 @@ export class PasskeyTwoFactorUtil {
     providerData: ProviderDataRecord,
     fallbackRpId: string
   ): fido2.CredentialRequestOptions {
-    // 官方服务与部分自托管版本的字段大小写不同，读取时同时兼容两种形式。
+    // 官方服务与部分自托管版本的字段大小写不同，读取时同时兼容两种形式
     const challenge = PasskeyTwoFactorUtil.getString(providerData, ['challenge', 'Challenge']);
     if (!challenge) {
       throw new Error('passkey_challenge_missing');
@@ -134,7 +134,7 @@ export class PasskeyTwoFactorUtil {
   }
 
   private static decodeBase64Url(value: string): Uint8Array {
-    // FIDO2 使用 Base64URL，系统 Base64Helper 需要标准字母表和完整填充。
+    // FIDO2 使用 Base64URL，系统 Base64Helper 需要标准字母表和完整填充
     let base64 = value.replace(/-/g, '+').replace(/_/g, '/');
     const padding = base64.length % 4;
     if (padding > 0) {

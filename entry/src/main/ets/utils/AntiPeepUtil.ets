@@ -7,6 +7,7 @@ import { Logger } from '@nzy/logger';
 import { ANTI_PEEP_GUIDE_SHOWN, ANTI_PEEP_PROTECTION } from './Constants';
 import { FormFactorUtil } from './FormFactorUtil';
 
+/** 协调应用偏好、系统防窥开关和遮罩订阅，PC 端不启用该能力 */
 export class AntiPeepUtil {
   private static subscribed: boolean = false;
   private static hasShownMask: boolean = false;
@@ -52,6 +53,7 @@ export class AntiPeepUtil {
       return;
     }
 
+    // 系统授权引导只主动展示一次，后续由用户在设置页显式开启
     AntiPeepUtil.markGuideShown();
     await AntiPeepUtil.setProtectionEnabled(true, context);
   }
@@ -213,6 +215,7 @@ export class AntiPeepUtil {
 
     if (status === dlpAntiPeep.DlpAntiPeepStatus.HIDE) {
       Logger.info('DlpAntiPeepStatus is HIDE.');
+      // 同一轮遮挡只设置一次遮罩，等待 PASS 后再允许下一次设置
       if (!AntiPeepUtil.hasShownMask) {
         await AntiPeepUtil.setMaskLayer();
       }

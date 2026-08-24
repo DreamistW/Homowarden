@@ -1,4 +1,4 @@
-/** 下拉选项模型，支持普通文本和带数值占位符的资源文本。 */
+/** 下拉选项模型，支持普通文本和带数值占位符的资源文本 */
 export class AppDropdownOption {
   text: ResourceStr = '';
   value: number = 0;

@@ -7,7 +7,7 @@ import { DatabaseUtil } from '../utils/DatabaseUtil';
 import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
 import { CipherDisplayMapping } from '../domain/CipherDisplayMapping';
 
-/** 负责新建 Cipher 的表单状态、字段加密及本地持久化。 */
+/** 负责新建 Cipher 的表单状态、字段加密及本地持久化 */
 export class AddCipherViewModel {
   type: CipherItemType = CipherItemType.LOGIN;
   // 对称密钥
@@ -20,7 +20,7 @@ export class AddCipherViewModel {
   cardItem: CipherCard = {} as CipherCard;
   identityItem: CipherIdentity = {} as CipherIdentity;
   notes: string = '';
-  // 自定义字段列表：仅持有明文用于界面表单与后续加密；itemId 仅用于 ForEach 行 key。
+  // 自定义字段列表：仅持有明文用于界面表单与后续加密；itemId 仅用于 ForEach 行 key
   fields: CipherField[] = [];
   // 页面状态
   submitting: boolean = false;
@@ -33,7 +33,7 @@ export class AddCipherViewModel {
     this.cardItem.brand = CipherDisplayMapping.writeCardBrand(type);
   }
 
-  /** 在表单尾部追加一条空白自定义字段；界面的 @State 数组须在调用后重新赋值以触发渲染。 */
+  /** 在表单尾部追加一条空白自定义字段；界面的 @State 数组须在调用后重新赋值以触发渲染 */
   addField(type: CipherFieldType): void {
     const newField: CipherField = {
       name: '',
@@ -176,7 +176,7 @@ export class AddCipherViewModel {
     return identity;
   }
 
-  // 构建加密自定义字段；不携带 itemId，确保本地内存标识不会泄漏到服务端或数据库。
+  // 构建加密自定义字段；不携带 itemId，确保本地内存标识不会泄漏到服务端或数据库
   private async buildEncryptedFields(): Promise<CipherField[]> {
     return await Promise.all(this.fields.map(async (field: CipherField): Promise<CipherField> => {
       const encName = field.name ? await CryptoUtil.encryptField(field.name, this.symmetricKey) : '';
@@ -225,7 +225,7 @@ export class AddCipherViewModel {
   private buildCreatedEncryptedCipher(payload: Cipher, createdCipher: Cipher): Cipher {
     const revisionDate = createdCipher.revisionDate || payload.revisionDate;
 
-    // 服务端可能只返回部分字段，缺失值必须回退到已发送的加密载荷。
+    // 服务端可能只返回部分字段，缺失值必须回退到已发送的加密载荷
     return {
       id: createdCipher.id || payload.id,
       type: createdCipher.type || payload.type,
@@ -267,7 +267,7 @@ export class AddCipherViewModel {
     const revisionDate = createdCipher.revisionDate;
     const notes = this.notes && this.notes.trim().length > 0 ? this.notes.trim() : null;
 
-    // 列表通知使用明文副本，禁止把服务端返回的密文直接展示到 UI。
+    // 列表通知使用明文副本，禁止把服务端返回的密文直接展示到 UI
     return {
       id: createdCipher.id,
       type: this.type,
@@ -349,7 +349,7 @@ export class AddCipherViewModel {
     };
   }
 
-  /** 加密并提交新条目，服务端成功后先落库再返回明文列表副本。 */
+  /** 加密并提交新条目，服务端成功后先落库再返回明文列表副本 */
   async submitCreate(): Promise<Cipher | null> {
     this.errorMessage = '';
     if (!this.canSave()) {

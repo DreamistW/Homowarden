@@ -9,7 +9,7 @@ import { AppText, AppTextKey } from '../localization/AppText';
 import { relationalStore } from '@kit.ArkData';
 
 /**
- * 解密包含 TOTP 的登录项，并在查看详情前重新验证主密码。
+ * 解密包含 TOTP 的登录项，并在查看详情前重新验证主密码
  */
 export class TotpListViewModel {
   allCiphers: Cipher[] = [];
@@ -21,14 +21,14 @@ export class TotpListViewModel {
   errorMessage: AppText | undefined = undefined;
 
   /**
-   * 解密配置了 TOTP 的登录项，完成后仅暴露带有 TOTP 的条目。
+   * 解密配置了 TOTP 的登录项，完成后仅暴露带有 TOTP 的条目
    *
    * 性能要点：
    * 1) 用一次同步批量查询拉取 cipher_logins 全表，避免逐条 querySingleData 在主线程上
-   *    串行同步查询造成 Tab 切换动画卡顿（之前的"首次点击后卡数秒"问题即此导致）。
+   *    串行同步查询造成 Tab 切换动画卡顿（之前的"首次点击后卡数秒"问题即此导致）
    * 2) TOTP 列表只关心配置了 TOTP 密文的登录项：先按同步预取的密文过滤，再决定是否解密，
-   *    绝大多数没有 TOTP 的登录项完全跳过 cipher key / username 的解密。
-   * 3) 仅对确有 TOTP 密文的少量登录项并发解密；单条失败不阻塞其余项。
+   *    绝大多数没有 TOTP 的登录项完全跳过 cipher key / username 的解密
+   * 3) 仅对确有 TOTP 密文的少量登录项并发解密；单条失败不阻塞其余项
    */
   async loadLogins(): Promise<void> {
     const loginRows: relationalStore.ValuesBucket[] =
@@ -85,7 +85,7 @@ export class TotpListViewModel {
   }
 
   /**
-   * 按登录时保存的 KDF 参数重新派生主密钥，不直接保存或比较主密码明文。
+   * 按登录时保存的 KDF 参数重新派生主密钥，不直接保存或比较主密码明文
    */
   async verifyMasterPassword(passwordInput: string): Promise<boolean> {
     if (!passwordInput || passwordInput.length === 0) {

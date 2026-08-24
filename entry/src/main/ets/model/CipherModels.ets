@@ -1,12 +1,12 @@
 import { CipherFieldType, CipherItemType } from '../utils/Constants';
 
-/** 密码项名称的显示来源，用于区分用户数据与本地状态文案。 */
+/** 密码项名称的显示来源，用于区分用户数据与本地状态文案 */
 export enum CipherDisplayNameKind {
   USER_VALUE = 0,
   DECRYPTION_FAILED = 1
 }
 
-/** 密码项副标题的显示来源，用于按当前语言解析非用户文案。 */
+/** 密码项副标题的显示来源，用于按当前语言解析非用户文案 */
 export enum CipherDisplaySubtitleKind {
   USER_VALUE = 0,
   DECRYPTION_FAILED = 1,
@@ -52,13 +52,13 @@ export interface Cipher {
   encryptedFor?: string | null; // 被加密目标用户
   reprompt: number; // 是否需要验证主密码才能查看
   subtitle?: string; // 副标题，显示在密码库界面
-  // 以下字段只承载列表显示语义，不属于服务端 Cipher 数据协议。
+  // 以下字段只承载列表显示语义，不属于服务端 Cipher 数据协议
   displayNameKind?: CipherDisplayNameKind;
   displaySubtitleKind?: CipherDisplaySubtitleKind;
-  // 保留姓名分量，以便语言切换后按目标语言顺序重新组合。
+  // 保留姓名分量，以便语言切换后按目标语言顺序重新组合
   identityFirstName?: string;
   identityLastName?: string;
-  // 仅记录登录项是否配置 TOTP，列表不保留 TOTP 密钥明文。
+  // 仅记录登录项是否配置 TOTP，列表不保留 TOTP 密钥明文
   hasTotp?: boolean;
 }
 
@@ -127,7 +127,7 @@ export interface CipherField {
   value: string; // 字段值
   type: CipherFieldType; // 字段类型（0为文本，1为隐藏，2为复选框）
   linkedId?: number | null; // 官方字段联动 ID
-  // 仅作为 ForEach 行 key 使用的本地内存标识，不参与加解密、数据库写入与服务端序列化。
+  // 仅作为 ForEach 行 key 使用的本地内存标识，不参与加解密、数据库写入与服务端序列化
   itemId?: string;
 }
 

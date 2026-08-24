@@ -4,7 +4,7 @@ import { AdaptiveIconButton } from './AdaptiveButton';
 
 /**
  * 自定义字段编辑行
- * 按字段类型分支渲染名称输入、值输入与删除按钮，供新增/编辑密码项页面共用。
+ * 按字段类型分支渲染名称输入、值输入与删除按钮，供新增/编辑密码项页面共用
  * - TEXT：普通文本输入
  * - HIDE：密码输入，复用 ArkUI TextInput InputType.Password 自带的显示/隐藏眼睛图标
  * - BOOL：开关 + 是/否文案，值以 'true'/'false' 字符串序列化，与详情页 getFieldValue 解析保持一致；
@@ -13,7 +13,7 @@ import { AdaptiveIconButton } from './AdaptiveButton';
 @Component
 export struct CustomFieldEditItem {
   @Prop field: CipherField;
-  // 本地维护 BOOL 开关 UI 态，onChange 后立即刷新文案；避免依赖父组件对象引用变化。
+  // 本地维护 BOOL 开关 UI 态，onChange 后立即刷新文案；避免依赖父组件对象引用变化
   @State boolOn: boolean = false;
   onNameChange?: (name: string) => void;
   onValueChange?: (value: string) => void;
@@ -55,7 +55,7 @@ export struct CustomFieldEditItem {
             }
           })
       } else if (this.field.type === CipherFieldType.HIDE) {
-        // ArkUI TextInput 在 InputType.Password 时自带显示/隐藏眼睛图标，无需再叠加自定义按钮。
+        // ArkUI TextInput 在 InputType.Password 时自带显示/隐藏眼睛图标，无需再叠加自定义按钮
         TextInput({
           text: this.field.value,
           placeholder: $r('app.string.cipher_field_value')
@@ -69,7 +69,7 @@ export struct CustomFieldEditItem {
             }
           })
       } else {
-        // BOOL 类型：开关与文案都绑定本地 @State，切换即时刷新。
+        // BOOL 类型：开关与文案都绑定本地 @State，切换即时刷新
         Row({ space: 8 }) {
           Toggle({ type: ToggleType.Switch, isOn: this.boolOn })
             .accessibilityText($r('app.string.cipher_field_value'))

@@ -36,7 +36,6 @@ export class TOTPUtil {
         Logger.info('Detected otpauth URL, extracting secret');
         const parsed = TOTPUtil.parseOtpAuthUrl(secret);
         actualSecret = parsed.secret;
-        // Logger.info(`Extracted secret: ${actualSecret}`);
       }
 
       if (!actualSecret || actualSecret.trim() === '') {
@@ -90,7 +89,6 @@ export class TOTPUtil {
 
       // 6. 格式化为6位数字
       const result = code.toString().padStart(TOTPUtil.CODE_DIGITS, '0');
-      // Logger.info(`TOTP generated: ${result}`);
       return result;
     } catch (error) {
       Logger.error(`TOTP generation failed: ${JSON.stringify(error)}`);
@@ -151,10 +149,8 @@ export class TOTPUtil {
    */
   private static base32Decode(encoded: string): Uint8Array {
     try {
-      // Logger.info(`Base32 decode input: ${encoded}`);
       // 清理输入：移除空格、连字符，转大写
       const cleanEncoded = encoded.replace(/\s/g, '').replace(/-/g, '').toUpperCase();
-      // Logger.info(`Base32 clean input: ${cleanEncoded}, length: ${cleanEncoded.length}`);
 
       // 检查有效字符
       const bits: number[] = [];
@@ -185,7 +181,6 @@ export class TOTPUtil {
           | bits[i * 8 + 7];
       }
 
-      // Logger.info(`Base32 decode output: ${bytes.length} bytes`);
       return bytes;
     } catch (error) {
       Logger.error(`Base32 decode failed: ${JSON.stringify(error)}`);
@@ -209,7 +204,7 @@ export class TOTPUtil {
 
   /**
    * 解析otpauth://totp/ URL
-   * @param url otpauth URL
+   * @param url otpauth 地址
    * @returns 解析后的密钥和参数
    */
   static parseOtpAuthUrl(url: string): OtpAuthResult {
@@ -242,8 +237,6 @@ export class TOTPUtil {
 
       // 手动解析查询参数
       const secret = TOTPUtil.extractQueryParam(queryPart, 'secret');
-
-      // Logger.info(`Parsed otpauth URL - issuer: ${issuer}, account: ${account}`);
 
       const result: OtpAuthResult = { secret };
       if (issuer) {

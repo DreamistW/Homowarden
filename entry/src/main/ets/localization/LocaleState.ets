@@ -1,4 +1,4 @@
-/** 通过 AppStorage 修订号向已挂载组件广播系统语言变化。 */
+/** 通过 AppStorage 修订号向已挂载组件广播系统语言变化 */
 export class LocaleState {
   static revision: number = 0;
 
@@ -7,7 +7,7 @@ export class LocaleState {
   }
 
   static notifyChanged(): void {
-    // 递增值用于触发 @StorageLink/@Watch，即使新旧语言由系统资源管理器维护。
+    // 递增值用于触发 @StorageLink/@Watch，即使新旧语言由系统资源管理器维护
     LocaleState.revision += 1;
     AppStorage.set<number>('localeRevision', LocaleState.revision);
   }

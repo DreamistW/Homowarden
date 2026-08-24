@@ -5,7 +5,7 @@ const MILLISECONDS_PER_MINUTE: number = 60 * 1000;
 const MILLISECONDS_PER_HOUR: number = 60 * MILLISECONDS_PER_MINUTE;
 const MINIMUM_MILLISECOND_TIMESTAMP: number = 100000000000;
 
-/** Formats history timestamps consistently with the system locale and clock preference. */
+/** 按系统语言和时钟偏好统一格式化历史时间 */
 export class HistoryTimeFormatter {
   static format(timestamp: number, now: number = Date.now()): string {
     const normalizedTimestamp: number = HistoryTimeFormatter.normalizeTimestamp(timestamp);
@@ -32,6 +32,7 @@ export class HistoryTimeFormatter {
   }
 
   private static normalizeTimestamp(timestamp: number): number {
+    // 兼容旧记录中以秒为单位保存的时间戳
     if (timestamp > 0 && timestamp < MINIMUM_MILLISECOND_TIMESTAMP) {
       return timestamp * 1000;
     }

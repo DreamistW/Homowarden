@@ -7,7 +7,7 @@ import {
   IdentityTitleType
 } from '../utils/Constants';
 
-/** 集中创建使用本地化资源的下拉选项。 */
+/** 集中创建使用本地化资源的下拉选项 */
 export class AppOptionFactory {
   static autoLockTimeouts(): AppDropdownOption[] {
     const options: AppDropdownOption[] = [];

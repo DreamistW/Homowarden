@@ -140,7 +140,7 @@ struct VaultContent {
   }
 
   private handleCommittedChange(): void {
-    // 分栏下列表始终挂载，直接消费提交事件而不依赖页面重新激活。
+    // 分栏下列表始终挂载，直接消费提交事件而不依赖页面重新激活
     this.consumeCommittedChange();
   }
 
@@ -155,7 +155,7 @@ struct VaultContent {
   }
 
   private handleLocaleRevision(): void {
-    // 语言变化后重排身份姓名并重建带数量的筛选文案。
+    // 语言变化后重排身份姓名并重建带数量的筛选文案
     this.viewModel.refreshLocale();
     this.refreshFilterOptions();
     this.applyCurrentFilter();
@@ -175,7 +175,7 @@ struct VaultContent {
     this.displayCiphers = this.viewModel.filteredCiphers.slice();
   }
 
-  /** 优先展示本地数据，并按是否为空选择前台或后台同步策略。 */
+  /** 优先展示本地数据，并按是否为空选择前台或后台同步策略 */
   private async loadCiphersWithBackgroundSync() {
     // 设置重新登录回调
     this.viewModel.onReLoginRequired = () => {
@@ -202,7 +202,7 @@ struct VaultContent {
     }
   }
 
-  /** 静默同步服务器数据，并丢弃本地编辑发生前启动的过期结果。 */
+  /** 静默同步服务器数据，并丢弃本地编辑发生前启动的过期结果 */
   private async doBackgroundSync() {
     const changeRevision = VaultChangeNotifier.getChangeRevision();
     const result = await this.viewModel.syncCiphersInBackground(() => {
@@ -235,7 +235,7 @@ struct VaultContent {
   }
 
   private async handleLocalVaultChange(change: VaultLocalChange | null): Promise<void> {
-    // 先更新内存列表保证返回页面即时可见，再以数据库和后台同步结果校准。
+    // 先更新内存列表保证返回页面即时可见，再以数据库和后台同步结果校准
     if (change?.type === VaultLocalChangeType.UPSERT && change.cipher) {
       this.viewModel.applyLocalCipherChange(change.cipher, this.selectedType, this.searchText);
       this.applyCurrentFilter();
@@ -285,7 +285,7 @@ struct VaultContent {
     }
   }
 
-  // 后台同步判定会话失效时，用 ConfirmDialog 提示重新登录（无取消按钮，只能确认）。
+  // 后台同步判定会话失效时，用 ConfirmDialog 提示重新登录（无取消按钮，只能确认）
   private showReloginDialog(): void {
     if (this.isReloginDialogOpen) {
       return;
@@ -483,7 +483,7 @@ struct VaultContent {
     this.onNavigateToDetail(params);
   }
 
-  // 密码验证弹框点击确认时调用：校验通过则跳转详情并关闭弹框，否则回填错误文案并保持打开。
+  // 密码验证弹框点击确认时调用：校验通过则跳转详情并关闭弹框，否则回填错误文案并保持打开
   private async confirmMasterPassword(): Promise<void> {
     const result = await this.verifyMasterPassword();
     if (result) {
@@ -721,7 +721,7 @@ struct VaultContent {
   }
 }
 
-/** 承载密码库、TOTP、分享与设置页签的主页面。 */
+/** 承载密码库、TOTP、分享与设置页签的主页面 */
 @Component
 export struct VaultPage {
   @StorageLink('localeRevision') localeRevision: number = 0;
@@ -845,7 +845,7 @@ export struct VaultPage {
   private updateVaultData(ciphers: Cipher[], symmetricKey: string): void {
     this.sharedCiphers = ciphers;
     this.sharedSymmetricKey = symmetricKey;
-    // 修订号让已挂载的 TOTP 页感知数组内容更新，而不依赖引用比较。
+    // 修订号让已挂载的 TOTP 页感知数组内容更新，而不依赖引用比较
     this.vaultDataRevision++;
   }
 
@@ -873,10 +873,10 @@ export struct VaultPage {
       return;
     }
     // 旋转是系统事件，无法“取消”，不应走“放弃改动”二次确认——否则取消后布局会卡在
-    // 与朝向不符的模式（竖屏卡分栏 / 横屏卡单栏）。按设计 §8.6 直接迁移详情即可。
+    // 与朝向不符的模式（竖屏卡分栏 / 横屏卡单栏）。按设计 §8.6 直接迁移详情即可
     // 注意：断点变化源自 Index.onAreaChange（处于渲染流水线中），同步改 @State 会被
-    // 判为 "changed during render" 而丢弃，故延迟到当前帧结束后执行。
-    // 未保存的编辑在跨栈迁移时会按原始数据重建而不保留（与“确认放弃”结果一致）。
+    // 判为 "changed during render" 而丢弃，故延迟到当前帧结束后执行
+    // 未保存的编辑在跨栈迁移时会按原始数据重建而不保留（与“确认放弃”结果一致）
     setTimeout(() => {
       this.applySplitViewChange();
     }, 0);
@@ -885,7 +885,7 @@ export struct VaultPage {
   private applySplitViewChange(): void {
     // 幂等守卫：断点抖动（如折叠屏折叠/展开中途宽度短暂跌破阈值又回升）会让
     // handleSplitViewChange 入队的延迟调用在"模式已一致"时才触发。若不拦截，LG 分支
-    // 会把当前显示的详情 replace 成占位页，导致用户正在看的详情凭空消失。
+    // 会把当前显示的详情 replace 成占位页，导致用户正在看的详情凭空消失
     if (this.isSplitView === this.activeSplitView) {
       return;
     }
@@ -1194,7 +1194,7 @@ export struct VaultPage {
       DetailRouter.registerCloseHandler(this.closeDetailHandler);
     })
     .onActive(() => {
-      // NavDestination 返回前台时通知密码库内容消费本地增删改。
+      // NavDestination 返回前台时通知密码库内容消费本地增删改
       this.vaultActivationRevision++;
       this.applyPendingSplitViewChange();
     })
@@ -1202,7 +1202,7 @@ export struct VaultPage {
       this.activeSplitView = this.isSplitView;
       DetailRouter.registerCloseHandler(this.closeDetailHandler);
       // onAppear 可能处于 ArkUI 初始渲染流水线中，延迟初始化详情栈，避免同步修改
-      // @State detailStack；若期间已打开详情，则不再用占位页覆盖。
+      // @State detailStack；若期间已打开详情，则不再用占位页覆盖
       setTimeout(() => {
         this.detailStack.disableAnimation(true);
         const pathNames = this.detailStack.getAllPathName();

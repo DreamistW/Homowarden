@@ -37,7 +37,7 @@ struct History {
     this.appearanceGeneration++;
     const currentGeneration: number = this.appearanceGeneration;
     await this.loadHistory();
-    // 异步查询返回时页面可能已离开或再次进入，旧生命周期不得启动计时器。
+    // 异步查询返回时页面可能已离开或再次进入，旧生命周期不得启动计时器
     if (!this.isPageActive || currentGeneration !== this.appearanceGeneration) {
       return;
     }
@@ -45,20 +45,20 @@ struct History {
       clearInterval(this.refreshTimer);
     }
     this.refreshTimer = setInterval(() => {
-      // 相对时间依赖当前时刻，通过替换数组引用触发列表每分钟重绘。
+      // 相对时间依赖当前时刻，通过替换数组引用触发列表每分钟重绘
       this.filteredList = [...this.filteredList];
     }, 60000);
   }
 
   aboutToDisappear(): void {
-    // 递增代次同时使尚未结束的 aboutToAppear 异步流程失效。
+    // 递增代次同时使尚未结束的 aboutToAppear 异步流程失效
     this.isPageActive = false;
     this.appearanceGeneration++;
     if (this.refreshTimer !== -1) {
       clearInterval(this.refreshTimer);
       this.refreshTimer = -1;
     }
-    // 旋转跨栈迁移会销毁本页，随之关闭未决确认框（等同取消）。
+    // 旋转跨栈迁移会销毁本页，随之关闭未决确认框（等同取消）
     this.confirmController.close();
   }
 
@@ -148,14 +148,14 @@ struct History {
     });
   }
 
-  // 弹出确认对话框请求删除单条记录。
+  // 弹出确认对话框请求删除单条记录
   requestDelete(item: HistoryItem): void {
     this.showConfirm($r('app.string.share_history_delete_confirm'), item.content, () => {
       void this.doDelete(item);
     });
   }
 
-  // 删除指定记录并刷新列表。
+  // 删除指定记录并刷新列表
   async doDelete(item: HistoryItem) {
     try {
       await this.dbUtil.deleteData('history', item.id);
@@ -171,13 +171,13 @@ struct History {
     }
   }
 
-  // 长按进入多选模式并预选当前项目。
+  // 长按进入多选模式并预选当前项目
   enterSelectionMode(item: HistoryItem): void {
     this.inSelectionMode = true;
     this.selectedIds = [item.id];
   }
 
-  // 切换某条记录的选中状态。
+  // 切换某条记录的选中状态
   toggleSelection(id: string): void {
     if (this.selectedIds.includes(id)) {
       this.selectedIds = this.selectedIds.filter(i => i !== id);
@@ -186,13 +186,13 @@ struct History {
     }
   }
 
-  // 判断当前列表是否已全部选中。
+  // 判断当前列表是否已全部选中
   isAllSelected(): boolean {
     return this.filteredList.length > 0 &&
       this.filteredList.every((item: HistoryItem) => this.selectedIds.includes(item.id));
   }
 
-  // 全选或取消全选当前列表。
+  // 全选或取消全选当前列表
   toggleSelectAll(): void {
     if (this.isAllSelected()) {
       this.selectedIds = [];
@@ -201,24 +201,24 @@ struct History {
     }
   }
 
-  // 判断某条记录是否处于选中状态。
+  // 判断某条记录是否处于选中状态
   isSelected(id: string): boolean {
     return this.selectedIds.includes(id);
   }
 
-  // 退出多选模式并清空选择。
+  // 退出多选模式并清空选择
   exitSelectionMode(): void {
     this.inSelectionMode = false;
     this.selectedIds = [];
   }
 
-  // 已选记录数量文案。
+  // 已选记录数量文案
   private getSelectedCountText(): string {
     return this.getUIContext().getHostContext()?.resourceManager
       .getStringSync($r('app.string.history_selected_count').id, this.selectedIds.length) ?? '';
   }
 
-  // 弹出确认对话框请求删除选中的记录。
+  // 弹出确认对话框请求删除选中的记录
   requestDeleteSelected(): void {
     if (this.selectedIds.length === 0) {
       return;
@@ -228,7 +228,7 @@ struct History {
     }, $r('app.string.common_delete'));
   }
 
-  // 删除选中的记录并刷新列表。
+  // 删除选中的记录并刷新列表
   async doDeleteSelected(): Promise<void> {
     const ids: string[] = [...this.selectedIds];
     try {
@@ -354,13 +354,13 @@ struct History {
     })
   }
 
-  // 多选模式下的勾选指示器。
+  // 多选模式下的勾选指示器
   @Builder
   SelectionIndicator(item: HistoryItem) {
     HistorySelectionIndicator({ selected: this.isSelected(item.id) })
   }
 
-  // 多选模式下的底部操作栏。
+  // 多选模式下的底部操作栏
   @Builder
   SelectionBarBuilder() {
     HistorySelectionBar({

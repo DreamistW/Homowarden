@@ -1,6 +1,6 @@
 import { EntryRouter } from '../../../../EntryRouter';
 
-/** 统一单栏压栈与分栏右侧替换的详情路由语义。 */
+/** 统一单栏压栈与分栏右侧替换的详情路由语义 */
 export class DetailRouter {
   private static closeHandler: (() => void) | null = null;
 

@@ -16,9 +16,8 @@ const KEEP_ALIVE_START_MAX_ATTEMPTS = 3;
 const KEEP_ALIVE_START_RETRY_DELAY_MS = 100;
 
 /**
- * Manages the PC/2in1 status bar icon and close-to-tray behavior.
- * Desktop Extension Kit APIs are guarded by a capability check so this class
- * can remain in the shared phone/tablet/2in1 HAP.
+ * 管理 PC 与 2in1 的状态栏图标和关闭至托盘行为
+ * 所有桌面扩展 API 均先检查设备能力，使该类可保留在手机、平板与 2in1 共用的 HAP 中
  */
 export class SystemTrayManager {
   private static isRegistered: boolean = false;
@@ -116,8 +115,8 @@ export class SystemTrayManager {
       abilityName: KEEP_ALIVE_ABILITY_NAME
     };
     const options: StartOptions = {
-      // Keep the event listeners and hidden ability in the same process, then
-      // bind that process to the status bar item so icon clicks remain routed.
+      // 让事件监听器和隐藏 Ability 保持在同一进程，并将进程附着到状态栏项目
+      // 确保主窗口关闭后图标点击事件仍能正确路由
       processMode: contextConstant.ProcessMode.ATTACH_TO_STATUS_BAR_ITEM,
       startupVisibility: contextConstant.StartupVisibility.STARTUP_HIDE
     };
@@ -129,6 +128,7 @@ export class SystemTrayManager {
         return;
       } catch (error) {
         const businessError = error as BusinessError;
+        // 状态栏项目注册与隐藏 Ability 启动存在时序差，仅对启动参数校验失败进行短暂重试
         const shouldRetry = businessError.code === START_OPTIONS_CHECK_FAILED &&
           attempt < KEEP_ALIVE_START_MAX_ATTEMPTS;
         if (!shouldRetry) {

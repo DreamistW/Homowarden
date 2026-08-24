@@ -2,7 +2,7 @@ import { relationalStore } from '@kit.ArkData';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { Context } from '@kit.AbilityKit';
 
-// 关系型数据库操作类
+/** 管理安心分享历史的加密关系型数据库，并复用单例初始化任务 */
 export class ShareDatabaseUtil {
   private static instance: ShareDatabaseUtil;
   private static store: relationalStore.RdbStore | null = null;

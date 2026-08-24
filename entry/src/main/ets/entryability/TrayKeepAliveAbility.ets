@@ -6,8 +6,8 @@ const DOMAIN = 0x0000;
 const TAG = 'TrayKeepAlive';
 
 /**
- * Invisible PC-only ability whose process is attached to the status bar item.
- * It keeps the tray entry alive after the visible EntryAbility is closed.
+ * 仅供 PC 使用的隐藏 Ability，其进程附着于状态栏项目
+ * 在可见的 EntryAbility 关闭后继续维持托盘入口
  */
 export default class TrayKeepAliveAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {

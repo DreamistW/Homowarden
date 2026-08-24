@@ -47,7 +47,7 @@ export struct CipherItem {
 
   private getDisplayName(): ResourceStr {
     if (this.cipher.displayNameKind === CipherDisplayNameKind.DECRYPTION_FAILED) {
-      // 解密失败时不得把原始密文直接展示给用户。
+      // 解密失败时不得把原始密文直接展示给用户
       return $r('app.string.vault_decryption_failed_name');
     }
     return this.cipher.name;

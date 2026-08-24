@@ -85,6 +85,7 @@ struct PrivacyDialogContent {
   }
 }
 
+/** 统筹顶层导航、隐私遮罩与全局空闲锁定 */
 @Entry
 @Component
 struct Index {
@@ -225,6 +226,7 @@ struct Index {
     if (!VaultViewModel.isSessionActive()) {
       return;
     }
+    // 先判定是否超时再刷新活动时间，避免超时后的首次输入绕过锁定
     if (AutoLockUtil.hasTimedOut()) {
       this.lockVaultForTimeout();
       return;
@@ -265,7 +267,7 @@ struct Index {
     }
     .width('100%')
     .height('100%')
-    // 直接使用 ArkUI 实际布局尺寸，兼容媒体方向上报不准确的折叠屏形态。
+    // 直接使用 ArkUI 实际布局尺寸，兼容媒体方向上报不准确的折叠屏形态
     .onAreaChange((_oldValue: Area, newValue: Area) => {
       BreakpointUtil.updateViewport(Number(newValue.width), Number(newValue.height));
     })

@@ -1,4 +1,4 @@
-/** 宽屏三栏容器，具体列表与详情内容由主页面注入。 */
+/** 宽屏三栏容器，具体列表与详情内容由主页面注入 */
 @Component
 export struct AdaptiveShell {
   @BuilderParam railBuilder: () => void;

@@ -170,7 +170,7 @@ export async function updateCipher(id: string, cipher: Cipher): Promise<Cipher> 
 }
 
 /**
- * 更新密码项无需重新加密的属性。
+ * 更新密码项无需重新加密的属性
  */
 export async function updateCipherPartial(id: string, request: CipherPartialRequest): Promise<Cipher> {
   const baseURL = await getApiBaseUrl();
@@ -211,7 +211,6 @@ export async function moveCipherToRecycler(id: string): Promise<void> {
 /**
  * 彻底删除密码项
  * @param id 密码项ID
- * @returns
  */
 export async function deleteCipher(id: string): Promise<void> {
   const baseURL = await getApiBaseUrl();
@@ -232,7 +231,7 @@ export async function deleteCipher(id: string): Promise<void> {
 /**
  * 还原密码项
  * @param id 密码项ID
- * @returns
+ * @returns 还原后的密码项
  */
 export async function restoreCipher(id: string): Promise<Cipher> {
   const baseURL = await getApiBaseUrl();

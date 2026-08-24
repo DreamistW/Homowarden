@@ -1,6 +1,6 @@
 import { MainNavigationItem, mainNavigationItems, MainTab } from './MainNavigationItems';
 
-/** 宽屏主导航，页签语义与手机底部导航保持一致。 */
+/** 宽屏主导航，页签语义与手机底部导航保持一致 */
 @Component
 export struct MainSideRail {
   @Prop selectedMainTab: MainTab = MainTab.VAULT;

@@ -16,6 +16,7 @@ interface ParsedHttpUrl {
 let cachedServerKey = '';
 let cachedEndpoints: ResolvedServerEndpoints | null = null;
 
+/** 按当前服务器配置解析各服务端点，并按配置组合缓存结果 */
 export async function getServerEndpoints(forceRefresh: boolean = false): Promise<ResolvedServerEndpoints> {
   const serverConfig = await getServerConfig();
   const cacheKey = `${serverConfig.serverType}:${serverConfig.serverAddress}`;
@@ -118,6 +119,7 @@ function normalizeEnvironmentUrl(
     return fallbackUrl;
   }
 
+  // 自托管配置可能返回仅服务端网络可达的内部地址，客户端需沿用用户填写的外部源
   if (shouldRewriteWithExternalOrigin(parsedUrl, externalUrl)) {
     const path = parsedUrl.path.length > 0 ? parsedUrl.path : defaultPath;
     return path.length > 0 ? buildExternalUrlWithPath(externalBaseUrl, path) : externalBaseUrl;
@@ -139,6 +141,7 @@ function shouldRewriteWithExternalOrigin(configUrl: ParsedHttpUrl, externalUrl: 
 }
 
 function isUnreachableFromDevice(hostName: string): boolean {
+  // 回环地址、私有 IPv4 和无域名后缀的容器主机名通常无法由客户端设备直接访问
   const host = hostName.toLowerCase();
   if (host === 'localhost' || host === '0.0.0.0' || host === '[::1]' || host === '::1') {
     return true;
