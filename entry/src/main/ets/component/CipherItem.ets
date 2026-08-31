@@ -150,6 +150,7 @@ export struct CipherItem {
         Text('\u22ee')
           .fontSize(24)
           .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.brand_accent_color'))
       }
       .type(ButtonType.Circle)
       .buttonStyle(ButtonStyleMode.TEXTUAL)
@@ -157,12 +158,18 @@ export struct CipherItem {
       .height(40)
       .padding(0)
       .accessibilityText($r('app.string.vault_item_menu'))
-      .bindMenu(this.getMenuItems())
+      .bindMenu(this.getMenuItems(), {
+        backgroundColor: $r('app.color.menu_background_color'),
+        backgroundBlurStyle: BlurStyle.NONE
+      })
     }
     .width('100%')
     .padding(16)
     .borderRadius(8)
     .margin({ bottom: 4 })
-    .bindContextMenuByResponseType(this.getMenuItems(), ResponseType.RightClick)
+    .bindContextMenuByResponseType(this.getMenuItems(), ResponseType.RightClick, {
+      backgroundColor: $r('app.color.menu_background_color'),
+      backgroundBlurStyle: BlurStyle.NONE
+    })
   }
 }

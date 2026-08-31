@@ -6,11 +6,27 @@
     },
     {
       "name": "button_background_color",
-      "value": "#2B77D9"
+      "value": "#2777DA"
     },
     {
       "name": "button_foreground_color",
       "value": "#FFFFFF"
+    },
+    {
+      "name": "translucent_button_background",
+      "value": "#1AFFFFFF"
+    },
+    {
+      "name": "secure_translucent_button_background",
+      "value": "#1AFFFFFF"
+    },
+    {
+      "name": "brand_accent_color",
+      "value": "#2777DA"
+    },
+    {
+      "name": "menu_background_color",
+      "value": "#E61B1B1F"
     },
     {
       "name": "main_nav_background",
@@ -18,7 +34,7 @@
     },
     {
       "name": "main_nav_selected",
-      "value": "#6D9CFF"
+      "value": "#2777DA"
     },
     {
       "name": "main_nav_unselected",

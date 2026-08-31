@@ -432,7 +432,10 @@ struct History {
                   this.copyLink(link);
                 }
               }
-            ])
+            ], {
+              backgroundColor: $r('app.color.menu_background_color'),
+              backgroundBlurStyle: BlurStyle.NONE
+            })
 
           Button() {
             Image($r('app.media.icon_share'))
@@ -461,7 +464,10 @@ struct History {
                   this.shareLink(link, true);
                 }
               }
-            ])
+            ], {
+              backgroundColor: $r('app.color.menu_background_color'),
+              backgroundBlurStyle: BlurStyle.NONE
+            })
 
           AdaptiveIconButton({
             icon: $r('app.media.icon_delete'),
@@ -483,7 +489,7 @@ struct History {
     .padding(16)
     .borderRadius(8)
     .backgroundColor(this.inSelectionMode && this.isSelected(item.id) ?
-      '#1A2B77D9' : $r('app.color.start_window_background'))
+      '#1A2777DA' : $r('app.color.start_window_background'))
     .accessibilityGroup(this.inSelectionMode)
     .accessibilitySelected(this.isSelected(item.id))
     .onClick(() => {

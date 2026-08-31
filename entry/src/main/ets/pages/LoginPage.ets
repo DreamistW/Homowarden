@@ -7,7 +7,7 @@ import { common } from '@kit.AbilityKit';
 import { DataPreferences } from '@abner/datastore';
 import { HdsNavDestination } from '@hms.hds.hdsBaseComponent';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
-import { AdaptiveTextButton, IMMERSIVE_BUTTON_MATERIAL } from '../component/AdaptiveButton';
+import { AdaptiveTextButton } from '../component/AdaptiveButton';
 import { FormDialog } from '../component/FormDialog';
 import { TwoFactorProvider } from '../model/AccessToken';
 import { AppText, AppTextKey } from '../localization/AppText';
@@ -115,11 +115,10 @@ export struct LoginPage {
           ForEach(this.getVisibleTwoFactorProviders(), (provider: number) => {
             Button(this.getTwoFactorProviderText(provider))
               .width('100%')
-              .backgroundColor(Color.Transparent)
+              .backgroundColor($r('app.color.translucent_button_background'))
               .fontColor($r('sys.color.font_primary'))
               .stateEffect(provider !== this.viewModel.twoFactorProvider)
               .enabled(provider !== this.viewModel.twoFactorProvider)
-              .systemMaterial(IMMERSIVE_BUTTON_MATERIAL)
               .onClick(() => {
                 this.viewModel.setTwoFactorProvider(provider);
                 this.twoFactorInputError = false;
@@ -144,6 +143,7 @@ export struct LoginPage {
 
       Row() {
         Toggle({ type: ToggleType.Switch, isOn: this.twoFactorRemember })
+          .selectedColor($r('app.color.brand_accent_color'))
           .onChange((isOn: boolean) => {
             this.twoFactorRemember = isOn;
             this.viewModel.twoFactorRemember = isOn;
@@ -248,6 +248,7 @@ export struct LoginPage {
             .fontSize(16)
             .margin(12)
           Toggle({ type: ToggleType.Switch, isOn: this.needToSaveEmail })
+            .selectedColor($r('app.color.brand_accent_color'))
             .onChange((isOn: boolean) => {
               this.needToSaveEmail = isOn;
               this.viewModel.needSaveEmail = isOn;
@@ -279,13 +280,14 @@ export struct LoginPage {
             .margin({ right: 8 })
           Button(this.getServerTypeButtonText())
             .stateEffect(false)
+            .fontColor($r('app.color.brand_accent_color'))
             .buttonStyle(ButtonStyleMode.TEXTUAL)
              .onClick(() => {
                this.getUIContext().getPromptAction().showActionMenu({
                  buttons: [
-                   { text: 'bitwarden.com', color: '#0A59F7' },
-                   { text: 'bitwarden.eu', color: '#0A59F7' },
-                   { text: this.getSelfHostedServerText(), color: '#0A59F7' }
+                   { text: 'bitwarden.com', color: '#2777DA' },
+                   { text: 'bitwarden.eu', color: '#2777DA' },
+                   { text: this.getSelfHostedServerText(), color: '#2777DA' }
                  ]
                }).then((result) => {
                    this.viewModel.serverType = this.getServerTypeByIndex(result.index);
@@ -318,13 +320,13 @@ export struct LoginPage {
         }
 
         Column() {
-          // 登录和加载状态复用同一材质按钮，避免提交期间出现样式跳变
+          // 登录和加载状态复用同一半透明按钮，避免提交期间出现样式跳变
           AdaptiveTextButton({
             text: this.isLoading ? $r('app.string.login_in_progress') : $r('app.string.login_action'),
             barWidth: 150,
             barHeight: 50,
             fontSize: 18,
-            immersive: true,
+            translucent: true,
             buttonEnabled: !this.isLoading,
             onButtonClick: () => {
               this.handleLogin();

@@ -470,6 +470,7 @@ export struct CipherDetailPage {
             LoadingProgress()
               .width(40)
               .height(40)
+              .color($r('app.color.brand_accent_color'))
             Text($r('app.string.common_loading'))
               .fontSize(14)
               .fontColor(Color.Gray)
@@ -552,6 +553,7 @@ export struct CipherDetailPage {
                   Checkbox({ name: 'reprompt', group: 'cipher' })
                     .accessibilityText($r('app.string.cipher_reprompt'))
                     .select(this.cipher.reprompt === 1)
+                    .selectedColor($r('app.color.brand_accent_color'))
                     .onChange((checked: boolean) => {
                       this.cipher.reprompt = checked ? 1 : 0;
                     })

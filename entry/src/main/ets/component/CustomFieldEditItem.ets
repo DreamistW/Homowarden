@@ -72,6 +72,7 @@ export struct CustomFieldEditItem {
         // BOOL 类型：开关与文案都绑定本地 @State，切换即时刷新
         Row({ space: 8 }) {
           Toggle({ type: ToggleType.Switch, isOn: this.boolOn })
+            .selectedColor($r('app.color.brand_accent_color'))
             .accessibilityText($r('app.string.cipher_field_value'))
             .onChange((checked: boolean) => {
               this.boolOn = checked;

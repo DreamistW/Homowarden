@@ -166,6 +166,9 @@ export struct AddCipherPage {
     Row({ space: 8 }) {
       Radio({ value: `${type}`, group: this.itemTypeGroup })
         .checked(this.cipherType === type)
+        .radioStyle({
+          checkedBackgroundColor: $r('app.color.brand_accent_color')
+        })
         .accessibilityText(label)
         .onChange((isChecked: boolean) => {
           if (isChecked) {

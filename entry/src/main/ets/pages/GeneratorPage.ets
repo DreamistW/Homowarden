@@ -30,6 +30,8 @@ export struct GeneratorPage {
       { text: $r('app.string.generator_tab_username') }
     ] as SegmentButtonItemTuple,
     multiply: false,
+    selectedBackgroundColor: $r('app.color.brand_accent_color'),
+    selectedFontColor: $r('app.color.button_foreground_color'),
     buttonPadding: { top: 12, right: 8, bottom: 12, left: 8 }
   });
 
@@ -346,6 +348,7 @@ export struct GeneratorPage {
           .fontSize(16)
           .layoutWeight(1)
         Toggle({ type: ToggleType.Switch, isOn: this.upperOn })
+          .selectedColor($r('app.color.brand_accent_color'))
           .accessibilityText($r('app.string.password_uppercase'))
           .onChange(async (on: boolean) => {
             this.upperOn = on;
@@ -360,6 +363,7 @@ export struct GeneratorPage {
           .fontSize(16)
           .layoutWeight(1)
         Toggle({ type: ToggleType.Switch, isOn: this.lowerOn })
+          .selectedColor($r('app.color.brand_accent_color'))
           .accessibilityText($r('app.string.password_lowercase'))
           .onChange(async (on: boolean) => {
             this.lowerOn = on;
@@ -374,6 +378,7 @@ export struct GeneratorPage {
           .fontSize(16)
           .layoutWeight(1)
         Toggle({ type: ToggleType.Switch, isOn: this.digitOn })
+          .selectedColor($r('app.color.brand_accent_color'))
           .accessibilityText($r('app.string.password_digits'))
           .onChange(async (on: boolean) => {
             this.digitOn = on;
@@ -388,6 +393,7 @@ export struct GeneratorPage {
           .fontSize(16)
           .layoutWeight(1)
         Toggle({ type: ToggleType.Switch, isOn: this.symbolOn })
+          .selectedColor($r('app.color.brand_accent_color'))
           .accessibilityText($r('app.string.password_symbols'))
           .onChange(async (on: boolean) => {
             this.symbolOn = on;
@@ -549,6 +555,7 @@ export struct GeneratorPage {
             .fontSize(16)
             .layoutWeight(1)
           Toggle({ type: ToggleType.Switch, isOn: this.capitalize })
+            .selectedColor($r('app.color.brand_accent_color'))
             .accessibilityText($r('app.string.username_capitalize'))
             .onChange(async (on: boolean) => {
               this.capitalize = on;
@@ -563,6 +570,7 @@ export struct GeneratorPage {
             .fontSize(16)
             .layoutWeight(1)
           Toggle({ type: ToggleType.Switch, isOn: this.includeNumber })
+            .selectedColor($r('app.color.brand_accent_color'))
             .accessibilityText($r('app.string.username_include_number'))
             .onChange(async (on: boolean) => {
               this.includeNumber = on;

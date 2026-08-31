@@ -47,7 +47,7 @@ export function VaultPageBuilder() {
 
 class QuickActionMenuButton implements promptAction.Button {
   text: string;
-  color: string = '#0A59F7';
+  color: string = '#2777DA';
 
   constructor(text: string) {
     this.text = text;
@@ -300,6 +300,7 @@ struct VaultContent {
       LoadingProgress()
         .width(40)
         .height(40)
+        .color($r('app.color.brand_accent_color'))
       Text($r('app.string.common_loading'))
         .fontSize(14)
         .fontColor(Color.Gray)
@@ -328,6 +329,7 @@ struct VaultContent {
       LoadingProgress()
         .width(24)
         .height(24)
+        .color($r('app.color.brand_accent_color'))
       if (this.isLoading) {
         Text($r('app.string.common_refreshing'))
           .fontSize(14)
@@ -984,7 +986,7 @@ export struct VaultPage {
       iconHeight: 25,
       contentPadding: 8,
       barBottomMargin: 0,
-      immersive: true,
+      buttonBackgroundColor: $r('app.color.brand_accent_color'),
       onButtonClick: () => this.addCipher()
     })
   }

@@ -133,6 +133,7 @@ export struct SettingsPage {
                 Blank()
 
                 Toggle({ type: ToggleType.Switch, isOn: this.biometricEnabled })
+                  .selectedColor($r('app.color.brand_accent_color'))
                   .accessibilityText($r('app.string.settings_biometrics'))
                   .onChange((isOn: boolean) => {
                     if (isOn) {
@@ -187,6 +188,7 @@ export struct SettingsPage {
                 Blank()
 
                 Toggle({ type: ToggleType.Switch, isOn: this.screenCaptureProtectionEnabled })
+                  .selectedColor($r('app.color.brand_accent_color'))
                   .accessibilityText($r('app.string.settings_block_capture'))
                   .onChange(async (isOn: boolean) => {
                     this.screenCaptureProtectionEnabled = isOn;
@@ -213,6 +215,7 @@ export struct SettingsPage {
                   Blank()
 
                   Toggle({ type: ToggleType.Switch, isOn: this.antiPeepProtectionEnabled })
+                    .selectedColor($r('app.color.brand_accent_color'))
                     .accessibilityText($r('app.string.settings_anti_peep'))
                     .onChange(async (isOn: boolean) => {
                       this.antiPeepProtectionEnabled = isOn;
@@ -284,7 +287,7 @@ export struct SettingsPage {
                   barWidth: 150,
                   barHeight: 50,
                   fontSize: 18,
-                  immersive: true,
+                  translucent: true,
                   onButtonClick: () => {
                     this.lockVault();
                   }
@@ -301,8 +304,8 @@ export struct SettingsPage {
                   barWidth: 150,
                   barHeight: 50,
                   fontSize: 18,
-                  immersive: true,
-                  immersiveFontColor: $r('sys.color.warning'),
+                  translucent: true,
+                  translucentFontColor: $r('sys.color.warning'),
                   onButtonClick: () => {
                     this.logout();
                   }
@@ -343,7 +346,7 @@ export struct SettingsPage {
 
                 Text('yume.w@outlook.com')
                   .fontSize(16)
-                  .fontColor('#007DFF')
+                  .fontColor($r('app.color.brand_accent_color'))
                   .decoration({ type: TextDecorationType.Underline })
                   .onClick(() => {
                     this.openEmail();
@@ -360,7 +363,7 @@ export struct SettingsPage {
 
                 Text($r('app.string.settings_registration_value'))
                   .fontSize(16)
-                  .fontColor('#007DFF')
+                  .fontColor($r('app.color.brand_accent_color'))
                   .decoration({ type: TextDecorationType.Underline })
                   .onClick(() => {
                     this.clickBeian();

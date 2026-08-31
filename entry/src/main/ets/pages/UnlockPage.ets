@@ -85,7 +85,7 @@ export struct UnlockPage {
             barHeight: 50,
             fontSize: 18,
             contentPadding: 6,
-            immersive: true,
+            translucent: true,
             buttonEnabled: !this.isPasswordAuthenticating,
             onButtonClick: () => {
               void this.handlePasswordAuth();
@@ -100,7 +100,7 @@ export struct UnlockPage {
               barHeight: 50,
               fontSize: 18,
               contentPadding: 6,
-              immersive: true,
+              translucent: true,
               onButtonClick: () => {
                 this.startBiometricAuth();
               }
@@ -114,8 +114,8 @@ export struct UnlockPage {
             barHeight: 50,
             fontSize: 18,
             contentPadding: 6,
-            immersive: true,
-            immersiveFontColor: $r('sys.color.warning'),
+            translucent: true,
+            translucentFontColor: $r('sys.color.warning'),
             onButtonClick: () => {
               void this.logout();
             }

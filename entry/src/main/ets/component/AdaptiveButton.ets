@@ -1,17 +1,6 @@
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
-import { uiMaterial } from '@kit.ArkUI';
 
 const BUTTON_CONTENT_PADDING = 8;
-export const IMMERSIVE_BUTTON_MATERIAL: uiMaterial.Material = new uiMaterial.ImmersiveMaterial({
-  style: uiMaterial.ImmersiveStyle.THIN,
-  colorInvert: true,
-  interactive: true,
-  lightEffect: { color: undefined }
-});
-
-// 系统安全控件会把透明度低于 0x1A 的背景强制转为不透明
-// 使用允许的最低遮罩透明度，确保下层沉浸材质仍然可见
-const SECURITY_COMPONENT_MATERIAL_OVERLAY = 0x1AFFFFFF;
 
 function getButtonContainerSize(buttonSize: number, contentPadding: number = BUTTON_CONTENT_PADDING): number {
   return buttonSize + contentPadding * 2;
@@ -31,8 +20,8 @@ export struct AdaptiveTextButton {
   fontSize: number = 18;
   contentPadding: number = BUTTON_CONTENT_PADDING;
   barBottomMargin: number = BUTTON_CONTENT_PADDING;
-  immersive: boolean = false;
-  immersiveFontColor: ResourceColor = $r('sys.color.font_primary');
+  translucent: boolean = false;
+  translucentFontColor: ResourceColor = $r('sys.color.font_primary');
   buttonEnabled: boolean = true;
   onButtonClick?: () => void;
 
@@ -40,8 +29,10 @@ export struct AdaptiveTextButton {
     Stack({ alignContent: Alignment.Center }) {
       Button(this.text)
         .type(ButtonType.Capsule)
-        .backgroundColor(this.immersive ? Color.Transparent : $r('app.color.button_background_color'))
-        .fontColor(this.immersive ? this.immersiveFontColor : $r('app.color.button_foreground_color'))
+        .backgroundColor(this.translucent ? $r('app.color.translucent_button_background') :
+          $r('app.color.button_background_color'))
+        .fontColor(this.translucent ? this.translucentFontColor :
+          $r('app.color.button_foreground_color'))
         .fontSize(this.fontSize)
         .borderColor(Color.Transparent)
         .borderWidth(0)
@@ -49,7 +40,6 @@ export struct AdaptiveTextButton {
         .padding(0)
         .width(this.barWidth)
         .height(this.barHeight)
-        .systemMaterial(this.immersive ? IMMERSIVE_BUTTON_MATERIAL : undefined)
         .enabled(this.buttonEnabled)
         .onClick(() => {
           this.onButtonClick?.();
@@ -71,7 +61,8 @@ export struct AdaptiveIconButton {
   iconHeight: number = 20;
   contentPadding: number = BUTTON_CONTENT_PADDING;
   barBottomMargin: number = BUTTON_CONTENT_PADDING;
-  immersive: boolean = false;
+  translucent: boolean = false;
+  buttonBackgroundColor: ResourceColor = $r('app.color.button_background_color');
   onButtonClick?: () => void;
 
   build() {
@@ -80,19 +71,19 @@ export struct AdaptiveIconButton {
         Image(this.icon)
           .width(this.iconWidth)
           .height(this.iconHeight)
-          .fillColor(this.immersive ? $r('sys.color.icon_primary') : $r('app.color.button_foreground_color'))
+          .fillColor(this.translucent ? $r('sys.color.icon_primary') : $r('app.color.button_foreground_color'))
           .align(Alignment.Center)
           .accessibilityLevel('no')
       }
       .type(ButtonType.Circle)
-      .backgroundColor(this.immersive ? Color.Transparent : $r('app.color.button_background_color'))
+      .backgroundColor(this.translucent ? $r('app.color.translucent_button_background') :
+        this.buttonBackgroundColor)
       .borderColor(Color.Transparent)
       .borderWidth(0)
       .borderRadius(this.barHeight / 2)
       .padding(0)
       .width(this.barWidth)
       .height(this.barHeight)
-      .systemMaterial(this.immersive ? IMMERSIVE_BUTTON_MATERIAL : undefined)
       .accessibilityText(this.accessibilityLabel)
       .onClick(() => {
         this.onButtonClick?.();
@@ -113,15 +104,19 @@ export struct AdaptiveMenuTextButton {
   fontSize: number = 16;
   contentPadding: number = BUTTON_CONTENT_PADDING;
   barBottomMargin: number = 0;
-  immersive: boolean = false;
+  translucent: boolean = false;
 
   build() {
     Stack({ alignContent: Alignment.Center }) {
       Button(this.text)
         .type(ButtonType.Capsule)
-        .bindMenu(this.menuItems)
-        .backgroundColor(this.immersive ? Color.Transparent : $r('app.color.button_background_color'))
-        .fontColor(this.immersive ? $r('sys.color.font_primary') : $r('app.color.button_foreground_color'))
+        .bindMenu(this.menuItems, {
+          backgroundColor: $r('app.color.menu_background_color'),
+          backgroundBlurStyle: BlurStyle.NONE
+        })
+        .backgroundColor(this.translucent ? $r('app.color.translucent_button_background') :
+          $r('app.color.button_background_color'))
+        .fontColor(this.translucent ? $r('sys.color.font_primary') : $r('app.color.button_foreground_color'))
         .fontSize(this.fontSize)
         .borderColor(Color.Transparent)
         .borderWidth(0)
@@ -129,7 +124,6 @@ export struct AdaptiveMenuTextButton {
         .padding(0)
         .width(this.barWidth)
         .height(this.barHeight)
-        .systemMaterial(this.immersive ? IMMERSIVE_BUTTON_MATERIAL : undefined)
     }
     .width(getButtonContainerSize(this.barWidth, this.contentPadding))
     .height(getButtonContainerHeight(this.barHeight, this.contentPadding, this.barBottomMargin))
@@ -144,29 +138,20 @@ export struct AdaptivePasteButton {
   fontSize: number = 16;
   contentPadding: number = BUTTON_CONTENT_PADDING;
   barBottomMargin: number = 0;
-  immersive: boolean = false;
+  translucent: boolean = false;
   onPaste?: (text: string) => void;
   onPasteError?: (err: BusinessError) => void;
 
   build() {
     Stack({ alignContent: Alignment.Center }) {
       Stack({ alignContent: Alignment.Center }) {
-        if (this.immersive) {
-          Row()
-            .width(this.barWidth)
-            .height(this.barHeight)
-            .borderRadius(this.barHeight / 2)
-            .systemMaterial(IMMERSIVE_BUTTON_MATERIAL)
-            .hitTestBehavior(HitTestMode.None)
-        }
-
         PasteButton({
           text: PasteDescription.PASTE,
           buttonType: ButtonType.Capsule
         })
-          .backgroundColor(this.immersive ? SECURITY_COMPONENT_MATERIAL_OVERLAY :
+          .backgroundColor(this.translucent ? $r('app.color.secure_translucent_button_background') :
             $r('app.color.button_background_color'))
-          .fontColor(this.immersive ? $r('sys.color.font_primary') : $r('app.color.button_foreground_color'))
+          .fontColor(this.translucent ? $r('sys.color.font_primary') : $r('app.color.button_foreground_color'))
           .fontSize(this.fontSize)
           .borderColor(Color.Transparent)
           .borderWidth(0)
