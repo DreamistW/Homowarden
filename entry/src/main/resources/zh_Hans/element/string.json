@@ -298,47 +298,47 @@
     },
     {
       "name": "login_error_email_required",
-      "value": "请输入邮箱地址。"
+      "value": "请输入邮箱地址"
     },
     {
       "name": "login_error_password_required",
-      "value": "请输入密码。"
+      "value": "请输入密码"
     },
     {
       "name": "login_error_server_required",
-      "value": "请输入自托管服务器地址。"
+      "value": "请输入自托管服务器地址"
     },
     {
       "name": "login_error_prelogin_failed",
-      "value": "无法连接服务器，请检查网络和服务器地址。"
+      "value": "无法连接服务器，请检查网络和服务器地址"
     },
     {
       "name": "login_error_failed",
-      "value": "登录失败，请检查凭据和服务器连接。"
+      "value": "登录失败，请检查凭据和服务器连接"
     },
     {
       "name": "login_error_two_factor_unsupported",
-      "value": "当前账号启用了不受支持的两步验证方式。"
+      "value": "当前账号启用了不受支持的两步验证方式"
     },
     {
       "name": "login_error_passkey_failed",
-      "value": "通行密钥验证失败，请改用验证码或重试。"
+      "value": "通行密钥验证失败，请改用验证码或重试"
     },
     {
       "name": "login_error_verification_required",
-      "value": "当前没有待完成的登录验证。"
+      "value": "当前没有待完成的登录验证"
     },
     {
       "name": "login_error_code_required",
-      "value": "请输入验证码。"
+      "value": "请输入验证码"
     },
     {
       "name": "login_error_code_invalid",
-      "value": "验证码无效。"
+      "value": "验证码无效"
     },
     {
       "name": "login_error_code_send_failed",
-      "value": "发送验证码失败。"
+      "value": "发送验证码失败"
     },
     {
       "name": "server_official",
@@ -866,7 +866,7 @@
     },
     {
       "name": "share_help",
-      "value": "将分享链接粘贴到这里，可去除链接中的跟踪信息。目前支持淘宝、京东、哔哩哔哩、小红书、抖音等平台。"
+      "value": "将分享链接粘贴到这里，可去除链接中的跟踪信息。目前支持淘宝、京东、哔哩哔哩、小红书、抖音等平台"
     },
     {
       "name": "share_convert",
@@ -978,7 +978,7 @@
     },
     {
       "name": "settings_biometrics_desc",
-      "value": "开启后，可以使用锁屏密码、指纹或人脸解锁密码库。"
+      "value": "开启后，可以使用锁屏密码、指纹或人脸解锁密码库"
     },
     {
       "name": "settings_auto_lock",
@@ -986,7 +986,7 @@
     },
     {
       "name": "settings_auto_lock_desc",
-      "value": "在所选时长内未操作时，自动锁定密码库。"
+      "value": "在所选时长内未操作时，自动锁定密码库"
     },
     {
       "name": "settings_auto_lock_never",
@@ -1022,7 +1022,7 @@
     },
     {
       "name": "settings_block_capture_desc",
-      "value": "登录后在所有页面禁止截图和录屏。"
+      "value": "登录后在所有页面禁止截图和录屏"
     },
     {
       "name": "settings_anti_peep",
@@ -1030,7 +1030,7 @@
     },
     {
       "name": "settings_anti_peep_desc",
-      "value": "检测到窥屏风险时拉起系统防窥蒙层。"
+      "value": "检测到窥屏风险时拉起系统防窥蒙层"
     },
     {
       "name": "settings_account",
@@ -1046,7 +1046,7 @@
     },
     {
       "name": "settings_logout_warning",
-      "value": "因为部分密钥数据不会随卸载自动删除，卸载应用前请务必注销登录。"
+      "value": "因为部分密钥数据不会随卸载自动删除，卸载应用前请务必注销登录"
     },
     {
       "name": "settings_about",
@@ -1070,71 +1070,71 @@
     },
     {
       "name": "error_unknown",
-      "value": "出现问题，请重试。"
+      "value": "出现问题，请重试"
     },
     {
       "name": "error_network",
-      "value": "无法连接，请检查网络后重试。"
+      "value": "无法连接，请检查网络后重试"
     },
     {
       "name": "error_timeout",
-      "value": "请求超时，请重试。"
+      "value": "请求超时，请重试"
     },
     {
       "name": "error_auth_expired",
-      "value": "登录已过期，请重新登录。"
+      "value": "登录已过期，请重新登录"
     },
     {
       "name": "error_invalid_credentials",
-      "value": "邮箱或密码不正确。"
+      "value": "邮箱或密码不正确"
     },
     {
       "name": "error_validation",
-      "value": "请检查输入后重试。"
+      "value": "请检查输入后重试"
     },
     {
       "name": "error_storage",
-      "value": "无法访问本地存储。"
+      "value": "无法访问本地存储"
     },
     {
       "name": "error_encryption",
-      "value": "无法处理加密数据。"
+      "value": "无法处理加密数据"
     },
     {
       "name": "error_permission",
-      "value": "需要授权才能继续。"
+      "value": "需要授权才能继续"
     },
     {
       "name": "error_cancelled",
-      "value": "操作已取消。"
+      "value": "操作已取消"
     },
     {
       "name": "error_load_failed",
-      "value": "加载失败，请重试。"
+      "value": "加载失败，请重试"
     },
     {
       "name": "error_save_failed",
-      "value": "保存失败，请重试。"
+      "value": "保存失败，请重试"
     },
     {
       "name": "error_delete_failed",
-      "value": "删除失败，请重试。"
+      "value": "删除失败，请重试"
     },
     {
       "name": "error_share_failed",
-      "value": "无法分享此内容。"
+      "value": "无法分享此内容"
     },
     {
       "name": "error_open_website",
-      "value": "无法打开网站。"
+      "value": "无法打开网站"
     },
     {
       "name": "error_kdf_unsupported",
-      "value": "不支持此密钥派生方式。"
+      "value": "不支持此密钥派生方式"
     },
     {
       "name": "error_master_key_failed",
-      "value": "无法处理主密码。"
+      "value": "无法处理主密码"
     },
     {
       "name": "vault_relogin_title",
@@ -1142,7 +1142,7 @@
     },
     {
       "name": "vault_relogin_message",
-      "value": "登录已过期，请重新登录后继续。"
+      "value": "登录已过期，请重新登录后继续"
     },
     {
       "name": "nav_generator",
