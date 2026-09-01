@@ -3,10 +3,9 @@ import { userAuth } from '@kit.UserAuthenticationKit';
 import { cryptoFramework } from '@kit.CryptoArchitectureKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { common } from '@kit.AbilityKit';
-import { IBestToast } from '@ibestservices/ibest-ui';
+import { AppToast } from '../utils/AppToast';
 import { DataPreferences } from '@abner/datastore';
 import {
-  BACKGROUND_TIMESTAMP,
   BIOMETRIC_AUTH,
   EMAIL_KEY,
   KDF_PARAM_KEY,
@@ -16,6 +15,13 @@ import { Logger } from '@nzy/logger';
 import { clearAssetAndPreferences, queryAssetSync } from '../utils/AssetUtil';
 import { PreloginResponse } from '../model/Prelogin';
 import { CryptoUtil } from '../utils/CryptoUtil';
+import { HdsNavDestination } from '@hms.hds.hdsBaseComponent';
+import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
+import { AdaptiveTextButton } from '../component/AdaptiveButton';
+import { DatabaseUtil } from '../utils/DatabaseUtil';
+import { GENERATOR_HISTORY_TABLE, GeneratorDatabaseUtil } from '../utils/GeneratorDatabaseUtil';
+import { VaultViewModel } from '../viewmodel/VaultViewModel';
+import { FormFactorUtil } from '../utils/FormFactorUtil';
 
 @Builder
 export function UnlockPageBuilder() {
@@ -27,102 +33,101 @@ export struct UnlockPage {
   pathInfos: NavPathStack = new NavPathStack();
   private exitTime: number = 0;
   private masterPassword: string = "";
+  @State private biometricEnabled: boolean = false;
+  @State private isPasswordAuthenticating: boolean = false;
+  private isPc: boolean = FormFactorUtil.isPc();
 
   aboutToAppear() {
-    if (DataPreferences.getInstance().getSync<number>(BIOMETRIC_AUTH) == 1) {
-      // 自动拉起生物认证
-      this.startBiometricAuth();
-    }
+    this.biometricEnabled = DataPreferences.getInstance().getSync<number>(BIOMETRIC_AUTH) == 1;
   }
 
   build() {
-    NavDestination() {
+    HdsNavDestination() {
       Column() {
         // 应用图标
         Image($r('app.media.app_small_icon'))
           .width(120)
           .height(120)
-          .margin({ top: 100, bottom: 40 })
+          .margin({ bottom: 24 })
 
-        // 应用名称
-        Text($r('app.string.app_name'))
-          .fontSize(24)
-          .fontWeight(FontWeight.Medium)
-          .margin({ bottom: 80 })
+        Column() {
+          Text($r('app.string.unlock_locked_prompt'))
+            .fontSize(14)
+            .fontColor('#666666')
+            .margin({
+              left: 16,
+              right: 16,
+              top: 12,
+              bottom: 12
+            })
 
-        Text('密码库已锁定, 请输入主密码')
-          .fontSize(14)
-          .fontColor('#666666')
-          .margin({
-            left: 16,
-            right: 16,
-            top: 12,
-            bottom: 4
-          })
-        TextInput({ text: this.masterPassword })
-          .onChange((v: string) => {
-            this.masterPassword = v;
-          })
-          .margin({ left: 16, right: 16, bottom: 24 })
-          .type(InputType.Password)
-
-        // 密码解锁按钮
-        Button() {
-          Text('主密码解锁')
-            .fontSize(18)
-            .fontColor(Color.White)
+          TextInput({ text: this.masterPassword })
+            .accessibilityText($r('app.string.unlock_enter_master_password'))
+            .onChange((v: string) => {
+              this.masterPassword = v;
+            })
+            .onSubmit(async () => {
+              await this.handlePasswordAuth();
+            })
+            .margin({ left: 16, right: 16, bottom: 24 })
+            .type(InputType.Password)
         }
-        .width(200)
-        .height(50)
-        .backgroundColor('#007DFF')
-        .borderRadius(25)
-        .onClick(() => {
-          // 主密码解锁
-          this.startPasswordAuth();
-        })
-        .margin({ bottom: 24 })
+        .width(this.isPc ? '60%' : '100%')
+        .constraintSize({ maxWidth: 640 })
+        .alignItems(HorizontalAlign.Center)
 
-        // 生物解锁按钮
-        Button() {
-          Text('生物识别解锁')
-            .fontSize(18)
-            .fontColor(Color.White)
-        }
-        .width(200)
-        .height(50)
-        .backgroundColor('#007DFF')
-        .borderRadius(25)
-        .onClick(() => {
-          if (DataPreferences.getInstance().getSync<number>(BIOMETRIC_AUTH) == 1) {
-            // 点击解锁按钮拉起生物认证
-            this.startBiometricAuth();
-          } else {
-            IBestToast.show('未开启生物识别');
+        // 按钮
+        Column({ space: 6 }) {
+          // 密码解锁
+          AdaptiveTextButton({
+            text: this.isPasswordAuthenticating ? $r('app.string.unlock_in_progress') :
+              $r('app.string.unlock_master_password'),
+            barWidth: 240,
+            barHeight: 50,
+            fontSize: 18,
+            contentPadding: 6,
+            translucent: true,
+            buttonEnabled: !this.isPasswordAuthenticating,
+            onButtonClick: () => {
+              void this.handlePasswordAuth();
+            }
+          })
+
+          if (this.biometricEnabled) {
+            // 生物识别解锁
+            AdaptiveTextButton({
+              text: $r('app.string.unlock_biometrics'),
+              barWidth: 240,
+              barHeight: 50,
+              fontSize: 18,
+              contentPadding: 6,
+              translucent: true,
+              onButtonClick: () => {
+                this.startBiometricAuth();
+              }
+            })
           }
-        })
-        .margin({ bottom: 24 })
 
-        // 注销按钮
-        Button() {
-          Text('注销')
-            .fontSize(18)
-            .fontColor(Color.White)
+          // 注销
+          AdaptiveTextButton({
+            text: $r('app.string.unlock_logout'),
+            barWidth: 240,
+            barHeight: 50,
+            fontSize: 18,
+            contentPadding: 6,
+            translucent: true,
+            translucentFontColor: $r('sys.color.warning'),
+            onButtonClick: () => {
+              void this.logout();
+            }
+          })
         }
-        .width(200)
-        .height(50)
-        .backgroundColor('#007DFF')
-        .borderRadius(25)
-        .onClick(() => {
-          clearAssetAndPreferences();
-          // 跳转到登录页面
-          this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
-        })
 
-        Blank()
       }
       .width('100%')
       .height('100%')
-      .justifyContent(FlexAlign.Start)
+      .padding({ top: 24, bottom: 24 })
+      .justifyContent(FlexAlign.Center)
       .alignItems(HorizontalAlign.Center)
     }
     .onReady((ctx: NavDestinationContext) => {
@@ -135,16 +140,78 @@ export struct UnlockPage {
       } else {
         this.exitTime = currentTime;
         this.getUIContext().getPromptAction().showToast({
-          message: "再按一次退出"
+          message: $r('app.string.common_back_exit')
         });
       }
       return true;
     })
   }
 
+  private async logout(): Promise<void> {
+    const cleanupErrors: string[] = [];
+    try {
+      await VaultViewModel.prepareForLogout();
+    } catch (error) {
+      cleanupErrors.push(`${error}`);
+      Logger.error(`Failed to prepare vault for logout: ${error}`);
+    }
+    try {
+      await GeneratorDatabaseUtil.getInstance().deleteAllData(GENERATOR_HISTORY_TABLE);
+    } catch (error) {
+      cleanupErrors.push(`${error}`);
+      Logger.error(`Failed to clear generator history during logout: ${error}`);
+    }
+    try {
+      await DatabaseUtil.getInstance().clearVaultData();
+    } catch (error) {
+      cleanupErrors.push(`${error}`);
+      Logger.error(`Failed to clear vault database during logout: ${error}`);
+    }
+    try {
+      clearAssetAndPreferences();
+    } catch (error) {
+      cleanupErrors.push(`${error}`);
+      Logger.error(`Failed to clear credentials during logout: ${error}`);
+    }
+    try {
+      await WindowPrivacyUtil.applyForCurrentState();
+    } catch (error) {
+      cleanupErrors.push(`${error}`);
+      Logger.error(`Failed to update window privacy during logout: ${error}`);
+    }
+    this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
+    if (cleanupErrors.length > 0) {
+      Logger.error(`Logout completed with cleanup errors: ${cleanupErrors.join('; ')}`);
+      AppToast.show(this.getUIContext(), $r('app.string.error_storage'));
+    }
+  }
+
+  /**
+   * 使用保存的 KDF 参数重新派生主密钥，验证通过后按原页面栈恢复导航
+   */
+  private async handlePasswordAuth(): Promise<void> {
+    if (this.isPasswordAuthenticating) {
+      return;
+    }
+    this.isPasswordAuthenticating = true;
+    try {
+      // 先让 ArkUI 提交“解锁中”文案与禁用态，再开始可能耗时的本地 KDF
+      await this.waitForUnlockButtonUpdate();
+      await this.startPasswordAuth();
+    } finally {
+      this.isPasswordAuthenticating = false;
+    }
+  }
+
+  private waitForUnlockButtonUpdate(): Promise<void> {
+    return new Promise<void>((resolve: () => void) => {
+      setTimeout(resolve, 0);
+    });
+  }
+
   async startPasswordAuth() {
     if (!this.masterPassword || this.masterPassword.length === 0) {
-      IBestToast.show('请输入主密码');
+      AppToast.show(this.getUIContext(), $r('app.string.unlock_enter_master_password'));
       return;
     }
 
@@ -153,7 +220,7 @@ export struct UnlockPage {
       const kdfParamStr: string = queryAssetSync(KDF_PARAM_KEY);
 
       if (!kdfParamStr) {
-        IBestToast.show('获取参数失败, 请重新登录');
+        AppToast.show(this.getUIContext(), $r('app.string.unlock_parameters_failed'));
         this.pathInfos.replacePath({ name: "LoginPage" });
       }
 
@@ -161,7 +228,7 @@ export struct UnlockPage {
       const storedMasterKey = queryAssetSync(MASTER_KEY);
       const email = queryAssetSync(EMAIL_KEY);
       if (!storedMasterKey) {
-        IBestToast.show('获取参数失败, 请重新登录');
+        AppToast.show(this.getUIContext(), $r('app.string.unlock_parameters_failed'));
         this.pathInfos.replacePath({ name: "LoginPage" });
       }
 
@@ -188,15 +255,16 @@ export struct UnlockPage {
           32
         );
       } else {
-        IBestToast.show('获取参数失败, 请重新登录');
+        AppToast.show(this.getUIContext(), $r('app.string.unlock_parameters_failed'));
         this.pathInfos.replacePath({ name: "LoginPage" });
       }
 
       // 验证派生的主密钥是否与存储的匹配
       if (derivedMasterKey === storedMasterKey) {
-        DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
+        // 解锁只更新时间戳和导航状态，不把输入的主密码持久化
         const info: NavPathInfo[] = this.pathInfos.getPathStack();
         const pathName = info[0].name;
+        VaultViewModel.beginSession();
         // 判断当前页面栈
         if (pathName == EntryRouter.UnlockPage) {
           // 认证成功，跳转到 VaultPage
@@ -205,21 +273,23 @@ export struct UnlockPage {
           this.pathInfos.pop();
         }
       } else {
-        IBestToast.show('主密码错误');
+        AppToast.show(this.getUIContext(), $r('app.string.unlock_wrong_password'));
         return;
       }
     } catch (error) {
       Logger.error(`Master password verification failed: ${error}`);
-      IBestToast.show('验证失败，请重试');
+      AppToast.show(this.getUIContext(), $r('app.string.unlock_verification_failed'));
       return;
     }
   }
 
-  // 发起生物识别认证
+  /**
+   * 使用一次性随机挑战发起系统级认证，成功后恢复被锁定前的页面栈
+   */
   startBiometricAuth() {
     try {
       const rand = cryptoFramework.createRandom();
-      const len: number = 16; // Generate a 16-byte random number.
+      const len: number = 16; // 生成 16 字节随机数
       let randData: Uint8Array | null = null;
       let retryCount = 0;
       while (retryCount < 3) {
@@ -230,7 +300,7 @@ export struct UnlockPage {
         retryCount++;
       }
       if (!randData) {
-        IBestToast.show('生物识别初始化失败');
+        AppToast.show(this.getUIContext(), $r('app.string.unlock_biometric_start_failed'));
         return;
       }
 
@@ -242,8 +312,10 @@ export struct UnlockPage {
       };
 
       // 配置认证界面
+      const authTitle: string = this.getUIContext().getHostContext()?.resourceManager
+        .getStringSync($r('app.string.unlock_auth_title')) ?? '';
       const widgetParam: userAuth.WidgetParam = {
-        title: '请进行身份认证',
+        title: authTitle,
       };
 
       // 获取认证对象
@@ -253,14 +325,14 @@ export struct UnlockPage {
       // 订阅认证结果
       userAuthInstance.on('result', {
         onResult: (result) => {
-          Logger.info(`userAuthInstance callback result: ${JSON.stringify(result)}`);
-          // 取消订阅认证结果
+          Logger.info('Biometric authentication callback received');
+          // 结果监听为一次性订阅，页面复用时不能残留旧回调
           userAuthInstance.off('result');
 
           if (result.result === userAuth.UserAuthResultCode.SUCCESS) {
-            DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
             const info: NavPathInfo[] = this.pathInfos.getPathStack();
             const pathName = info[0].name;
+            VaultViewModel.beginSession();
             // 判断当前页面栈
             if (pathName == EntryRouter.UnlockPage) {
               // 认证成功，跳转到 VaultPage
@@ -270,7 +342,7 @@ export struct UnlockPage {
             }
           } else {
             // 认证失败，显示提示
-            IBestToast.show('生物认证失败');
+            AppToast.show(this.getUIContext(), $r('app.string.unlock_biometric_failed'));
           }
         }
       });
@@ -280,7 +352,7 @@ export struct UnlockPage {
     } catch (error) {
       const err = error as BusinessError;
       Logger.error(`Failed to start biometric auth. Error: ${JSON.stringify(err)}`);
-      IBestToast.show('生物识别启动失败');
+      AppToast.show(this.getUIContext(), $r('app.string.unlock_biometric_start_failed'));
     }
   }
 }

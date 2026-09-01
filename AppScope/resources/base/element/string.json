@@ -1,8 +1,1 @@
-{
-  "string": [
-    {
-      "name": "app_name",
-      "value": "Homowarden"
-    }
-  ]
-}
+{"string":[{"name":"app_name","value":"Homowarden","attr":{"translatable":false}}]}

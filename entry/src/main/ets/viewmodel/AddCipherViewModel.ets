@@ -1,10 +1,13 @@
-import { Cipher, CipherCard, CipherIdentity, CipherLogin, CipherSecureNote, CipherUri } from '../model/CipherModels';
-import { CardBrandType, CipherItemType, IdentityTitleType } from '../utils/Constants';
+import { Cipher, CipherCard, CipherField, CipherIdentity, CipherLogin, CipherSecureNote, CipherUri } from '../model/CipherModels';
+import { CardBrandType, CipherFieldType, CipherItemType, IdentityTitleType } from '../utils/Constants';
 import { CryptoUtil } from '../utils/CryptoUtil';
 import { createCipher } from '../network/CipherApi';
 import { DeviceUtil } from '../utils/DeviceUtil';
-import { IBestDropdownMenuOption } from '@ibestservices/ibest-ui';
+import { DatabaseUtil } from '../utils/DatabaseUtil';
+import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
+import { CipherDisplayMapping } from '../domain/CipherDisplayMapping';
 
+/** 负责新建 Cipher 的表单状态、字段加密及本地持久化 */
 export class AddCipherViewModel {
   type: CipherItemType = CipherItemType.LOGIN;
   // 对称密钥
@@ -17,32 +20,29 @@ export class AddCipherViewModel {
   cardItem: CipherCard = {} as CipherCard;
   identityItem: CipherIdentity = {} as CipherIdentity;
   notes: string = '';
+  // 自定义字段列表：仅持有明文用于界面表单与后续加密；itemId 仅用于 ForEach 行 key
+  fields: CipherField[] = [];
   // 页面状态
   submitting: boolean = false;
   errorMessage: string = '';
-  identityTitleOptions: IBestDropdownMenuOption[] =
-    [
-      { text: '无', value: IdentityTitleType.NONE },
-      { text: '先生', value: IdentityTitleType.MR },
-      { text: '夫人', value: IdentityTitleType.MRS },
-      { text: '女士', value: IdentityTitleType.MISS },
-      { text: 'Mx', value: IdentityTitleType.MX },
-      { text: '博士', value: IdentityTitleType.DR }
-    ];
-  cardBrandOptions: IBestDropdownMenuOption[] =
-    [
-      { text: '无', value: CardBrandType.NONE },
-      { text: 'Visa', value: CardBrandType.VISA },
-      { text: 'MasterCard', value: CardBrandType.MASTER },
-      { text: 'American Express', value: CardBrandType.AME },
-      { text: 'Discover', value: CardBrandType.DISCOVER },
-      { text: 'Diners Club', value: CardBrandType.DINERS },
-      { text: 'JCB', value: CardBrandType.JCB },
-      { text: 'Maestro', value: CardBrandType.MAESTRO },
-      { text: 'UnionPay', value: CardBrandType.UNIONPAY },
-      { text: 'RuPay', value: CardBrandType.RUPAY },
-      { text: '其他', value: CardBrandType.OTHER },
-    ];
+  setIdentityTitle(type: IdentityTitleType): void {
+    this.identityItem.title = CipherDisplayMapping.writeIdentityTitle(type);
+  }
+
+  setCardBrand(type: CardBrandType): void {
+    this.cardItem.brand = CipherDisplayMapping.writeCardBrand(type);
+  }
+
+  /** 在表单尾部追加一条空白自定义字段；界面的 @State 数组须在调用后重新赋值以触发渲染 */
+  addField(type: CipherFieldType): void {
+    const newField: CipherField = {
+      name: '',
+      value: type === CipherFieldType.BOOL ? 'false' : '',
+      type: type,
+      itemId: DeviceUtil.generateUUID()
+    };
+    this.fields.push(newField);
+  }
 
   canSave(): boolean {
     return this.name.trim().length > 0;
@@ -176,6 +176,21 @@ export class AddCipherViewModel {
     return identity;
   }
 
+  // 构建加密自定义字段；不携带 itemId，确保本地内存标识不会泄漏到服务端或数据库
+  private async buildEncryptedFields(): Promise<CipherField[]> {
+    return await Promise.all(this.fields.map(async (field: CipherField): Promise<CipherField> => {
+      const encName = field.name ? await CryptoUtil.encryptField(field.name, this.symmetricKey) : '';
+      const encValue = field.value ? await CryptoUtil.encryptField(field.value, this.symmetricKey) : '';
+      const cipherField: CipherField = {
+        name: encName,
+        value: encValue,
+        type: field.type,
+        linkedId: field.linkedId ?? null
+      };
+      return cipherField;
+    }));
+  }
+
   // 构建加密项目
   private async buildEncryptedCipher(): Promise<Cipher> {
     const encName = await CryptoUtil.encryptField(this.name.trim(), this.symmetricKey);
@@ -200,28 +215,158 @@ export class AddCipherViewModel {
       card: this.type == CipherItemType.CARD ? await this.buildEncryptedCard() : null,
       identity: this.type == CipherItemType.IDENTITY ? await this.buildEncryptedIdentity() : null,
       secureNote: this.type == CipherItemType.NOTE ? await this.buildEncryptedNote() : null,
-      fields: [],
+      fields: await this.buildEncryptedFields(),
       collectionIds: [],
       reprompt: 0,
     };
     return cipher;
   }
 
-  // 提交新建密码项
-  async submitCreate(): Promise<boolean> {
+  private buildCreatedEncryptedCipher(payload: Cipher, createdCipher: Cipher): Cipher {
+    const revisionDate = createdCipher.revisionDate || payload.revisionDate;
+
+    // 服务端可能只返回部分字段，缺失值必须回退到已发送的加密载荷
+    return {
+      id: createdCipher.id || payload.id,
+      type: createdCipher.type || payload.type,
+      name: createdCipher.name || payload.name,
+      favorite: createdCipher.favorite === undefined ? payload.favorite : createdCipher.favorite,
+      edit: createdCipher.edit === undefined ? payload.edit : createdCipher.edit,
+      viewPassword: createdCipher.viewPassword,
+      folderId: createdCipher.folderId === undefined ? payload.folderId : createdCipher.folderId,
+      organizationId: createdCipher.organizationId === undefined ? payload.organizationId : createdCipher.organizationId,
+      creationDate: createdCipher.creationDate || payload.creationDate,
+      revisionDate: revisionDate,
+      lastKnownRevisionDate: revisionDate,
+      deletedDate: createdCipher.deletedDate === undefined ? payload.deletedDate : createdCipher.deletedDate,
+      archivedDate: createdCipher.archivedDate === undefined ? payload.archivedDate || null : createdCipher.archivedDate,
+      notes: createdCipher.notes === undefined ? payload.notes : createdCipher.notes,
+      login: createdCipher.login === undefined ? payload.login : createdCipher.login,
+      card: createdCipher.card === undefined ? payload.card : createdCipher.card,
+      identity: createdCipher.identity === undefined ? payload.identity : createdCipher.identity,
+      secureNote: createdCipher.secureNote === undefined ? payload.secureNote : createdCipher.secureNote,
+      sshKey: createdCipher.sshKey === undefined ? payload.sshKey || null : createdCipher.sshKey,
+      bankAccount: createdCipher.bankAccount === undefined ? payload.bankAccount || null : createdCipher.bankAccount,
+      driversLicense: createdCipher.driversLicense === undefined ? payload.driversLicense || null :
+        createdCipher.driversLicense,
+      passport: createdCipher.passport === undefined ? payload.passport || null : createdCipher.passport,
+      fields: createdCipher.fields === undefined ? payload.fields || [] : createdCipher.fields,
+      collectionIds: createdCipher.collectionIds === undefined ? payload.collectionIds || [] : createdCipher.collectionIds,
+      passwordHistory: createdCipher.passwordHistory === undefined ? payload.passwordHistory || null :
+        createdCipher.passwordHistory,
+      attachments: createdCipher.attachments === undefined ? payload.attachments || null : createdCipher.attachments,
+      attachments2: createdCipher.attachments2 === undefined ? payload.attachments2 || null : createdCipher.attachments2,
+      key: createdCipher.key === undefined ? payload.key || null : createdCipher.key,
+      encryptedFor: createdCipher.encryptedFor === undefined ? payload.encryptedFor || null : createdCipher.encryptedFor,
+      reprompt: createdCipher.reprompt === undefined || createdCipher.reprompt === null ? payload.reprompt :
+        createdCipher.reprompt
+    };
+  }
+
+  private buildCreatedPlainCipher(createdCipher: Cipher): Cipher {
+    const revisionDate = createdCipher.revisionDate;
+    const notes = this.notes && this.notes.trim().length > 0 ? this.notes.trim() : null;
+
+    // 列表通知使用明文副本，禁止把服务端返回的密文直接展示到 UI
+    return {
+      id: createdCipher.id,
+      type: this.type,
+      name: this.name.trim(),
+      favorite: createdCipher.favorite,
+      edit: createdCipher.edit,
+      viewPassword: createdCipher.viewPassword,
+      folderId: createdCipher.folderId,
+      organizationId: createdCipher.organizationId,
+      creationDate: createdCipher.creationDate,
+      revisionDate: revisionDate,
+      lastKnownRevisionDate: revisionDate,
+      deletedDate: null,
+      archivedDate: createdCipher.archivedDate || null,
+      notes: notes,
+      login: this.type == CipherItemType.LOGIN ? this.buildPlainLogin() : null,
+      card: this.type == CipherItemType.CARD ? this.buildPlainCard() : null,
+      identity: this.type == CipherItemType.IDENTITY ? this.buildPlainIdentity() : null,
+      secureNote: this.type == CipherItemType.NOTE ? this.noteItem : null,
+      fields: this.fields.slice(),
+      collectionIds: createdCipher.collectionIds || [],
+      passwordHistory: null,
+      attachments: null,
+      attachments2: null,
+      key: null,
+      encryptedFor: createdCipher.encryptedFor || null,
+      reprompt: createdCipher.reprompt
+    };
+  }
+
+  private buildPlainLogin(): CipherLogin {
+    const uri = this.loginUri.uri ? this.loginUri.uri.trim() : '';
+    const uris: CipherUri[] = uri ? [{
+      uri: uri,
+      uriChecksum: '',
+      match: this.loginUri.match ?? null
+    }] : [];
+
+    return {
+      username: this.loginItem.username || null,
+      password: this.loginItem.password || null,
+      passwordRevisionDate: null,
+      totp: this.loginItem.totp || null,
+      uris: uris
+    };
+  }
+
+  private buildPlainCard(): CipherCard {
+    return {
+      cardholderName: this.cardItem.cardholderName || null,
+      brand: this.cardItem.brand || null,
+      number: this.cardItem.number || null,
+      expMonth: this.cardItem.expMonth || null,
+      expYear: this.cardItem.expYear || null,
+      code: this.cardItem.code || null
+    };
+  }
+
+  private buildPlainIdentity(): CipherIdentity {
+    return {
+      address1: this.identityItem.address1 || null,
+      address2: this.identityItem.address2 || null,
+      address3: this.identityItem.address3 || null,
+      city: this.identityItem.city || null,
+      company: this.identityItem.company || null,
+      country: this.identityItem.country || null,
+      email: this.identityItem.email || null,
+      firstName: this.identityItem.firstName || null,
+      lastName: this.identityItem.lastName || null,
+      licenseNumber: this.identityItem.licenseNumber || null,
+      middleName: this.identityItem.middleName || null,
+      passportNumber: this.identityItem.passportNumber || null,
+      phone: this.identityItem.phone || null,
+      postalCode: this.identityItem.postalCode || null,
+      ssn: this.identityItem.ssn || null,
+      state: this.identityItem.state || null,
+      title: this.identityItem.title || null,
+      username: this.identityItem.username || null
+    };
+  }
+
+  /** 加密并提交新条目，服务端成功后先落库再返回明文列表副本 */
+  async submitCreate(): Promise<Cipher | null> {
     this.errorMessage = '';
     if (!this.canSave()) {
-      this.errorMessage = '请填写名称';
-      return false;
+      this.errorMessage = 'cipher_name_required';
+      return null;
     }
     try {
       this.submitting = true;
       const payload = await this.buildEncryptedCipher();
-      await createCipher(payload);
-      return true;
+      const createdCipher = this.buildCreatedEncryptedCipher(payload, await createCipher(payload));
+      await DatabaseUtil.getInstance().saveCipherToDatabase(createdCipher);
+      return this.buildCreatedPlainCipher(createdCipher);
     } catch (err) {
-      this.errorMessage = `创建失败, 错误信息: ${JSON.stringify(err)}`;
-      return false;
+      const diagnosticMessage = ErrorMessageUtil.getMessage(err as Object);
+      console.error(`Create cipher failed: ${diagnosticMessage}`);
+      this.errorMessage = 'error_save_failed';
+      return null;
     } finally {
       this.submitting = false;
     }

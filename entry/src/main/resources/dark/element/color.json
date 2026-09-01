@@ -3,6 +3,58 @@
     {
       "name": "start_window_background",
       "value": "#000000"
+    },
+    {
+      "name": "button_background_color",
+      "value": "#2777DA"
+    },
+    {
+      "name": "button_foreground_color",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "secondary_button_background_color",
+      "value": "#2C2C2E"
+    },
+    {
+      "name": "secondary_button_foreground_color",
+      "value": "#F5F5F5"
+    },
+    {
+      "name": "translucent_button_background",
+      "value": "#1AFFFFFF"
+    },
+    {
+      "name": "secure_translucent_button_background",
+      "value": "#1AFFFFFF"
+    },
+    {
+      "name": "brand_accent_color",
+      "value": "#2777DA"
+    },
+    {
+      "name": "menu_background_color",
+      "value": "#E61B1B1F"
+    },
+    {
+      "name": "main_nav_background",
+      "value": "#1B1B1F"
+    },
+    {
+      "name": "main_nav_selected",
+      "value": "#2777DA"
+    },
+    {
+      "name": "main_nav_unselected",
+      "value": "#A9ADB7"
+    },
+    {
+      "name": "main_nav_disabled",
+      "value": "#646872"
+    },
+    {
+      "name": "main_nav_add_icon",
+      "value": "#FFFFFF"
     }
   ]
 }

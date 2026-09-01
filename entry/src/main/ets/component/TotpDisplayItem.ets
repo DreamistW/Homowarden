@@ -1,7 +1,8 @@
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
-import { IBestToast } from '@ibestservices/ibest-ui';
+import { AppToast } from '../utils/AppToast';
 import { Logger } from '@nzy/logger';
 import { TOTPUtil } from '../utils/TOTPUtil';
+import { AdaptiveIconButton } from './AdaptiveButton';
 
 /**
  * TOTP验证码显示组件
@@ -16,6 +17,7 @@ export struct TotpDisplayItem {
 
   async aboutToAppear() {
     await this.updateCode();
+    // 定时器只在组件生命周期内运行，销毁时由 aboutToDisappear 对称释放
     this.startTimer();
   }
 
@@ -72,31 +74,31 @@ export struct TotpDisplayItem {
    */
   private async copyCode() {
     try {
-      // 移除空格后复制
+      // 验证码属于短期敏感数据，仅在用户主动操作时写入系统剪贴板
       const codeToCopy = this.currentCode.replace(/\s/g, '');
       if (codeToCopy === '------') {
-        IBestToast.show('无效的验证码');
+        AppToast.show(this.getUIContext(), $r('app.string.totp_invalid'));
         return;
       }
 
       const pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, codeToCopy);
       const systemPasteboard = pasteboard.getSystemPasteboard();
       await systemPasteboard.setData(pasteData);
-      IBestToast.show('已复制');
+      AppToast.show(this.getUIContext(), $r('app.string.totp_copied'));
     } catch (error) {
       const err = error as BusinessError;
       Logger.error(`Failed to copy code: ${err.message}`);
-      IBestToast.show('复制失败');
+      AppToast.show(this.getUIContext(), $r('app.string.totp_copy_failed'));
     }
   }
 
   build() {
     Row() {
       // 标签
-      Text('验证码')
+      Text($r('app.string.totp_title'))
         .fontSize(14)
         .fontColor('#666666')
-        .width(80)
+        .width(112)
 
       // 验证码显示
       Text(this.currentCode)
@@ -107,23 +109,30 @@ export struct TotpDisplayItem {
       Circle()
         .width(8)
         .height(8)
-        .fill(this.remainingSeconds > 5 ? Color.Green : Color.Red)
+        .foregroundColor(this.remainingSeconds > 5 ? Color.Green : Color.Red)
         .margin({ right: 4 })
+        .accessibilityLevel('no')
 
       // 剩余时间
-      Text(`${this.remainingSeconds}s`)
+      Text($r('app.string.totp_seconds', this.remainingSeconds))
         .fontSize(12)
         .fontColor('#666666')
         .width(42)
 
       // 复制按钮
-      Button() {
-        Image($r('app.media.icon_copy'))
-          .width(18)
-      }
-      .backgroundColor(Color.Transparent)
-      .onClick(() => this.copyCode())
-      .margin({ right: 8 })
+      AdaptiveIconButton({
+        icon: $r('app.media.icon_copy'),
+        accessibilityLabel: $r('app.string.accessibility_copy_totp'),
+        barWidth: 40,
+        barHeight: 40,
+        iconWidth: 20,
+        iconHeight: 20,
+        contentPadding: 6,
+        barBottomMargin: 0,
+        onButtonClick: () => {
+          this.copyCode();
+        }
+      })
     }
     .width('100%')
     .padding({ top: 8, bottom: 8 })

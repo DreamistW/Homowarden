@@ -34,6 +34,24 @@ export class CryptoUtil {
   }
 
   /**
+   * 单次迭代 PBKDF2-SHA256，用于生成服务端登录验证值
+   * 单次迭代结果等于 HMAC-SHA256(password, salt || INT32_BE(1))
+   */
+  static async deriveKeyPBKDF2SingleIteration(password: Uint8Array, salt: string): Promise<string> {
+    const saltBytes: Uint8Array = new util.TextEncoder().encodeInto(salt);
+    const input: Uint8Array = new Uint8Array(saltBytes.length + 4);
+    input.set(saltBytes, 0);
+    input.set(new Uint8Array([0, 0, 0, 1]), saltBytes.length);
+    const mac = cryptoFramework.createMac('SHA256');
+    const keyBlob: cryptoFramework.DataBlob = { data: password };
+    const hmacGenerator = cryptoFramework.createSymKeyGenerator('HMAC');
+    await mac.init(await hmacGenerator.convertKey(keyBlob));
+    await mac.update({ data: input });
+    const result: cryptoFramework.DataBlob = await mac.doFinal();
+    return new util.Base64Helper().encodeToStringSync(result.data);
+  }
+
+  /**
    * HKDF密钥派生
    * @param key 原始密钥
    * @param salt 盐
@@ -68,7 +86,7 @@ export class CryptoUtil {
   /**
    * Argon2id密钥派生
    * @param password 明文密码
-   * @param salt 盐（Base64字符串）
+   * @param salt 盐
    * @param iterations 迭代次数
    * @param memory 内存（MB）
    * @param parallelism 并行度
@@ -77,20 +95,25 @@ export class CryptoUtil {
    */
   static async deriveKeyArgon2id(password: string, salt: string, iterations: number, memory: number,
     parallelism: number, keyLen: number = 32): Promise<string> {
-    let passwordBuffer = new util.TextEncoder().encodeInto(password.toLowerCase());
-    let saltBuffer = new util.TextEncoder().encodeInto(salt.toLowerCase());
+    const passwordBuffer = new util.TextEncoder().encodeInto(password);
+    const saltBuffer = new util.TextEncoder().encodeInto(salt.trim().toLowerCase());
+    // Bitwarden 使用邮箱的 SHA-256 摘要作为 Argon2id 的盐，而不是邮箱原始字节
+    const saltDigest = cryptoFramework.createMd('SHA256');
+    await saltDigest.update({ data: saltBuffer });
+    const saltHash = await saltDigest.digest();
 
-    const option: HashOption = {
-      timeCost: iterations,
-      memoryCost: memory,
-      parallelism: parallelism,
-      hashLength: keyLen,
-      argon2Type: 2, // Argon2id
-      argon2Version: 19
-    };
-    const result = argon2Hash(passwordBuffer, saltBuffer, option);
-    // result.encoded为base64字符串
-    return result.encoded;
+    const option: HashOption = new HashOption();
+    option.timeCost = iterations;
+    option.memoryCost = memory * 1024;
+    option.parallelism = parallelism;
+    option.hashLength = keyLen;
+    option.argon2Type = 2;
+    option.argon2Version = 19;
+    const result = argon2Hash(passwordBuffer.buffer, saltHash.data.buffer, option);
+    if (result.result !== 'ARGON2_OK') {
+      throw new Error(`Argon2 failed: ${result.result}`);
+    }
+    return new util.Base64Helper().encodeToStringSync(new Uint8Array(result.hash));
   }
 
   /**
@@ -123,14 +146,11 @@ export class CryptoUtil {
       const cipherBlob: cryptoFramework.DataBlob =
         { data: new util.Base64Helper().decodeSync(partsOfText[1]) };
       const symKey = await CryptoUtil.genSymKeyByData(key);
-      // Logger.info(`cipherText length: ${cipherBlob.data.length}`);
-      // Logger.info(`key length: ${key.length}`);
       const decoder = cryptoFramework.createCipher('AES256|CBC|PKCS7');
       const paramSpec: cryptoFramework.IvParamsSpec = {
         algName: 'IvParamsSpec',
         iv: { data: new util.Base64Helper().decodeSync(partsOfText[0]) },
       }
-      // Logger.info(`iv length: ${paramSpec.iv.data.length}`);
       await decoder.init(cryptoFramework.CryptoMode.DECRYPT_MODE, symKey, paramSpec);
       const decryptedData = await decoder.doFinal(cipherBlob);
       return new util.Base64Helper().encodeToStringSync(decryptedData.data)
@@ -191,12 +211,29 @@ export class CryptoUtil {
         const plainText = await CryptoUtil.decryptAESCBC(cipherText, keyBytes.slice(0, 32));
         return CryptoUtil.base64DecodeToString(plainText);
       }
+      throw new Error('MAC verification failed');
     } catch (err) {
       const error = err as BusinessError;
       Logger.error(`Failed to decrypt, error message: ${error.message}`);
-      return `Failed to decrypt, error message: ${error.message}`;
+      throw new Error(`Failed to decrypt: ${error.message}`);
     }
-    return '';
+  }
+
+  static async decryptCipherKey(cipherKey: string | null | undefined, symKey: string): Promise<string> {
+    if (!cipherKey) {
+      return symKey;
+    }
+    const keyBytes = new util.Base64Helper().decodeSync(symKey);
+    const macResult = await CryptoUtil.verifyHMAC(cipherKey, keyBytes.slice(32));
+    if (!macResult) {
+      throw new Error('Cipher key MAC verification failed');
+    }
+    const decryptedKey = await CryptoUtil.decryptAESCBC(cipherKey, keyBytes.slice(0, 32));
+    const decryptedKeyBytes = new util.Base64Helper().decodeSync(decryptedKey);
+    if (decryptedKeyBytes.length !== 64) {
+      throw new Error('Invalid cipher key length');
+    }
+    return decryptedKey;
   }
 
   // Base64字符串解码
@@ -216,7 +253,7 @@ export class CryptoUtil {
   /**
    * AES-256-CBC加密
    * @param plainText 明文
-   * @param iv
+   * @param iv 初始化向量
    * @param key 对称密钥
    * @returns 加密后的base64字符串
    */
@@ -245,7 +282,7 @@ export class CryptoUtil {
 
   /**
    * 生成HMAC
-   * @param iv
+   * @param iv 初始化向量
    * @param cipherText base64密文字符串
    * @param macKey 生成MAC的密钥
    * @returns HMAC的base64字符串

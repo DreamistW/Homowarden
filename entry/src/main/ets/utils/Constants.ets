@@ -57,7 +57,7 @@ export const TOKEN_EXPIRE_TIME_KEY = 'token_expire_timestamp';
 
 export const KDF_PARAM_KEY = 'kdf_param';
 
-export const Header_Client_Name = 'web';
+export const Header_Client_Name = 'mobile';
 
 export const Header_Client_Version = '2025.12.1';
 
@@ -73,9 +73,23 @@ export const BIOMETRIC_AUTH = 'biometric_auth';
 
 export const NEED_RELOAD_CIPHERS = 'need_reload_ciphers';
 
-export const BACKGROUND_TIMESTAMP = 'background_timestamp';
+export const AUTO_LOCK_TIMEOUT = 'auto_lock';
 
-export const AUTO_LOCK = 'auto_lock';
+export enum AutoLockTimeout {
+  NEVER = 0,
+  ONE_MINUTE = 60,
+  FIVE_MINUTES = 300,
+  FIFTEEN_MINUTES = 900,
+  THIRTY_MINUTES = 1800,
+  ONE_HOUR = 3600,
+  FOUR_HOURS = 14400
+}
+
+export const SCREEN_CAPTURE_PROTECTION = 'screen_capture_protection';
+
+export const ANTI_PEEP_PROTECTION = 'anti_peep_protection';
+
+export const ANTI_PEEP_GUIDE_SHOWN = 'anti_peep_guide_shown';
 
 export enum GrantType {
   PASSWORD = 'password',
@@ -97,6 +111,7 @@ export enum CipherFieldType {
 
 export enum DBTableName {
   MAIN = 'ciphers',
+  KEYS = 'cipher_keys',
   LOGINS = 'cipher_logins',
   CARDS = 'cipher_cards',
   IDENTITIES = 'cipher_identities',

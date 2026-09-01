@@ -5,9 +5,12 @@ import { systemShare } from '@kit.ShareKit';
 import { uniformTypeDescriptor } from '@kit.ArkData';
 import { common } from '@kit.AbilityKit';
 import { getShareLink } from '../utils/ParseLinkUtil';
-import { DataPreferences } from '@abner/datastore';
-import { AUTO_LOCK, BACKGROUND_TIMESTAMP } from '../utils/Constants';
-import { EntryRouter } from '../../../../EntryRouter';
+import { hdsMaterial, HdsNavDestination } from '@kit.UIDesignKit';
+import { AdaptiveIconButton } from '../component/AdaptiveButton';
+import { DetailRouter } from '../utils/DetailRouter';
+import { ConfirmDialog } from '../component/ConfirmDialog';
+import { HistorySelectionBar, HistorySelectionIndicator } from '../component/HistorySelectionControls';
+import { HistoryTimeFormatter } from '../utils/HistoryTimeFormatter';
 
 @Builder
 export function HistoryPageBuilder() {
@@ -16,14 +19,81 @@ export function HistoryPageBuilder() {
 
 @Component
 struct History {
+  @StorageLink('localeRevision') @Watch('handleLocaleRevision') localeRevision: number = 0;
+  @StorageLink('activeSplitView') isSplitView: boolean = false;
   pathInfos: NavPathStack = new NavPathStack();
   @State searchText: string = '';
   @State historyList: HistoryItem[] = [];
   @State filteredList: HistoryItem[] = [];
+  @State inSelectionMode: boolean = false;
+  @State selectedIds: string[] = [];
   private dbUtil: ShareDatabaseUtil = ShareDatabaseUtil.getInstance();
+  private refreshTimer: number = -1;
+  private isPageActive: boolean = false;
+  private appearanceGeneration: number = 0;
 
   async aboutToAppear() {
+    this.isPageActive = true;
+    this.appearanceGeneration++;
+    const currentGeneration: number = this.appearanceGeneration;
     await this.loadHistory();
+    // 异步查询返回时页面可能已离开或再次进入，旧生命周期不得启动计时器
+    if (!this.isPageActive || currentGeneration !== this.appearanceGeneration) {
+      return;
+    }
+    if (this.refreshTimer !== -1) {
+      clearInterval(this.refreshTimer);
+    }
+    this.refreshTimer = setInterval(() => {
+      // 相对时间依赖当前时刻，通过替换数组引用触发列表每分钟重绘
+      this.filteredList = [...this.filteredList];
+    }, 60000);
+  }
+
+  aboutToDisappear(): void {
+    // 递增代次同时使尚未结束的 aboutToAppear 异步流程失效
+    this.isPageActive = false;
+    this.appearanceGeneration++;
+    if (this.refreshTimer !== -1) {
+      clearInterval(this.refreshTimer);
+      this.refreshTimer = -1;
+    }
+    // 旋转跨栈迁移会销毁本页，随之关闭未决确认框（等同取消）
+    this.confirmController.close();
+  }
+
+  @State confirmTitle: ResourceStr = '';
+  @State confirmMessage: ResourceStr = '';
+  @State confirmText: ResourceStr = $r('app.string.common_confirm');
+  private confirmAction: () => Promise<boolean> = async () => true;
+  private confirmController: CustomDialogController = new CustomDialogController({
+    builder: ConfirmDialog({
+      title: $confirmTitle,
+      message: $confirmMessage,
+      confirmText: $confirmText,
+      onConfirm: async (): Promise<boolean> => {
+        return await this.confirmAction();
+      }
+    }),
+    autoCancel: false,
+    alignment: DialogAlignment.Center,
+    customStyle: false
+  });
+
+  private showConfirm(title: ResourceStr, message: ResourceStr, action: () => void,
+    confirmText: ResourceStr = $r('app.string.common_confirm')): void {
+    this.confirmTitle = title;
+    this.confirmMessage = message;
+    this.confirmText = confirmText;
+    this.confirmAction = async (): Promise<boolean> => {
+      action();
+      return true;
+    };
+    this.confirmController.open();
+  }
+
+  private handleLocaleRevision(): void {
+    this.filteredList = [...this.filteredList];
   }
 
   // 从数据库加载历史记录
@@ -36,7 +106,7 @@ struct History {
         const item: HistoryItem = {
           id: row.id as string,
           content: row.content as string,
-          timestamp: row.timestamp as number
+          timestamp: Number(row.timestamp)
         };
         historyItems.push(item);
       }
@@ -45,30 +115,8 @@ struct History {
     } catch (err) {
       console.error(`Failed to load history. Error: ${JSON.stringify(err)}`);
       this.getUIContext().getPromptAction().showToast({
-        message: '加载历史记录失败'
+        message: $r('app.string.error_load_failed')
       });
-    }
-  }
-
-  // 格式化时间
-  formatTime(timestamp: number): string {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) {
-      return '刚刚';
-    } else if (minutes < 60) {
-      return `${minutes}分钟前`;
-    } else if (hours < 24) {
-      return `${hours}小时前`;
-    } else if (days < 7) {
-      return `${days}天前`;
-    } else {
-      return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
     }
   }
 
@@ -82,7 +130,7 @@ struct History {
   copyLink(text: string) {
     if (text == "") {
       this.getUIContext().getPromptAction().showToast({
-        message: `请先转换分享链接`
+        message: $r('app.string.share_convert_first')
       });
       return;
     }
@@ -91,27 +139,111 @@ struct History {
     systemPasteboard.setData(pasteData).catch((err: BusinessError) => {
       console.error(`Failed to set paste data. Code is ${err.code}, message is ${err.message}.`);
       this.getUIContext().getPromptAction().showToast({
-        message: `复制失败, 错误信息: ${err.message}}`
+        message: $r('app.string.share_copy_failed')
       });
       return;
     });
     this.getUIContext().getPromptAction().showToast({
-      message: `复制成功`
+      message: $r('app.string.share_copy_success')
     });
   }
 
-  // 删除功能
-  async deleteItem(item: HistoryItem) {
+  // 弹出确认对话框请求删除单条记录
+  requestDelete(item: HistoryItem): void {
+    this.showConfirm($r('app.string.share_history_delete_confirm'), item.content, () => {
+      void this.doDelete(item);
+    });
+  }
+
+  // 删除指定记录并刷新列表
+  async doDelete(item: HistoryItem) {
     try {
       await this.dbUtil.deleteData('history', item.id);
-      await this.loadHistory(); // 重新加载历史记录
+      await this.loadHistory();
       this.getUIContext().getPromptAction().showToast({
-        message: '删除成功'
+        message: $r('app.string.common_delete_success')
       });
     } catch (err) {
       console.error(`Failed to delete item. Error: ${JSON.stringify(err)}`);
       this.getUIContext().getPromptAction().showToast({
-        message: '删除失败'
+        message: $r('app.string.error_delete_failed')
+      });
+    }
+  }
+
+  // 长按进入多选模式并预选当前项目
+  enterSelectionMode(item: HistoryItem): void {
+    this.inSelectionMode = true;
+    this.selectedIds = [item.id];
+  }
+
+  // 切换某条记录的选中状态
+  toggleSelection(id: string): void {
+    if (this.selectedIds.includes(id)) {
+      this.selectedIds = this.selectedIds.filter(i => i !== id);
+    } else {
+      this.selectedIds = [...this.selectedIds, id];
+    }
+  }
+
+  // 判断当前列表是否已全部选中
+  isAllSelected(): boolean {
+    return this.filteredList.length > 0 &&
+      this.filteredList.every((item: HistoryItem) => this.selectedIds.includes(item.id));
+  }
+
+  // 全选或取消全选当前列表
+  toggleSelectAll(): void {
+    if (this.isAllSelected()) {
+      this.selectedIds = [];
+    } else {
+      this.selectedIds = this.filteredList.map((item: HistoryItem) => item.id);
+    }
+  }
+
+  // 判断某条记录是否处于选中状态
+  isSelected(id: string): boolean {
+    return this.selectedIds.includes(id);
+  }
+
+  // 退出多选模式并清空选择
+  exitSelectionMode(): void {
+    this.inSelectionMode = false;
+    this.selectedIds = [];
+  }
+
+  // 已选记录数量文案
+  private getSelectedCountText(): string {
+    return this.getUIContext().getHostContext()?.resourceManager
+      .getStringSync($r('app.string.history_selected_count').id, this.selectedIds.length) ?? '';
+  }
+
+  // 弹出确认对话框请求删除选中的记录
+  requestDeleteSelected(): void {
+    if (this.selectedIds.length === 0) {
+      return;
+    }
+    this.showConfirm($r('app.string.common_delete'), $r('app.string.history_delete_selected_confirm'), () => {
+      void this.doDeleteSelected();
+    }, $r('app.string.common_delete'));
+  }
+
+  // 删除选中的记录并刷新列表
+  async doDeleteSelected(): Promise<void> {
+    const ids: string[] = [...this.selectedIds];
+    try {
+      for (const id of ids) {
+        await this.dbUtil.deleteData('history', id);
+      }
+      this.exitSelectionMode();
+      await this.loadHistory();
+      this.getUIContext().getPromptAction().showToast({
+        message: $r('app.string.common_delete_success')
+      });
+    } catch (err) {
+      console.error(`Failed to delete selected items. Error: ${JSON.stringify(err)}`);
+      this.getUIContext().getPromptAction().showToast({
+        message: $r('app.string.error_delete_failed')
       });
     }
   }
@@ -119,7 +251,7 @@ struct History {
   shareLink(text: string, shareLink: boolean) {
     if (text == "") {
       this.getUIContext().getPromptAction().showToast({
-        message: `请先转换分享链接`
+        message: $r('app.string.share_convert_first')
       });
       return;
     }
@@ -136,20 +268,20 @@ struct History {
     }).catch((err: BusinessError) => {
       console.error(`Failed to show share panel. Code is ${err.code}, message is ${err.message}.`);
       this.getUIContext().getPromptAction().showToast({
-        message: `分享失败, 错误信息: ${err.message}}`
+        message: $r('app.string.share_failed')
       });
     })
   }
 
   build() {
-    NavDestination() {
+    HdsNavDestination() {
       Column() {
         // 搜索栏
         Search({
           value: this.searchText,
-          placeholder: '搜索历史记录'
+          placeholder: $r('app.string.share_history_search')
         })
-          .searchButton('搜索')
+          .searchButton($r('app.string.common_search'))
           .onChange((value: string) => {
             this.onSearchChange(value);
           })
@@ -167,19 +299,14 @@ struct History {
               ListItem() {
                 this.HistoryItemBuilder(item);
               }
-              .swipeAction({
-                end: {
-                  builder: this.ActionBuilder.bind(this, item),
-                },
-                edgeEffect: SwipeEdgeEffect.None
-              })
             }, (item: HistoryItem) => item.id)
           }
           .width('100%')
           .layoutWeight(1)
+          .padding({ left: 16, right: 16, top: 12 })
         } else {
           Column() {
-            Text('暂无历史记录')
+            Text($r('app.string.share_history_empty'))
               .fontSize(16)
               .fontColor('#999999')
           }
@@ -187,120 +314,196 @@ struct History {
           .layoutWeight(1)
           .justifyContent(FlexAlign.Center)
         }
+
+        // 多选模式下的底部操作栏
+        if (this.inSelectionMode) {
+          this.SelectionBarBuilder()
+        }
       }
       .width('100%')
       .height('100%')
     }
-    .title('历史记录')
+    .titleBar({
+      content: {
+        title: {
+          mainTitle: $r('app.string.share_history_title')
+        }
+      },
+      enableComponentSafeArea: true,
+      style: {
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
+        }
+      }
+    })
+    .hideBackButton(this.isSplitView)
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
     })
-    .onHidden(() => {
-      DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
+    .onBackPressed((): boolean => {
+      if (this.inSelectionMode) {
+        this.exitSelectionMode();
+        return true;
+      }
+      if (this.isSplitView) {
+        DetailRouter.closeDetail();
+        return true;
+      }
+      return false;
     })
-    .onShown(() => {
-      const autoLockStatus = DataPreferences.getInstance().getSync<number>(AUTO_LOCK);
-      if (autoLockStatus == 1) {
-        const currentTime = Math.floor(Date.now() / 1000);
-        const backgroundTime = DataPreferences.getInstance().getSync<number>(BACKGROUND_TIMESTAMP);
-        if (currentTime - backgroundTime > 120) {
-          this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
-        }
+  }
+
+  // 多选模式下的勾选指示器
+  @Builder
+  SelectionIndicator(item: HistoryItem) {
+    HistorySelectionIndicator({ selected: this.isSelected(item.id) })
+  }
+
+  // 多选模式下的底部操作栏
+  @Builder
+  SelectionBarBuilder() {
+    HistorySelectionBar({
+      allSelected: this.isAllSelected(),
+      selectedCount: this.selectedIds.length,
+      selectedCountText: this.getSelectedCountText(),
+      onCancel: () => {
+        this.exitSelectionMode();
+      },
+      onToggleAll: () => {
+        this.toggleSelectAll();
+      },
+      onDelete: () => {
+        this.requestDeleteSelected();
       }
     })
   }
 
-  // 历史记录项构建器
+  // 单条历史记录卡片
   @Builder
   HistoryItemBuilder(item: HistoryItem) {
     Row() {
-      Column() {
-        Text(item.content)
-          .fontSize(16)
-          .maxLines(5)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-          .align(Alignment.Start)
-          .width('100%')
-          .padding({ right: 12 })
+      if (this.inSelectionMode) {
+        this.SelectionIndicator(item)
+      }
 
-        Text(this.formatTime(item.timestamp))
+      Column({ space: 6 }) {
+        Text(HistoryTimeFormatter.format(item.timestamp))
           .fontSize(12)
           .fontColor('#999999')
-          .margin({ top: 8 })
+
+        Text(item.content)
+          .fontSize(16)
+          .fontFamily('monospace')
+          .maxLines(3)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
           .align(Alignment.Start)
           .width('100%')
       }
       .alignItems(HorizontalAlign.Start)
-      .width('100%')
-      .padding({
-        left: 16,
-        right: 16,
-        top: 12,
-        bottom: 12
-      })
+      .layoutWeight(1)
+
+      if (!this.inSelectionMode) {
+        Row({ space: 12 }) {
+          Button() {
+            Image($r('app.media.icon_copy'))
+              .width(18)
+              .height(18)
+              .fillColor($r('app.color.button_foreground_color'))
+              .accessibilityLevel('no')
+          }
+            .type(ButtonType.Circle)
+            .width(36)
+            .height(36)
+            .padding(0)
+            .backgroundColor($r('app.color.button_background_color'))
+            .accessibilityText($r('app.string.common_copy'))
+            .bindMenu([
+              {
+                value: $r('app.string.share_copy_full'),
+                action: () => {
+                  this.copyLink(item.content);
+                }
+              },
+              {
+                value: $r('app.string.share_copy_link'),
+                action: async () => {
+                  const link: string = await getShareLink(item.content);
+                  this.copyLink(link);
+                }
+              }
+            ], {
+              backgroundColor: $r('app.color.menu_background_color'),
+              backgroundBlurStyle: BlurStyle.NONE
+            })
+
+          Button() {
+            Image($r('app.media.icon_share'))
+              .width(18)
+              .height(18)
+              .fillColor($r('app.color.button_foreground_color'))
+              .accessibilityLevel('no')
+          }
+            .type(ButtonType.Circle)
+            .width(36)
+            .height(36)
+            .padding(0)
+            .backgroundColor($r('app.color.button_background_color'))
+            .accessibilityText($r('app.string.common_share'))
+            .bindMenu([
+              {
+                value: $r('app.string.share_full'),
+                action: () => {
+                  this.shareLink(item.content, false);
+                }
+              },
+              {
+                value: $r('app.string.share_link'),
+                action: async () => {
+                  const link: string = await getShareLink(item.content);
+                  this.shareLink(link, true);
+                }
+              }
+            ], {
+              backgroundColor: $r('app.color.menu_background_color'),
+              backgroundBlurStyle: BlurStyle.NONE
+            })
+
+          AdaptiveIconButton({
+            icon: $r('app.media.icon_delete'),
+            accessibilityLabel: $r('app.string.common_delete'),
+            barWidth: 36,
+            barHeight: 36,
+            iconWidth: 18,
+            iconHeight: 18,
+            contentPadding: 0,
+            barBottomMargin: 0,
+            onButtonClick: () => {
+              this.requestDelete(item);
+            }
+          })
+        }
+      }
     }
     .width('100%')
+    .padding(16)
     .borderRadius(8)
-    .margin({ left: 16, right: 16 })
-  }
-
-  // 滑动操作构建器
-  @Builder
-  ActionBuilder(item: HistoryItem) {
-    Column() {
-      Button('复制')
-        .type(ButtonType.Normal)
-        .backgroundColor('#007DFF')
-        .width(80)
-        .height('33%')
-        .bindMenu([
-          {
-            value: '复制完整内容',
-            action: () => {
-              this.copyLink(item.content);
-            }
-          },
-          {
-            value: '仅复制链接',
-            action: async () => {
-              const link: string = await getShareLink(item.content);
-              this.copyLink(link);
-            }
+    .backgroundColor(this.inSelectionMode && this.isSelected(item.id) ?
+      '#1A2777DA' : $r('app.color.start_window_background'))
+    .accessibilityGroup(this.inSelectionMode)
+    .accessibilitySelected(this.isSelected(item.id))
+    .onClick(() => {
+      if (this.inSelectionMode) {
+        this.toggleSelection(item.id);
+      }
+    })
+    .gesture(
+      LongPressGesture()
+        .onAction(() => {
+          if (!this.inSelectionMode) {
+            this.enterSelectionMode(item);
           }
-        ])
-
-      Button('分享')
-        .type(ButtonType.Normal)
-        .backgroundColor('#FFA500')
-        .width(80)
-        .height('33%')
-        .bindMenu([
-          {
-            value: '分享完整内容',
-            action: () => {
-              this.shareLink(item.content, false);
-            }
-          },
-          {
-            value: '仅分享链接',
-            action: async () => {
-              const link: string = await getShareLink(item.content);
-              this.shareLink(link, true);
-            }
-          }
-        ])
-
-      Button('删除')
-        .type(ButtonType.Normal)
-        .backgroundColor('#FF3B30')
-        .width(80)
-        .height('33%')
-        .onClick(() => {
-          this.deleteItem(item);
         })
-    }
-    .width(80)
-    .height('100%')
+    )
   }
 }
-

@@ -8,7 +8,7 @@ import { DataPreferences } from '@abner/datastore';
 import {
   ACCESS_TOKEN_KEY_1,
   ACCESS_TOKEN_KEY_2,
-  AUTO_LOCK,
+  AUTO_LOCK_TIMEOUT,
   BIOMETRIC_AUTH,
   KDF_PARAM_KEY,
   LOGIN_STATUS_KEY,
@@ -155,10 +155,10 @@ export function deleteAsset(alias: string) {
  */
 export function clearAssetAndPreferences() {
   // 清除登录信息
-  DataPreferences.getInstance().put(LOGIN_STATUS_KEY, 0);
+  DataPreferences.getInstance().putSync(LOGIN_STATUS_KEY, 0);
   // 清除安全设置
-  DataPreferences.getInstance().put(BIOMETRIC_AUTH, 0);
-  DataPreferences.getInstance().put(AUTO_LOCK, 0);
+  DataPreferences.getInstance().putSync(BIOMETRIC_AUTH, 0);
+  DataPreferences.getInstance().putSync(AUTO_LOCK_TIMEOUT, 0);
   // 删除原本的凭据
   deleteAsset(MASTER_KEY);
   deleteAsset(ACCESS_TOKEN_KEY_1);

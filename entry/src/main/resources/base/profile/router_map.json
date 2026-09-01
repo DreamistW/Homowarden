@@ -21,19 +21,9 @@
       "buildFunction": "CipherDetailPageBuilder"
     },
     {
-      "name": "SettingsPage",
-      "pageSourceFile": "src/main/ets/pages/SettingsPage.ets",
-      "buildFunction": "SettingsPageBuilder"
-    },
-    {
       "name": "UnlockPage",
       "pageSourceFile": "src/main/ets/pages/UnlockPage.ets",
       "buildFunction": "UnlockPageBuilder"
-    },
-    {
-      "name": "Sure2SharePage",
-      "pageSourceFile": "src/main/ets/pages/Sure2Share.ets",
-      "buildFunction": "Sure2SharePageBuilder"
     },
     {
       "name": "ShareHistoryPage",
@@ -41,9 +31,14 @@
       "buildFunction": "HistoryPageBuilder"
     },
     {
-      "name": "TotpListPage",
-      "pageSourceFile": "src/main/ets/pages/TotpListPage.ets",
-      "buildFunction": "TotpListPageBuilder"
+      "name": "GeneratorHistoryPage",
+      "pageSourceFile": "src/main/ets/pages/GeneratorHistoryPage.ets",
+      "buildFunction": "GeneratorHistoryPageBuilder"
+    },
+    {
+      "name": "DetailPlaceholder",
+      "pageSourceFile": "src/main/ets/component/DetailPlaceholder.ets",
+      "buildFunction": "DetailPlaceholderBuilder"
     }
   ]
 }

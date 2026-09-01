@@ -7,14 +7,19 @@
       {
         "name": "default",
         "signingConfig": "default",
-        "targetSdkVersion": "6.0.0(20)",
-        "compatibleSdkVersion": "5.1.1(19)",
+        "targetSdkVersion": "6.1.0(23)",
+        "compatibleSdkVersion": "6.1.0(23)",
         "runtimeOS": "HarmonyOS",
         "buildOption": {
           "strictMode": {
             "caseSensitiveCheck": true,
             "useNormalizedOHMUrl": true
-          }
+          },
+          "removePermissions": [
+            {
+              "name": "ohos.permission.DISTRIBUTED_DATASYNC"
+            }
+          ]
         }
       }
     ],

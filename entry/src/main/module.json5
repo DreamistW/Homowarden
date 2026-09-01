@@ -6,11 +6,19 @@
     "description": "$string:module_desc",
     "mainElement": "EntryAbility",
     "deviceTypes": [
-      "phone"
+      "phone",
+      "tablet",
+      "2in1"
     ],
     "deliveryWithInstall": true,
     "installationFree": false,
     "pages": "$profile:main_pages",
+    "metadata": [
+      {
+        "name": "ohos.arkui.UIMaterial.state",
+        "value": "disable"
+      }
+    ],
     "abilities": [
       {
         "name": "EntryAbility",
@@ -20,6 +28,8 @@
         "label": "$string:EntryAbility_label",
         "startWindowIcon": "$media:app_small_icon",
         "startWindowBackground": "$color:start_window_background",
+        "orientation": "auto_rotation",
+        "launchType": "singleton",
         "exported": true,
         "removeMissionAfterTerminate": true,
         "skills": [
@@ -32,6 +42,18 @@
             ]
           }
         ]
+      },
+      {
+        "name": "TrayKeepAliveAbility",
+        "srcEntry": "./ets/entryability/TrayKeepAliveAbility.ets",
+        "description": "$string:EntryAbility_desc",
+        "icon": "$media:app_layered_image",
+        "label": "$string:EntryAbility_label",
+        "startWindowIcon": "$media:app_small_icon",
+        "startWindowBackground": "$color:start_window_background",
+        "launchType": "singleton",
+        "exported": false,
+        "removeMissionAfterTerminate": true
       }
     ],
     "extensionAbilities": [
@@ -54,6 +76,12 @@
       },
       {
         "name": "ohos.permission.ACCESS_BIOMETRIC"
+      },
+      {
+        "name": "ohos.permission.DLP_GET_HIDE_STATUS"
+      },
+      {
+        "name": "ohos.permission.PRIVACY_WINDOW"
       }
     ],
     "routerMap": "$profile:router_map"

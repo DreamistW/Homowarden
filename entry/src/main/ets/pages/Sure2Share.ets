@@ -4,51 +4,38 @@ import { relationalStore, uniformTypeDescriptor } from '@kit.ArkData';
 import { common } from '@kit.AbilityKit';
 import { inputMethod } from '@kit.IMEKit';
 import { getFullLink, getShareLink, replaceOutputText } from '../utils/ParseLinkUtil';
-import { DataPreferences } from '@abner/datastore';
-import { AUTO_LOCK, BACKGROUND_TIMESTAMP } from '../utils/Constants';
-import { EntryRouter } from '../../../../EntryRouter';
 import { Logger } from '@nzy/logger';
-import { IBestToast } from '@ibestservices/ibest-ui';
+import { AppToast } from '../utils/AppToast';
 import { ShareDatabaseUtil } from '../utils/ShareDatabaseUtil';
-
-@Builder
-export function Sure2SharePageBuilder() {
-  Sure2SharePage();
-}
+import { AdaptiveMenuTextButton, AdaptivePasteButton, AdaptiveTextButton } from '../component/AdaptiveButton';
 
 @Component
 export struct Sure2SharePage {
-  @State hint: string =
-    '你可以把分享链接复制到这里, 它会帮你去除链接中的跟踪信息。\n目前支持淘宝、京东、哔哩哔哩、小红书、抖音等平台的分享链接。';
+  @Prop bottomContentInset: number = 0;
   @State inputText: string = '';
   @State outputText: string = '';
-  pathInfos: NavPathStack = new NavPathStack();
-  historyBtn: NavigationMenuItem = {
-    'value': 'History',
-    'icon': 'resources/base/media/icon_history.svg',
-    'action': () => {
-      this.pathInfos.pushPath({ name: EntryRouter.ShareHistoryPage });
-    }
-  }
 
+  /**
+   * 解析原始分享文本、展开短链并去除跟踪信息，成功后写入历史记录
+   */
   async convertLink() {
     const shareLink = await getShareLink(this.inputText);
     if (shareLink == "") {
-      IBestToast.show(`没有发现分享链接`);
+      AppToast.show(this.getUIContext(), $r('app.string.share_no_link'));
       return;
     }
     const fullLink = await getFullLink(shareLink);
     if (fullLink == "") {
-      IBestToast.show(`获取完整链接失败`);
+      AppToast.show(this.getUIContext(), $r('app.string.error_network'));
       return;
     }
     this.outputText = await replaceOutputText(this.inputText, fullLink);
     if (this.outputText == "") {
-      IBestToast.show(`替换链接失败`);
+      AppToast.show(this.getUIContext(), $r('app.string.error_unknown'));
       return;
     }
-    IBestToast.show(`转换成功, 已保存至历史记录`);
-    // 写入记录到数据库
+    AppToast.show(this.getUIContext(), $r('app.string.share_convert_success'));
+    // 转换结果不含密码库密文，但可能包含用户分享内容，仅写入应用本地历史库
     const dbUtil = ShareDatabaseUtil.getInstance();
     const item: relationalStore.ValuesBucket = {
       id: dbUtil.generateId(),
@@ -58,24 +45,31 @@ export struct Sure2SharePage {
     dbUtil.insertData('history', item);
   }
 
-  copyLink(text: string) {
+  /**
+   * 将转换结果写入系统剪贴板，跨应用暴露由用户显式触发
+   */
+  async copyLink(text: string): Promise<void> {
     if (text == "") {
-      IBestToast.show(`请先转换分享链接`);
+      AppToast.show(this.getUIContext(), $r('app.string.share_convert_first'));
       return;
     }
     let pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, text);
     const systemPasteboard: pasteboard.SystemPasteboard = pasteboard.getSystemPasteboard();
-    systemPasteboard.setData(pasteData).catch((err: BusinessError) => {
-      Logger.error(`Failed to set paste data. Code is ${err.code}, message is ${err.message}.`);
-      IBestToast.show(`复制失败, 错误信息: ${err.message}}`);
-      return;
-    });
-    IBestToast.show(`复制成功`);
+    try {
+      await systemPasteboard.setData(pasteData);
+      AppToast.show(this.getUIContext(), $r('app.string.share_copy_success'));
+    } catch (err) {
+      Logger.error(`Failed to set paste data: ${err}`);
+      AppToast.show(this.getUIContext(), $r('app.string.share_copy_failed'));
+    }
   }
 
+  /**
+   * 根据内容类型拉起系统分享面板，不在应用内选择或缓存接收方
+   */
   shareLink(text: string, shareLink: boolean) {
     if (text == "") {
-      IBestToast.show(`请先转换分享链接`);
+      AppToast.show(this.getUIContext(), $r('app.string.share_convert_first'));
       return;
     }
     let shareData: systemShare.SharedData = new systemShare.SharedData({
@@ -90,151 +84,156 @@ export struct Sure2SharePage {
       previewMode: systemShare.SharePreviewMode.DETAIL
     }).catch((err: BusinessError) => {
       Logger.error(`Failed to show share panel. Code is ${err.code}, message is ${err.message}.`);
-      IBestToast.show(`分享失败, 错误信息: ${err.message}`);
+      AppToast.show(this.getUIContext(), $r('app.string.share_failed'));
     })
   }
 
   build() {
-    NavDestination() {
+    Scroll() {
       Column() {
-        Text(this.hint)
-          .alignRules({
-            middle: { anchor: '__container__', align: HorizontalAlign.Center }
-          })
-          .margin({
-            left: "5%",
-            right: "5%",
-            bottom: "10%"
-          })
-        // 输入标题
-        Text('粘贴分享链接')
-          .fontSize(24)
-          .fontWeight(FontWeight.Bold)
-          .align(Alignment.Start)
-          .width('90%')
+          Text($r('app.string.share_help'))
+            .alignRules({
+              middle: { anchor: '__container__', align: HorizontalAlign.Center }
+            })
+            .margin({
+              left: "5%",
+              right: "5%",
+              bottom: "10%"
+            })
+          // 输入标题
+          Text($r('app.string.share_input_title'))
+            .fontSize(24)
+            .fontWeight(FontWeight.Bold)
+            .align(Alignment.Start)
+            .width('90%')
 
-        // 输入文本框
-        TextArea({ text: this.inputText })
-          .id('beforeLink')
-          .height('20%')
-          .width('90%')
-          .margin({ top: 12, bottom: 12 })
-          .onChange((value: string) => {
-            this.inputText = value;
-          })
+          // 输入文本框
+          TextArea({ text: this.inputText })
+            .accessibilityText($r('app.string.share_input_title'))
+            .id('beforeLink')
+            .height('20%')
+            .width('90%')
+            .margin({ top: 12, bottom: 12 })
+            .onChange((value: string) => {
+              this.inputText = value;
+            })
 
-        Row() {
-          // 粘贴按钮
-          PasteButton()
-            .width('30%')
-            .height('6%')
-            .onClick((event: ClickEvent, result: PasteButtonOnClickResult) => {
-              if (PasteButtonOnClickResult.SUCCESS === result) {
-                pasteboard.getSystemPasteboard()
-                  .getData(async (err: BusinessError, pasteData: pasteboard.PasteData) => {
-                    if (err) {
-                      Logger.error(`Failed to get paste data. Code is ${err.code}, message is ${err.message}.`);
-                      return;
-                    }
-                    this.inputText = pasteData.getPrimaryText();
-                    this.convertLink();
-                  })
+          Row({ space: 0 }) {
+            AdaptivePasteButton({
+              barWidth: 144,
+              barHeight: 50,
+              fontSize: 16,
+              contentPadding: 6,
+              barBottomMargin: 0,
+              translucent: true,
+              onPaste: (text: string) => {
+                this.inputText = text;
+                this.convertLink();
+              },
+              onPasteError: (err: BusinessError) => {
+                Logger.error(`Failed to get paste data. Code is ${err.code}, message is ${err.message}.`);
               }
             })
-          Button('转换')
-            .margin({ left: '7%' })
-            .width('30%')
-            .height('6%')
-            .onClick(() => {
-              try {
-                inputMethod.getController().stopInputSession();
-              } catch (err) {
-                Logger.error(`Failed to stop input session. Code is ${err.code}, message is ${err.message}.`);
-                return;
+
+            AdaptiveTextButton({
+              text: $r('app.string.share_convert'),
+              barWidth: 144,
+              barHeight: 50,
+              fontSize: 16,
+              contentPadding: 6,
+              barBottomMargin: 0,
+              translucent: true,
+              onButtonClick: () => {
+                try {
+                  inputMethod.getController().stopInputSession();
+                } catch (err) {
+                  Logger.error(`Failed to stop input session. Code is ${err.code}, message is ${err.message}.`);
+                  return;
+                }
+                this.convertLink();
               }
-              this.convertLink();
             })
-        }
+          }
+          .width('100%')
+          .justifyContent(FlexAlign.Center)
 
-        // 输出标题
-        Text('转换后的链接')
-          .id('afterLink')
-          .fontSize(24)
-          .fontWeight(FontWeight.Bold)
-          .align(Alignment.Start)
-          .width('90%')
-          .margin({ top: 40 })
+          // 输出标题
+          Text($r('app.string.share_output_title'))
+            .id('afterLink')
+            .fontSize(24)
+            .fontWeight(FontWeight.Bold)
+            .align(Alignment.Start)
+            .width('90%')
+            .margin({ top: 40 })
 
-        // 输出文本框
-        TextArea({ text: this.outputText })
-          .height('20%')
-          .width('90%')
-          .margin({ top: 12 })
-          .focusable(false)
+          // 输出文本框
+          TextArea({ text: this.outputText })
+            .accessibilityText($r('app.string.share_output_title'))
+            .height('20%')
+            .width('90%')
+            .margin({ top: 12, bottom: 12 })
+            .focusable(false)
 
-        Row() {
-          // 复制按钮
-          Button('复制')
-            .margin(12)
-            .width('30%')
-            .bindMenu([
-              {
-                value: '复制完整内容',
-                action: () => {
-                  this.copyLink(this.outputText);
+          Row({ space: 0 }) {
+            AdaptiveMenuTextButton({
+              text: $r('app.string.common_copy'),
+              barWidth: 144,
+              barHeight: 50,
+              fontSize: 16,
+              contentPadding: 6,
+              barBottomMargin: 0,
+              translucent: true,
+              menuItems: [
+                {
+                  value: $r('app.string.share_copy_full'),
+                  action: () => {
+                    this.copyLink(this.outputText);
+                  }
+                },
+                {
+                  value: $r('app.string.share_copy_link'),
+                  action: async () => {
+                    const link: string = await getShareLink(this.outputText);
+                    this.copyLink(link);
+                  }
                 }
-              },
-              {
-                value: '仅复制链接',
-                action: async () => {
-                  const link: string = await getShareLink(this.outputText);
-                  this.copyLink(link);
-                }
-              }
-            ])
+              ]
+            })
 
-          // 分享按钮
-          Button('分享')
-            .margin(12)
-            .width('30%')
-            .bindMenu([
-              {
-                value: '分享完整内容',
-                action: () => {
-                  this.shareLink(this.outputText, false);
+            AdaptiveMenuTextButton({
+              text: $r('app.string.common_share'),
+              barWidth: 144,
+              barHeight: 50,
+              fontSize: 16,
+              contentPadding: 6,
+              barBottomMargin: 0,
+              translucent: true,
+              menuItems: [
+                {
+                  value: $r('app.string.share_full'),
+                  action: () => {
+                    this.shareLink(this.outputText, false);
+                  }
+                },
+                {
+                  value: $r('app.string.share_link'),
+                  action: async () => {
+                    const link: string = await getShareLink(this.outputText);
+                    this.shareLink(link, true);
+                  }
                 }
-              },
-              {
-                value: '仅分享链接',
-                action: async () => {
-                  const link: string = await getShareLink(this.outputText);
-                  this.shareLink(link, true);
-                }
-              }
-            ])
-        }
+              ]
+            })
+          }
+          .width('100%')
+          .justifyContent(FlexAlign.Center)
       }
-      .padding(20)
-      .height('100%')
+      .padding({ left: 20, right: 20, top: 20, bottom: 20 + this.bottomContentInset })
       .width('100%')
     }
-    .title('安心分享')
-    .onReady((ctx: NavDestinationContext) => {
-      this.pathInfos = ctx.pathStack;
-    })
-    .onHidden(() => {
-      DataPreferences.getInstance().putSync(BACKGROUND_TIMESTAMP, Math.floor(Date.now() / 1000));
-    })
-    .onShown(() => {
-      const autoLockStatus = DataPreferences.getInstance().getSync<number>(AUTO_LOCK);
-      if (autoLockStatus == 1) {
-        const currentTime = Math.floor(Date.now() / 1000);
-        const backgroundTime = DataPreferences.getInstance().getSync<number>(BACKGROUND_TIMESTAMP);
-        if (currentTime - backgroundTime > 120) {
-          this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
-        }
-      }
-    })
-    .menus([this.historyBtn])
+    .scrollBar(BarState.Auto)
+    .scrollable(ScrollDirection.Vertical)
+    .width('100%')
+    .height('100%')
   }
 }
