@@ -861,6 +861,26 @@
       "value": "请输入主密码以查看此密码项"
     },
     {
+      "name": "totp_import_image",
+      "value": "从图片导入"
+    },
+    {
+      "name": "totp_import_success",
+      "value": "导入密钥成功"
+    },
+    {
+      "name": "totp_import_failed",
+      "value": "导入密钥失败，错误信息：%1$s"
+    },
+    {
+      "name": "totp_import_failed_invalid_uri",
+      "value": "导入密钥失败，错误信息：未找到有效的 TOTP 密钥"
+    },
+    {
+      "name": "totp_import_failed_no_qr",
+      "value": "导入密钥失败，错误信息：图片中未识别到有效的 TOTP 二维码"
+    },
+    {
       "name": "share_input_title",
       "value": "粘贴分享链接"
     },
