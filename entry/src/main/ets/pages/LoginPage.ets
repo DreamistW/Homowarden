@@ -242,21 +242,6 @@ export struct LoginPage {
           })
           .margin(12)
 
-        // 记住邮箱的开关，关联viewModel的needSaveEmail
-        Row() {
-          Text($r('app.string.login_remember_email'))
-            .fontSize(16)
-            .margin(12)
-          Toggle({ type: ToggleType.Switch, isOn: this.needToSaveEmail })
-            .selectedColor($r('app.color.brand_accent_color'))
-            .onChange((isOn: boolean) => {
-              this.needToSaveEmail = isOn;
-              this.viewModel.needSaveEmail = isOn;
-              DataPreferences.getInstance().putSync(SAVE_EMAIL, isOn ? 1 : 0);
-            })
-            .accessibilityText($r('app.string.login_remember_email'))
-        }
-
         // 密码输入框
         TextInput({
           placeholder: $r('app.string.login_password_placeholder'),
@@ -272,6 +257,21 @@ export struct LoginPage {
             await this.handleLogin();
           })
           .margin(12)
+
+        // 记住邮箱的开关，关联viewModel的needSaveEmail
+        Row() {
+          Text($r('app.string.login_remember_email'))
+            .fontSize(16)
+            .margin(12)
+          Toggle({ type: ToggleType.Switch, isOn: this.needToSaveEmail })
+            .selectedColor($r('app.color.brand_accent_color'))
+            .onChange((isOn: boolean) => {
+              this.needToSaveEmail = isOn;
+              this.viewModel.needSaveEmail = isOn;
+              DataPreferences.getInstance().putSync(SAVE_EMAIL, isOn ? 1 : 0);
+            })
+            .accessibilityText($r('app.string.login_remember_email'))
+        }
 
         Row() {
           // 服务器选择
