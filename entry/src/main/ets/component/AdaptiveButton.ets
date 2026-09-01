@@ -14,25 +14,24 @@ function getButtonContainerHeight(buttonHeight: number, contentPadding: number =
 /** 使用应用主题色的自适应文本按钮 */
 @Component
 export struct AdaptiveTextButton {
-  text: ResourceStr = '';
+  @Prop text: ResourceStr = '';
   barWidth: number = 150;
   barHeight: number = 50;
   fontSize: number = 18;
   contentPadding: number = BUTTON_CONTENT_PADDING;
   barBottomMargin: number = BUTTON_CONTENT_PADDING;
   translucent: boolean = false;
-  translucentFontColor: ResourceColor = $r('sys.color.font_primary');
-  buttonEnabled: boolean = true;
+  translucentFontColor: ResourceColor = $r('app.color.secondary_button_foreground_color');
+  @Prop buttonEnabled: boolean = true;
   onButtonClick?: () => void;
 
   build() {
     Stack({ alignContent: Alignment.Center }) {
       Button(this.text)
         .type(ButtonType.Capsule)
-        .backgroundColor(this.translucent ? $r('app.color.translucent_button_background') :
+        .backgroundColor(this.translucent ? $r('app.color.secondary_button_background_color') :
           $r('app.color.button_background_color'))
-        .fontColor(this.translucent ? this.translucentFontColor :
-          $r('app.color.button_foreground_color'))
+        .fontColor(this.translucent ? this.translucentFontColor : $r('app.color.button_foreground_color'))
         .fontSize(this.fontSize)
         .borderColor(Color.Transparent)
         .borderWidth(0)

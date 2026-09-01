@@ -13,6 +13,14 @@
       "value": "#FFFFFF"
     },
     {
+      "name": "secondary_button_background_color",
+      "value": "#E5E5EA"
+    },
+    {
+      "name": "secondary_button_foreground_color",
+      "value": "#1F2329"
+    },
+    {
       "name": "translucent_button_background",
       "value": "#0C000000"
     },

@@ -80,7 +80,8 @@ export struct UnlockPage {
         Column({ space: 6 }) {
           // 密码解锁
           AdaptiveTextButton({
-            text: $r('app.string.unlock_master_password'),
+            text: this.isPasswordAuthenticating ? $r('app.string.unlock_in_progress') :
+              $r('app.string.unlock_master_password'),
             barWidth: 240,
             barHeight: 50,
             fontSize: 18,
@@ -194,10 +195,18 @@ export struct UnlockPage {
     }
     this.isPasswordAuthenticating = true;
     try {
+      // 先让 ArkUI 提交“解锁中”文案与禁用态，再开始可能耗时的本地 KDF
+      await this.waitForUnlockButtonUpdate();
       await this.startPasswordAuth();
     } finally {
       this.isPasswordAuthenticating = false;
     }
+  }
+
+  private waitForUnlockButtonUpdate(): Promise<void> {
+    return new Promise<void>((resolve: () => void) => {
+      setTimeout(resolve, 0);
+    });
   }
 
   async startPasswordAuth() {

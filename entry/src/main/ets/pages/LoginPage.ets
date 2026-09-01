@@ -401,24 +401,27 @@ export struct LoginPage {
     this.twoFactorInputError = false;
     this.viewModel.clearError();
     this.isLoading = true;
-    this.viewModel.needTwoFactor = false;
-    this.viewModel.needNewDevice = false;
-    const loginSuccess = await this.viewModel.login();
-    if (this.viewModel.needTwoFactor) {
-      if (this.prepareTwoFactorDialog()) {
-        this.isNeed2FA = true;
-        this.twoFactorDialogController.open();
+    try {
+      this.viewModel.needTwoFactor = false;
+      this.viewModel.needNewDevice = false;
+      const loginSuccess = await this.viewModel.login();
+      if (this.viewModel.needTwoFactor) {
+        if (this.prepareTwoFactorDialog()) {
+          this.isNeed2FA = true;
+          this.twoFactorDialogController.open();
+        }
+      } else if (this.viewModel.needNewDevice) {
+        this.isNeedNewDevice = true;
+        this.newDeviceDialogController.open();
+      } else if (loginSuccess) {
+        // 登录成功，跳转到密码库页面
+        await this.navigateToVault();
       }
-    } else if (this.viewModel.needNewDevice) {
-      this.isNeedNewDevice = true;
-      this.newDeviceDialogController.open();
-    } else if (loginSuccess) {
-      // 登录成功，跳转到密码库页面
-      await this.navigateToVault();
+      this.updateUI();
+      this.getUIContext().getFocusController().clearFocus();
+    } finally {
+      this.isLoading = false;
     }
-    this.updateUI();
-    this.isLoading = false;
-    this.getUIContext().getFocusController().clearFocus();
   }
 
   // 两步验证确认：异步校验验证码/Passkey，失败时保持弹框打开

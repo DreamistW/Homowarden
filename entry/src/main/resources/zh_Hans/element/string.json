@@ -357,6 +357,10 @@
       "value": "主密码解锁"
     },
     {
+      "name": "unlock_in_progress",
+      "value": "解锁中…"
+    },
+    {
       "name": "unlock_biometrics",
       "value": "生物识别解锁"
     },
