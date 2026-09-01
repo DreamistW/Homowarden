@@ -325,7 +325,7 @@ export struct UnlockPage {
       // 订阅认证结果
       userAuthInstance.on('result', {
         onResult: (result) => {
-          Logger.info(`userAuthInstance callback result: ${JSON.stringify(result)}`);
+          Logger.info('Biometric authentication callback received');
           // 结果监听为一次性订阅，页面复用时不能残留旧回调
           userAuthInstance.off('result');
 

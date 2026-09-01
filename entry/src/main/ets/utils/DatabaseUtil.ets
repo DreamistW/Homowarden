@@ -49,7 +49,7 @@ export class DatabaseUtil {
       if (DatabaseUtil.store != null) {
         DatabaseUtil.store.executeSql(sql, (err) => {
           if (err) {
-            Logger.error(`Failed to execute sql: ${sql}, error message: ${err.message}`);
+            Logger.error(`Failed to execute database statement, error message: ${err.message}`);
             reject(err);
           } else {
             resolve(true);
@@ -695,7 +695,7 @@ export class DatabaseUtil {
         }
       }
 
-      Logger.info(`Cipher updated successfully, cipherId = ${cipher.id}`);
+      Logger.info('Cipher updated successfully in database');
     } catch (err) {
       const error = err as BusinessError;
       Logger.error(`Failed to update cipher to database, error message: ${error.message}`);

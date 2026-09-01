@@ -27,6 +27,7 @@ import { AppDropdown } from '../component/AppDropdown';
 import { AppOptionFactory } from '../localization/AppOptionFactory';
 import { AutoLockUtil } from '../utils/AutoLockUtil';
 import { FormFactorUtil } from '../utils/FormFactorUtil';
+import { LogExportDialog } from '../component/LogExportDialog';
 
 @Component
 export struct SettingsPage {
@@ -57,6 +58,12 @@ export struct SettingsPage {
         return await this.confirmAction();
       }
     }),
+    autoCancel: false,
+    alignment: DialogAlignment.Center,
+    customStyle: false
+  });
+  private logExportDialogController: CustomDialogController = new CustomDialogController({
+    builder: LogExportDialog({}),
     autoCancel: false,
     alignment: DialogAlignment.Center,
     customStyle: false
@@ -356,6 +363,23 @@ export struct SettingsPage {
               .padding({ top: 12, bottom: 12 })
 
               Row() {
+                Text($r('app.string.log_export_action'))
+                  .fontSize(16)
+
+                Blank()
+
+                Text('›')
+                  .fontSize(22)
+                  .fontColor($r('app.color.brand_accent_color'))
+              }
+              .width('100%')
+              .padding({ top: 12, bottom: 12 })
+              .accessibilityText($r('app.string.log_export_action'))
+              .onClick(() => {
+                this.logExportDialogController.open();
+              })
+
+              Row() {
                 Text($r('app.string.settings_registration'))
                   .fontSize(16)
 
@@ -533,7 +557,7 @@ export struct SettingsPage {
       // 订阅认证结果
       userAuthInstance.on('result', {
         onResult: (result) => {
-          Logger.info(`userAuthInstance callback result: ${JSON.stringify(result)}`);
+          Logger.info('Biometric authentication callback received');
           // 结果监听为一次性订阅，及时解除可避免后续认证重复回调当前页面
           userAuthInstance.off('result');
 

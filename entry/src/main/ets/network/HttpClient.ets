@@ -33,8 +33,8 @@ export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
       config.headers['device-type'] = DeviceUtil.getDeviceType();
       config.headers['Accept-Language'] = LocaleUtil.getAcceptLanguage();
       // 正常请求日志不记录可能包含凭据的请求头和请求体
-      Logger.info(`[HTTP] Request ${config.method?.toUpperCase()} ${config.baseURL ||
-        baseURL}${config.url}`);
+      const requestPath = (config.url ?? '').split('?')[0];
+      Logger.info(`[HTTP] Request ${config.method?.toUpperCase()} ${requestPath}`);
       return config;
     },
     (error: AxiosError) => {
@@ -49,7 +49,7 @@ export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
       return response;
     },
     (error: AxiosError) => {
-      Logger.error(`[HTTP] Response Error: ${error.message}\n${JSON.stringify(error.response?.data)}`);
+      Logger.error(`[HTTP] Response Error: status=${error.response?.status ?? 0}, message=${error.message}`);
       return Promise.reject(error);
     }
   );

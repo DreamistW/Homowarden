@@ -1287,6 +1287,30 @@
     {
       "name": "accessibility_clear_generator_history",
       "value": "清空生成历史"
+    },
+    {
+      "name": "login_feedback",
+      "value": "遇到问题?点我反馈"
+    },
+    {
+      "name": "log_export_title",
+      "value": "导出日志"
+    },
+    {
+      "name": "log_export_action",
+      "value": "导出日志"
+    },
+    {
+      "name": "log_export_confirm",
+      "value": "确定"
+    },
+    {
+      "name": "log_export_message",
+      "value": "点击确定后将导出本应用的脱敏日志，你可以将日志通过以下方式发送给开发者：邮箱yume.w@outlook.com、QQ群1087498262"
+    },
+    {
+      "name": "log_export_failed",
+      "value": "日志导出失败，请重试"
     }
   ]
 }

@@ -14,6 +14,7 @@ import { AppText, AppTextKey } from '../localization/AppText';
 import { AppTextResolver } from '../localization/AppTextResolver';
 import { VaultViewModel } from '../viewmodel/VaultViewModel';
 import { FormFactorUtil } from '../utils/FormFactorUtil';
+import { LogExportDialog } from '../component/LogExportDialog';
 
 @Builder
 export function LoginPageBuilder() {
@@ -32,9 +33,17 @@ export struct LoginPage {
   @State twoFactorRemember: boolean = false;
   @State pendingEmailLogin: boolean = false;
   @State verificationSubmitting: boolean = false;
+  @State feedbackVisible: boolean = false;
   private exitTime: number = 0;
   private isPc: boolean = FormFactorUtil.isPc();
   pathInfos: NavPathStack = new NavPathStack();
+
+  private logExportDialogController: CustomDialogController = new CustomDialogController({
+    builder: LogExportDialog({}),
+    autoCancel: false,
+    alignment: DialogAlignment.Center,
+    customStyle: false
+  })
 
   // 两步验证弹框控制器（系统原生 @CustomDialog 容器）
   twoFactorDialogController: CustomDialogController = new CustomDialogController({
@@ -43,6 +52,7 @@ export struct LoginPage {
       contentBuilder: (): void => this.twoFactorInputContent(),
       cancel: () => {
         this.isNeed2FA = false;
+        this.feedbackVisible = false;
       },
       confirm: async (): Promise<void> => {
         await this.handleTwoFactorConfirm();
@@ -69,6 +79,7 @@ export struct LoginPage {
       contentBuilder: (): void => this.newDeviceInputContent(),
       cancel: () => {
         this.isNeedNewDevice = false;
+        this.feedbackVisible = false;
       },
       confirm: async (): Promise<void> => {
         await this.handleNewDeviceConfirm();
@@ -122,6 +133,7 @@ export struct LoginPage {
               .onClick(() => {
                 this.viewModel.setTwoFactorProvider(provider);
                 this.twoFactorInputError = false;
+                this.feedbackVisible = false;
                 this.updateUI();
               })
           })
@@ -134,6 +146,7 @@ export struct LoginPage {
           .onChange(value => {
             this.viewModel.twoFactorToken = value;
             this.twoFactorInputError = false;
+            this.feedbackVisible = false;
           })
           .onSubmit(async () => {
             await this.handleTwoFactorConfirm();
@@ -159,6 +172,9 @@ export struct LoginPage {
           .textAlign(TextAlign.Center)
           .fontColor(Color.Red)
           .fontSize(16)
+        if (this.feedbackVisible) {
+          this.feedbackEntry()
+        }
       }
 
       if (this.viewModel.twoFactorProvider == TwoFactorProvider.EMAIL) {
@@ -169,10 +185,12 @@ export struct LoginPage {
             const result = await this.viewModel.doSendEmailLogin();
             if (!result) {
               this.twoFactorInputError = true;
+              this.feedbackVisible = true;
               this.twoFactorInputHint = AppTextResolver.resource(this.viewModel.errorMessage ??
                 new AppText(AppTextKey.CODE_SEND_FAILED));
             } else {
               this.twoFactorInputError = true;
+              this.feedbackVisible = false;
               this.twoFactorInputHint = $r('app.string.login_code_sent');
             }
             this.pendingEmailLogin = false;
@@ -192,6 +210,7 @@ export struct LoginPage {
         .onChange(value => {
           this.viewModel.twoFactorToken = value;
           this.twoFactorInputError = false;
+          this.feedbackVisible = false;
         })
         .onSubmit(async () => {
           await this.handleNewDeviceConfirm();
@@ -204,6 +223,9 @@ export struct LoginPage {
           .textAlign(TextAlign.Center)
           .fontColor(Color.Red)
           .fontSize(16)
+        if (this.feedbackVisible) {
+          this.feedbackEntry()
+        }
       }
 
       Button($r('app.string.login_send_email_code'))
@@ -213,10 +235,12 @@ export struct LoginPage {
           const result = await this.viewModel.doResendNewDeviceOtp();
           if (!result) {
             this.twoFactorInputError = true;
+            this.feedbackVisible = true;
             this.twoFactorInputHint = AppTextResolver.resource(this.viewModel.errorMessage ??
               new AppText(AppTextKey.CODE_SEND_FAILED));
           } else {
             this.twoFactorInputError = true;
+            this.feedbackVisible = false;
             this.twoFactorInputHint = $r('app.string.login_code_sent');
           }
           this.pendingEmailLogin = false;
@@ -239,6 +263,7 @@ export struct LoginPage {
           .onChange((value: string) => {
             this.viewModel.email = value;
             this.viewModel.clearError();
+            this.feedbackVisible = false;
           })
           .margin(12)
 
@@ -252,6 +277,7 @@ export struct LoginPage {
           .onChange((value: string) => {
             this.viewModel.password = value;
             this.viewModel.clearError();
+            this.feedbackVisible = false;
           })
           .onSubmit(async () => {
             await this.handleLogin();
@@ -292,6 +318,7 @@ export struct LoginPage {
                }).then((result) => {
                    this.viewModel.serverType = this.getServerTypeByIndex(result.index);
                    this.viewModel.clearError();
+                   this.feedbackVisible = false;
                }).catch(() => {
                  return;
                });
@@ -312,6 +339,7 @@ export struct LoginPage {
               .onChange((value: string) => {
                 this.viewModel.serverAddress = value;
                 this.viewModel.clearError();
+                this.feedbackVisible = false;
               })
               .layoutWeight(1)
           }
@@ -340,6 +368,9 @@ export struct LoginPage {
             .fontSize(14)
             .fontColor(Color.Red)
             .margin(12)
+          if (this.feedbackVisible) {
+            this.feedbackEntry()
+          }
         }
 
         // 显示成功信息
@@ -385,20 +416,32 @@ export struct LoginPage {
     })
   }
 
+  @Builder
+  private feedbackEntry() {
+    Button($r('app.string.login_feedback'))
+      .buttonStyle(ButtonStyleMode.TEXTUAL)
+      .fontColor($r('app.color.brand_accent_color'))
+      .onClick(() => {
+        this.logExportDialogController.open();
+      })
+  }
+
   // 处理登录逻辑
   private async handleLogin(): Promise<void> {
     if (this.isLoading) {
       return;
     }
-    if (this.viewModel.email.length == 0 || this.viewModel.password.length == 0) {
+    if (this.viewModel.email.trim().length === 0 || this.viewModel.password.trim().length === 0) {
       AppToast.show(this.getUIContext(), $r('app.string.error_validation'));
       return;
     }
-    if (this.viewModel.serverType == ServerType.SELF_HOSTED && this.viewModel.serverAddress == undefined) {
+    if (this.viewModel.serverType === ServerType.SELF_HOSTED &&
+      this.viewModel.serverAddress.trim().length === 0) {
       AppToast.show(this.getUIContext(), $r('app.string.error_validation'));
       return;
     }
     this.twoFactorInputError = false;
+    this.feedbackVisible = false;
     this.viewModel.clearError();
     this.isLoading = true;
     try {
@@ -416,6 +459,8 @@ export struct LoginPage {
       } else if (loginSuccess) {
         // 登录成功，跳转到密码库页面
         await this.navigateToVault();
+      } else if (this.viewModel.errorMessage) {
+        this.feedbackVisible = true;
       }
       this.updateUI();
       this.getUIContext().getFocusController().clearFocus();
@@ -443,6 +488,7 @@ export struct LoginPage {
       const passkeyResult = await this.viewModel.performPasskeyTwoFactor(context);
       if (!passkeyResult) {
         this.twoFactorInputError = true;
+        this.feedbackVisible = true;
         this.twoFactorInputHint = AppTextResolver.resource(this.viewModel.errorMessage ??
           new AppText(AppTextKey.PASSKEY_FAILED));
         return;
@@ -451,6 +497,7 @@ export struct LoginPage {
       const valueLength = this.viewModel.twoFactorToken.trim().length;
       this.twoFactorInputError = !valueLength;
       if (this.twoFactorInputError) {
+        this.feedbackVisible = false;
         this.twoFactorInputHint = $r('app.string.login_error_code_required');
         return;
       }
@@ -458,6 +505,7 @@ export struct LoginPage {
     const result = await this.viewModel.continueLogin();
     if (!result) {
       this.twoFactorInputError = true;
+      this.feedbackVisible = true;
       this.twoFactorInputHint = AppTextResolver.resource(this.viewModel.errorMessage ??
         new AppText(this.viewModel.twoFactorProvider === TwoFactorProvider.WEB_AUTHN ?
           AppTextKey.PASSKEY_FAILED : AppTextKey.CODE_INVALID));
@@ -486,12 +534,14 @@ export struct LoginPage {
     const valueLength = this.viewModel.twoFactorToken.trim().length;
     this.twoFactorInputError = !valueLength;
     if (this.twoFactorInputError) {
+      this.feedbackVisible = false;
       this.twoFactorInputHint = $r('app.string.login_error_code_required');
       return;
     }
     const result = await this.viewModel.continueLogin();
     if (!result) {
       this.twoFactorInputError = true;
+      this.feedbackVisible = true;
       this.twoFactorInputHint = AppTextResolver.resource(this.viewModel.errorMessage ??
         new AppText(AppTextKey.CODE_INVALID));
       return;

@@ -362,7 +362,7 @@ export class VaultViewModel {
         }
         cipher.notes = await CryptoUtil.decryptField(cipher.notes as string, cipherKey);
       } catch (error) {
-        Logger.error(`Failed to decrypt cipher ${cipher.id}: ${error}`);
+        Logger.error(`Failed to decrypt cipher: ${error}`);
         cipher.name = '';
         cipher.subtitle = '';
         // 解密失败文案由 UI 按当前语言解析，不能写回为用户字段

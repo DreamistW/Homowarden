@@ -210,7 +210,7 @@ export class CipherDetailViewModel {
 
       return fields;
     } catch (error) {
-      Logger.error(`Failed to get fields for cipher ${cipherId}: ${error}`);
+      Logger.error(`Failed to get cipher fields: ${error}`);
       throw new Error(`Failed to decrypt cipher fields: ${error}`);
     }
   }
@@ -229,7 +229,7 @@ export class CipherDetailViewModel {
       const encryptedCipher = await this.buildEncryptedCipher(cipher);
       // 调用 API 更新
       const updatedCipher = await updateCipherApi(cipher.id, encryptedCipher);
-      Logger.info(`Cipher ${cipher.id} updated successfully`);
+      Logger.info('Cipher updated successfully');
       // 本地数据库只接收加密对象，当前界面继续保留原明文对象
       const cipherForDatabase = this.buildUpdatedEncryptedCipher(encryptedCipher, updatedCipher);
       await DatabaseUtil.getInstance().updateCipherToDatabase(cipherForDatabase);
@@ -237,7 +237,7 @@ export class CipherDetailViewModel {
       return cipher;
     } catch (error) {
       const errorMessage = ErrorMessageUtil.getMessage(error as Object);
-      Logger.error(`Failed to update cipher ${cipher.id}: ${errorMessage}`);
+      Logger.error(`Failed to update cipher: ${errorMessage}`);
       throw new Error(errorMessage);
     }
   }
@@ -264,11 +264,11 @@ export class CipherDetailViewModel {
         cipher.revisionDate = updatedCipher.revisionDate;
         cipher.lastKnownRevisionDate = updatedCipher.revisionDate;
       }
-      Logger.info(`Cipher ${cipher.id} favorite updated successfully`);
+      Logger.info('Cipher favorite updated successfully');
       return cipher;
     } catch (error) {
       const errorMessage = ErrorMessageUtil.getMessage(error as Object);
-      Logger.error(`Failed to update favorite for cipher ${cipher.id}: ${errorMessage}`);
+      Logger.error(`Failed to update cipher favorite: ${errorMessage}`);
       throw new Error(errorMessage);
     }
   }
@@ -548,11 +548,11 @@ export class CipherDetailViewModel {
       // 确认是否彻底删除
       if (isRealDelete) {
         await deleteCipher(cipher.id);
-        Logger.info(`Cipher ${cipher.id} deleted successfully from server`);
+        Logger.info('Cipher deleted successfully from server');
 
         // 从本地数据库删除
         await this.deleteFromLocalDatabase(cipher.id);
-        Logger.info(`Cipher ${cipher.id} deleted from local database`);
+        Logger.info('Cipher deleted from local database');
         return null;
       }
 
@@ -563,7 +563,7 @@ export class CipherDetailViewModel {
       return cipher;
     } catch (error) {
       const errorMessage = ErrorMessageUtil.getMessage(error as Object);
-      Logger.error(`Failed to delete cipher ${cipher.id}: ${errorMessage}`);
+      Logger.error(`Failed to delete cipher: ${errorMessage}`);
       throw new Error(errorMessage);
     }
   }
@@ -629,7 +629,7 @@ export class CipherDetailViewModel {
         }
       }
 
-      Logger.info(`Local database cleanup completed for cipher ${cipherId}`);
+      Logger.info('Local database cleanup completed for cipher');
     } catch (error) {
       const errorMessage = ErrorMessageUtil.getMessage(error as Object);
       Logger.error(`Failed to delete from local database: ${errorMessage}`);
@@ -646,14 +646,14 @@ export class CipherDetailViewModel {
     try {
       // 调用 API 还原
       const restoredCipher = await restoreCipher(cipher.id);
-      Logger.info(`Cipher ${cipher.id} restored successfully`);
+      Logger.info('Cipher restored successfully');
 
       await this.updateRestoredCipherInLocalDatabase(cipher.id, restoredCipher.revisionDate || null);
       this.applyRestoredCipherMetadata(cipher, restoredCipher);
       return cipher;
     } catch (error) {
       const errorMessage = ErrorMessageUtil.getMessage(error as Object);
-      Logger.error(`Failed to restore cipher ${cipher.id}: ${errorMessage}`);
+      Logger.error(`Failed to restore cipher: ${errorMessage}`);
       throw new Error(errorMessage);
     }
   }

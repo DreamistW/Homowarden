@@ -121,7 +121,7 @@ export class LoginViewModel {
         const deviceInfo = await DeviceUtil.getDeviceInfo();
         this.deviceIdentifier = deviceInfo.deviceIdentifier;
         this.deviceInfoInitialized = true;
-        Logger.info(`Device info initialized: type=${this.deviceType}, name=${this.deviceName}, id=${this.deviceIdentifier}`);
+        Logger.info(`Device info initialized: type=${this.deviceType}`);
       } catch (error) {
         Logger.error(`Failed to initialize device info: ${error}`);
         // 设备标识获取失败时固定本次实例的 UUID，避免同一次登录重试使用不同设备身份

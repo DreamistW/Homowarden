@@ -76,7 +76,7 @@ export class TotpListViewModel {
           username: username, totp: totp, password: null, passwordRevisionDate: null, uris: []
         };
       } catch (err) {
-        Logger.error(`Failed to load login for cipher ${cipher.id}: ${err}`);
+        Logger.error(`Failed to load login for cipher: ${err}`);
         cipher.login = emptyLogin;
       }
     }));

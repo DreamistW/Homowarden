@@ -1223,7 +1223,7 @@ export struct CipherDetailPage {
       const isRealDelete = this.cipher.deletedDate ? true : false;
       VaultChangeNotifier.markLocalChangePending();
       const changedCipher = await this.viewModel.deleteCipher(this.cipher, isRealDelete);
-      Logger.info(`Cipher ${this.cipher.id} deleted successfully`);
+      Logger.info('Cipher deleted successfully');
 
       // 显示成功提示
       AppToast.show(this.getUIContext(), $r('app.string.common_delete_success'));

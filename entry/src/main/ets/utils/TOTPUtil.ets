@@ -157,7 +157,7 @@ export class TOTPUtil {
       for (const char of cleanEncoded) {
         const val = TOTPUtil.BASE32_ALPHABET.indexOf(char);
         if (val === -1) {
-          Logger.warn(`Invalid Base32 character: ${char}`);
+          Logger.warn('Invalid character found in Base32 input');
           continue;
         }
         // 将每个字符转换为5位二进制

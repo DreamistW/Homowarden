@@ -62,9 +62,9 @@ export class DeviceUtil {
           Logger.error("Save device id failed, error message: " + error?.message);
         }
       })
-      Logger.info(`Generated new device identifier: ${deviceId}`);
+      Logger.info('Generated new device identifier');
     } else {
-      Logger.info(`Retrieved existing device identifier: ${deviceId}`);
+      Logger.info('Retrieved existing device identifier');
     }
     return deviceId;
   }

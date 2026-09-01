@@ -29,7 +29,7 @@ export struct TotpEditItem {
       scanBarcode.startScanForResult(this.getUIContext().getHostContext(), options)
         .then((result: scanBarcode.ScanResult) => {
           if (result && result.originalValue) {
-            Logger.info(`Scan result: ${result.originalValue}`);
+            Logger.info('TOTP QR code scanned');
 
             // 只从标准 otpauth URL 提取密钥，不把完整扫码内容直接写入密码项
             const parsed = TOTPUtil.parseOtpAuthUrl(result.originalValue);
@@ -37,7 +37,7 @@ export struct TotpEditItem {
             if (parsed.secret) {
               this.totpSecret = parsed.secret;
               this.onSecretChange?.(parsed.secret);
-              Logger.info(`TOTP secret extracted: ${parsed.secret}`);
+              Logger.info('TOTP secret extracted successfully');
 
               if (parsed.issuer || parsed.account) {
                 AppToast.show(this.getUIContext(), $r('app.string.totp_scan_success', parsed.issuer ?? parsed.account ?? ''));
