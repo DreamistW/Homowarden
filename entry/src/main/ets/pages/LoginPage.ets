@@ -16,6 +16,51 @@ import { VaultViewModel } from '../viewmodel/VaultViewModel';
 import { FormFactorUtil } from '../utils/FormFactorUtil';
 import { LogExportDialog } from '../component/LogExportDialog';
 
+@CustomDialog
+struct ServerTypeDialog {
+  controller: CustomDialogController;
+  onSelect: (serverType: ServerType) => void = () => {
+  };
+
+  private select(serverType: ServerType): void {
+    this.controller.close();
+    this.onSelect(serverType);
+  }
+
+  @Builder
+  private serverOption(text: ResourceStr, serverType: ServerType) {
+    Button(text)
+      .type(ButtonType.Normal)
+      .width('100%')
+      .height(48)
+      .borderRadius(8)
+      .backgroundColor($r('app.color.translucent_button_background'))
+      .fontColor($r('app.color.brand_accent_color'))
+      .onClick(() => {
+        this.select(serverType);
+      })
+  }
+
+  build() {
+    Column({ space: 8 }) {
+      this.serverOption('bitwarden.com', ServerType.US)
+      this.serverOption('bitwarden.eu', ServerType.EU)
+      this.serverOption($r('app.string.server_self_hosted'), ServerType.SELF_HOSTED)
+      Button($r('app.string.common_cancel'))
+        .type(ButtonType.Normal)
+        .width('100%')
+        .height(48)
+        .borderRadius(8)
+        .backgroundColor($r('app.color.translucent_button_background'))
+        .fontColor($r('app.color.brand_accent_color'))
+        .onClick(() => {
+          this.controller.close();
+        })
+    }
+    .padding(16)
+  }
+}
+
 @Builder
 export function LoginPageBuilder() {
   LoginPage();
@@ -41,6 +86,19 @@ export struct LoginPage {
   private logExportDialogController: CustomDialogController = new CustomDialogController({
     builder: LogExportDialog({}),
     autoCancel: false,
+    alignment: DialogAlignment.Center,
+    customStyle: false
+  })
+
+  private serverTypeDialogController: CustomDialogController = new CustomDialogController({
+    builder: ServerTypeDialog({
+      onSelect: (serverType: ServerType) => {
+        this.viewModel.serverType = serverType;
+        this.viewModel.clearError();
+        this.feedbackVisible = false;
+      }
+    }),
+    autoCancel: true,
     alignment: DialogAlignment.Center,
     customStyle: false
   })
@@ -308,20 +366,8 @@ export struct LoginPage {
             .stateEffect(false)
             .fontColor($r('app.color.brand_accent_color'))
             .buttonStyle(ButtonStyleMode.TEXTUAL)
-             .onClick(() => {
-               this.getUIContext().getPromptAction().showActionMenu({
-                 buttons: [
-                   { text: 'bitwarden.com', color: '#2777DA' },
-                   { text: 'bitwarden.eu', color: '#2777DA' },
-                   { text: this.getSelfHostedServerText(), color: '#2777DA' }
-                 ]
-               }).then((result) => {
-                   this.viewModel.serverType = this.getServerTypeByIndex(result.index);
-                   this.viewModel.clearError();
-                   this.feedbackVisible = false;
-               }).catch(() => {
-                 return;
-               });
+            .onClick(() => {
+              this.serverTypeDialogController.open();
             })
         }
 
@@ -610,18 +656,4 @@ export struct LoginPage {
     }
   }
 
-  private getSelfHostedServerText(): string {
-    return this.getUIContext().getHostContext()?.resourceManager
-      .getStringSync($r('app.string.server_self_hosted')) ?? '';
-  }
-
-  private getServerTypeByIndex(index: number): ServerType {
-    if (index === 1) {
-      return ServerType.EU;
-    }
-    if (index === 2) {
-      return ServerType.SELF_HOSTED;
-    }
-    return ServerType.US;
-  }
 }
