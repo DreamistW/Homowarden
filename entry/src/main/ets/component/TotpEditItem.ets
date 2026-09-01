@@ -106,7 +106,7 @@ export struct TotpEditItem {
         .fontSize(14)
         .fontColor('#666666')
         .alignSelf(ItemAlign.Center)
-        .margin({ bottom: 8 })
+        .margin({ bottom: 4 })
 
       // 密钥显示行（只读，密码类型）
       Row() {
@@ -120,7 +120,7 @@ export struct TotpEditItem {
           .margin({ right: 8 })
           .focusable(false)
 
-        Row({ space: 0 }) {
+        Row({ space: 8 }) {
           // 清除按钮（仅当有密钥时显示）
           if (this.totpSecret && this.totpSecret.length > 0) {
             AdaptiveIconButton({
@@ -130,7 +130,7 @@ export struct TotpEditItem {
               barHeight: 40,
               iconWidth: 20,
               iconHeight: 20,
-              contentPadding: 6,
+              contentPadding: 0,
               barBottomMargin: 0,
               onButtonClick: () => {
                 this.totpSecret = '';
@@ -147,7 +147,7 @@ export struct TotpEditItem {
               barWidth: 120,
               barHeight: 40,
               fontSize: 14,
-              contentPadding: 6,
+              contentPadding: 0,
               barBottomMargin: 0,
               translucent: true,
               onButtonClick: () => {
@@ -162,7 +162,7 @@ export struct TotpEditItem {
               barHeight: 40,
               iconWidth: 20,
               iconHeight: 20,
-              contentPadding: 6,
+              contentPadding: 0,
               barBottomMargin: 0,
               onButtonClick: () => {
                 this.scanQRCode()
@@ -176,6 +176,6 @@ export struct TotpEditItem {
       .width('100%')
     }
     .width('100%')
-    .padding({ top: 8, bottom: 8 })
+    .padding({ top: 12, bottom: 0 })
   }
 }
