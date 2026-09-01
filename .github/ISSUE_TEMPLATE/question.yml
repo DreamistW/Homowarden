@@ -1,0 +1,25 @@
+name: 使用问题 / Question
+description: 询问用法、兼容性或已知限制，不是缺陷
+labels: [question]
+title: "[Question] "
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: 问题 / Question
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: 应用版本 / App version
+      placeholder: "2.0.0"
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已阅读 README，仍无法自行解决
+          required: true

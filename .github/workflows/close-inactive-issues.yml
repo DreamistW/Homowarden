@@ -1,0 +1,26 @@
+name: Close inactive issues
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  close-inactive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          days-before-issue-stale: 60
+          days-before-issue-close: 0
+          days-before-pr-stale: -1
+          days-before-pr-close: -1
+          exempt-issue-labels: keep-on
+          stale-issue-message: "This issue has been inactive for 60 days and will be closed."
+          close-issue-message: "Closed due to 60 days of inactivity. Add the `keep-on` label to prevent this."
+          close-issue-reason: not_planned
+          operations-per-run: 100

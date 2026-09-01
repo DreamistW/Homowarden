@@ -1,0 +1,51 @@
+name: 功能建议 / Feature request
+description: 提出新功能或现有功能的改进
+labels: [enhancement]
+title: "[Feature] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先查看 README 中的「暂不支持」列表，避免重复建议已明确不做的能力。
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 想解决什么问题 / Problem
+      description: 当前使用中缺了什么，或哪里不方便
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: 期望方案 / Proposed solution
+      description: 希望应用如何表现
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 其他方案 / Alternatives
+      description: 可选。是否考虑过别的实现方式
+
+  - type: dropdown
+    id: device
+    attributes:
+      label: 主要使用场景 / Target device
+      options:
+        - 全部 All
+        - 手机 Phone
+        - 平板 Tablet
+        - 电脑 PC
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已搜索现有 Issue，确认不是重复建议
+          required: true
