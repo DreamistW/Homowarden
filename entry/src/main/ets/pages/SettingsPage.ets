@@ -12,7 +12,7 @@ import {
 import { bundleManager, common, Want } from '@kit.AbilityKit';
 import { userAuth } from '@kit.UserAuthenticationKit';
 import { cryptoFramework } from '@kit.CryptoArchitectureKit';
-import { BusinessError } from '@kit.BasicServicesKit';
+import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
 import { clearAssetAndPreferences, queryAssetSync } from '../utils/AssetUtil';
 import { Logger } from '@nzy/logger';
 import { AppToast } from '../utils/AppToast';
@@ -363,6 +363,23 @@ export struct SettingsPage {
               .padding({ top: 12, bottom: 12 })
 
               Row() {
+                Text($r('app.string.settings_qq_group'))
+                  .fontSize(16)
+
+                Blank()
+
+                Text('1087498262')
+                  .fontSize(16)
+                  .fontColor($r('app.color.brand_accent_color'))
+                  .decoration({ type: TextDecorationType.Underline })
+                  .onClick(() => {
+                    void this.copyQQGroup();
+                  })
+              }
+              .width('100%')
+              .padding({ top: 12, bottom: 12 })
+
+              Row() {
                 Text($r('app.string.log_export_action'))
                   .fontSize(16)
 
@@ -451,6 +468,18 @@ export struct SettingsPage {
     } catch (err) {
       Logger.error(`Failed to open email. Error: ${JSON.stringify(err)}`);
       AppToast.show(this.getUIContext(), $r('app.string.error_unknown'));
+    }
+  }
+
+  async copyQQGroup(): Promise<void> {
+    const pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, '1087498262');
+    const systemPasteboard: pasteboard.SystemPasteboard = pasteboard.getSystemPasteboard();
+    try {
+      await systemPasteboard.setData(pasteData);
+      AppToast.show(this.getUIContext(), $r('app.string.share_copy_success'));
+    } catch (err) {
+      Logger.error(`Failed to copy QQ group number. Error: ${JSON.stringify(err)}`);
+      AppToast.show(this.getUIContext(), $r('app.string.share_copy_failed'));
     }
   }
 
