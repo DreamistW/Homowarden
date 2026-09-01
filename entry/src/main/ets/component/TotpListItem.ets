@@ -140,7 +140,7 @@ export struct TotpListItem {
           Circle()
             .width(8)
             .height(8)
-            .fill(this.remainingSeconds > 5 ? Color.Green : Color.Red)
+            .foregroundColor(this.remainingSeconds > 5 ? Color.Green : Color.Red)
             .accessibilityLevel('no')
 
           Text($r('app.string.totp_seconds', this.remainingSeconds))

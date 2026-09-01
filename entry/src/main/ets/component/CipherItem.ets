@@ -115,6 +115,18 @@ export struct CipherItem {
     });
   }
 
+  @Builder
+  private ContextMenuBuilder() {
+    Menu() {
+      ForEach(this.getMenuItems(), (item: MenuElement) => {
+        MenuItem({ content: item.value })
+          .onClick(() => {
+            item.action?.();
+          })
+      })
+    }
+  }
+
   build() {
     Row() {
       Row() {
@@ -167,7 +179,7 @@ export struct CipherItem {
     .padding(16)
     .borderRadius(8)
     .margin({ bottom: 4 })
-    .bindContextMenuByResponseType(this.getMenuItems(), ResponseType.RightClick, {
+    .bindContextMenu(this.ContextMenuBuilder, ResponseType.RightClick, {
       backgroundColor: $r('app.color.menu_background_color'),
       backgroundBlurStyle: BlurStyle.NONE
     })

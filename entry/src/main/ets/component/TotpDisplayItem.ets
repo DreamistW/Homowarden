@@ -109,7 +109,7 @@ export struct TotpDisplayItem {
       Circle()
         .width(8)
         .height(8)
-        .fill(this.remainingSeconds > 5 ? Color.Green : Color.Red)
+        .foregroundColor(this.remainingSeconds > 5 ? Color.Green : Color.Red)
         .margin({ right: 4 })
         .accessibilityLevel('no')
 
