@@ -139,12 +139,32 @@ export default class EntryAbility extends UIAbility {
     }
   }
 
+  onWindowStageWillDestroy(): void {
+    // 窗口仍可用，必须在这里解绑；onWindowStageDestroy 时 Window 已是 nullptr
+    this.unregisterMainWindowSizeChange();
+    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageWillDestroy');
+  }
+
   onWindowStageDestroy(): void {
-    this.mainWindow?.off('windowSizeChange', this.onMainWindowSizeChange);
     this.mainWindow = undefined;
     this.preferredOrientation = undefined;
     SystemTrayManager.detachMainWindow();
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageDestroy');
+  }
+
+  private unregisterMainWindowSizeChange(): void {
+    const currentWindow = this.mainWindow;
+    if (!currentWindow) {
+      return;
+    }
+
+    try {
+      currentWindow.off('windowSizeChange', this.onMainWindowSizeChange);
+    } catch (error) {
+      hilog.error(DOMAIN, 'orientation',
+        'Failed to unregister windowSizeChange: %{public}s', JSON.stringify(error));
+    }
+    this.mainWindow = undefined;
   }
 
   onForeground(): void {
