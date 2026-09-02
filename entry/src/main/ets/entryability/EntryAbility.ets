@@ -1,6 +1,6 @@
 import { AbilityConstant, Configuration, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { window } from '@kit.ArkUI';
+import { display, window } from '@kit.ArkUI';
 import { DataPreferences } from '@abner/datastore';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
 import { ShareDatabaseUtil } from '../utils/ShareDatabaseUtil';
@@ -15,8 +15,15 @@ import { LogExportService } from '../utils/LogExportService';
 
 const DOMAIN = 0x0000;
 const PC_MIN_WINDOW_WIDTH = 840;
-const PC_MIN_WINDOW_HEIGHT = 600;
+const RESPONSIVE_MIN_VIEWPORT_SIZE = 600;
+const PC_MIN_WINDOW_HEIGHT = RESPONSIVE_MIN_VIEWPORT_SIZE;
 export default class EntryAbility extends UIAbility {
+  private mainWindow?: window.Window;
+  private preferredOrientation?: window.Orientation;
+  private readonly onMainWindowSizeChange = (size: window.Size): void => {
+    void this.updateResponsiveOrientation(size.width, size.height);
+  };
+
   onConfigurationUpdate(newConfig: Configuration): void {
     hilog.info(DOMAIN, 'locale', 'Configuration changed: %{public}s', newConfig.language ?? '');
     // 系统资源会自行切换语言，修订号用于通知已挂载页面重新解析派生文案
@@ -62,6 +69,7 @@ export default class EntryAbility extends UIAbility {
 
     AppStorage.setOrCreate('windowStage', windowStage);
     void WindowPrivacyUtil.applyForCurrentState();
+    this.configureResponsiveOrientation(windowStage);
     void this.configurePcWindowLimits(windowStage);
 
     windowStage.loadContent('pages/Index', (err) => {
@@ -72,6 +80,45 @@ export default class EntryAbility extends UIAbility {
       hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
       void SystemTrayManager.initialize(this.context, windowStage);
     });
+  }
+
+  private configureResponsiveOrientation(windowStage: window.WindowStage): void {
+    if (!FormFactorUtil.supportsResponsiveOrientation()) {
+      return;
+    }
+
+    try {
+      this.mainWindow = windowStage.getMainWindowSync();
+      this.mainWindow.on('windowSizeChange', this.onMainWindowSizeChange);
+      const windowRect = this.mainWindow.getWindowProperties().windowRect;
+      void this.updateResponsiveOrientation(windowRect.width, windowRect.height);
+    } catch (error) {
+      hilog.error(DOMAIN, 'orientation', 'Failed to configure responsive orientation: %{public}s', JSON.stringify(error));
+    }
+  }
+
+  private async updateResponsiveOrientation(widthPx: number, heightPx: number): Promise<void> {
+    if (!this.mainWindow || widthPx <= 0 || heightPx <= 0) {
+      return;
+    }
+
+    try {
+      const density = display.getDefaultDisplaySync().densityPixels;
+      const shortestSideVp = Math.round(Math.min(widthPx, heightPx) / density);
+      const orientation = shortestSideVp >= RESPONSIVE_MIN_VIEWPORT_SIZE ?
+        window.Orientation.AUTO_ROTATION : window.Orientation.PORTRAIT;
+      if (orientation === this.preferredOrientation) {
+        return;
+      }
+
+      this.preferredOrientation = orientation;
+      await this.mainWindow.setPreferredOrientation(orientation);
+      hilog.info(DOMAIN, 'orientation', 'Responsive orientation=%{public}d, shortestSideVp=%{public}d',
+        orientation, shortestSideVp);
+    } catch (error) {
+      this.preferredOrientation = undefined;
+      hilog.error(DOMAIN, 'orientation', 'Failed to update responsive orientation: %{public}s', JSON.stringify(error));
+    }
   }
 
   private async configurePcWindowLimits(windowStage: window.WindowStage): Promise<void> {
@@ -92,9 +139,32 @@ export default class EntryAbility extends UIAbility {
     }
   }
 
+  onWindowStageWillDestroy(): void {
+    // 窗口仍可用，必须在这里解绑；onWindowStageDestroy 时 Window 已是 nullptr
+    this.unregisterMainWindowSizeChange();
+    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageWillDestroy');
+  }
+
   onWindowStageDestroy(): void {
+    this.mainWindow = undefined;
+    this.preferredOrientation = undefined;
     SystemTrayManager.detachMainWindow();
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageDestroy');
+  }
+
+  private unregisterMainWindowSizeChange(): void {
+    const currentWindow = this.mainWindow;
+    if (!currentWindow) {
+      return;
+    }
+
+    try {
+      currentWindow.off('windowSizeChange', this.onMainWindowSizeChange);
+    } catch (error) {
+      hilog.error(DOMAIN, 'orientation',
+        'Failed to unregister windowSizeChange: %{public}s', JSON.stringify(error));
+    }
+    this.mainWindow = undefined;
   }
 
   onForeground(): void {

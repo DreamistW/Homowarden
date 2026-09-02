@@ -769,8 +769,9 @@ export struct AddCipherPage {
               top: 12,
               bottom: 4
             })
-          TextInput({ text: this.viewModel.notes })
+          TextArea({ text: this.viewModel.notes })
             .accessibilityText($r('app.string.cipher_notes'))
+            .constraintSize({ minHeight: 80 })
             .onChange((v: string) => {
               this.viewModel.notes = v;
             })
