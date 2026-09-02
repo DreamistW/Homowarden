@@ -17,8 +17,9 @@ import { AppDropdownOption } from '../model/AppUiModels';
 import { AppToast } from '../utils/AppToast';
 import { Logger } from '@nzy/logger';
 import { DataPreferences } from '@abner/datastore';
+import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
 import { hdsMaterial, HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
-import { AdaptiveTextButton } from '../component/AdaptiveButton';
+import { AdaptiveIconButton, AdaptiveTextButton } from '../component/AdaptiveButton';
 import { VaultChangeNotifier } from '../utils/VaultChangeNotifier';
 import { AppOptionFactory } from '../localization/AppOptionFactory';
 import { CipherDisplayMapping } from '../domain/CipherDisplayMapping';
@@ -531,16 +532,37 @@ export struct CipherDetailPage {
                   .margin({ bottom: 12 })
 
                 if (this.isEditable) {
-                  TextInput({ text: this.cipher.notes })
+                  TextArea({ text: this.cipher.notes ?? '' })
                     .accessibilityText($r('app.string.cipher_notes'))
+                    .constraintSize({ minHeight: 80 })
                     .onChange((value: string) => {
                       this.cipher.notes = value;
                     })
                     .margin({ left: 16, right: 16 })
                 } else {
-                  Text(this.cipher.notes)
-                    .fontSize(14)
-                    .fontColor('#666666')
+                  Row() {
+                    Text(this.cipher.notes)
+                      .fontSize(14)
+                      .fontColor('#666666')
+                      .layoutWeight(1)
+                    if (this.cipher.notes) {
+                      AdaptiveIconButton({
+                        icon: $r('app.media.icon_copy'),
+                        accessibilityLabel: $r('app.string.common_copy'),
+                        barWidth: 40,
+                        barHeight: 40,
+                        iconWidth: 20,
+                        iconHeight: 20,
+                        contentPadding: 6,
+                        barBottomMargin: 0,
+                        onButtonClick: () => {
+                          void this.copyNotes();
+                        }
+                      })
+                    }
+                  }
+                  .width('100%')
+                  .alignItems(VerticalAlign.Top)
                 }
               }
               .width('100%')
@@ -1257,5 +1279,21 @@ export struct CipherDetailPage {
       returnStr = field.value;
     }
     return returnStr;
+  }
+
+  private async copyNotes(): Promise<void> {
+    const text = this.cipher.notes;
+    if (!text) {
+      return;
+    }
+    try {
+      const pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, text);
+      const systemPasteboard = pasteboard.getSystemPasteboard();
+      await systemPasteboard.setData(pasteData);
+      AppToast.show(this.getUIContext(), $r('app.string.totp_copied'));
+    } catch (error) {
+      const err = error as BusinessError;
+      Logger.error(`Failed to paste, error message: ${err.message}}`);
+    }
   }
 }
