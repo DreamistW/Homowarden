@@ -19,6 +19,7 @@ import { AntiPeepUtil } from '../utils/AntiPeepUtil';
 import { BreakpointUtil } from '../utils/BreakpointUtil';
 import { AutoLockUtil } from '../utils/AutoLockUtil';
 import { VaultViewModel } from '../viewmodel/VaultViewModel';
+import { LocaleUtil } from '../localization/LocaleUtil';
 
 @CustomDialog
 struct PrivacyDialogContent {
@@ -46,7 +47,7 @@ struct PrivacyDialogContent {
             .onClick(() => {
               const context = getContext(this) as common.UIAbilityContext;
               const want: Want = {
-                uri: 'https://agreement-drcn.hispace.dbankcloud.cn/index.html?agreementId=1846508510607638400'
+                uri: LocaleUtil.getPrivacyPolicyUrl()
               };
               context.startAbility(want).catch((err: Error) => {
                 Logger.error(`Failed to open url. Error: ${err.message}`);
