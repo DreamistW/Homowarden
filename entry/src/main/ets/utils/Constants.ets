@@ -67,6 +67,12 @@ export const LOGIN_STATUS_KEY = 'login_status';
 
 export const PRIVACY_AGREED_KEY = 'privacy_agreed';
 
+export const PRIVACY_POLICY_URL_ZH =
+  'https://agreement-drcn.hispace.dbankcloud.cn/index.html?lang=zh&agreementId=1846508510607638400';
+
+export const PRIVACY_POLICY_URL_EN =
+  'https://agreement-drcn.hispace.dbankcloud.cn/index.html?lang=en&agreementId=2009624234292189504';
+
 export const SAVE_EMAIL = 'save_email';
 
 export const BIOMETRIC_AUTH = 'biometric_auth';
