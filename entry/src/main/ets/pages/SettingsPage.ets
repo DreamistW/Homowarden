@@ -28,6 +28,7 @@ import { AppOptionFactory } from '../localization/AppOptionFactory';
 import { AutoLockUtil } from '../utils/AutoLockUtil';
 import { FormFactorUtil } from '../utils/FormFactorUtil';
 import { LogExportDialog } from '../component/LogExportDialog';
+import { LocaleUtil } from '../localization/LocaleUtil';
 
 @Component
 export struct SettingsPage {
@@ -412,6 +413,23 @@ export struct SettingsPage {
               }
               .width('100%')
               .padding({ top: 12, bottom: 12 })
+
+              Row() {
+                Text($r('app.string.privacy_policy'))
+                  .fontSize(16)
+
+                Blank()
+
+                Text('›')
+                  .fontSize(22)
+                  .fontColor($r('app.color.brand_accent_color'))
+              }
+              .width('100%')
+              .padding({ top: 12, bottom: 12 })
+              .accessibilityText($r('app.string.privacy_policy'))
+              .onClick(() => {
+                this.clickPrivacyPolicy();
+              })
             }
             .width('100%')
             .padding(16)
@@ -447,6 +465,26 @@ export struct SettingsPage {
       });
     } catch (err) {
       Logger.error(`Failed to open page. Error: ${JSON.stringify(err)}`);
+      AppToast.show(this.getUIContext(), $r('app.string.error_open_website'));
+    }
+  }
+
+  clickPrivacyPolicy() {
+    try {
+      const context = getContext(this) as common.UIAbilityContext;
+      if (!context) {
+        AppToast.show(this.getUIContext(), $r('app.string.error_open_website'));
+        return;
+      }
+      const want: Want = {
+        uri: LocaleUtil.getPrivacyPolicyUrl()
+      };
+      context.startAbility(want).catch((err: Error) => {
+        Logger.error(`Failed to open privacy policy. Error: ${err.message}`);
+        AppToast.show(this.getUIContext(), $r('app.string.error_open_website'));
+      });
+    } catch (err) {
+      Logger.error(`Failed to open privacy policy. Error: ${JSON.stringify(err)}`);
       AppToast.show(this.getUIContext(), $r('app.string.error_open_website'));
     }
   }
