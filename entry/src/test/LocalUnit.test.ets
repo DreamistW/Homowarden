@@ -32,5 +32,15 @@ export default function localUnitTest() {
       const once = LogSanitizer.sanitize('contact=user@example.com token=secret-value');
       expect(LogSanitizer.sanitize(once)).assertEqual(once);
     });
+
+    it('redactsEncodedAuthenticationPayloads', 0, () => {
+      const source = 'username=user%40example.com&password=derived-secret&' +
+        'SsoEmail2faSessionToken=session-secret';
+      const sanitized = LogSanitizer.sanitize(source);
+
+      expect(sanitized.includes('user%40example.com')).assertFalse();
+      expect(sanitized.includes('derived-secret')).assertFalse();
+      expect(sanitized.includes('session-secret')).assertFalse();
+    });
   });
 }

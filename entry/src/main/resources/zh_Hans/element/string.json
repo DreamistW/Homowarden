@@ -1334,7 +1334,7 @@
     },
     {
       "name": "log_export_message",
-      "value": "点击确定后将导出本应用的脱敏日志，你可以将日志通过以下方式发送给开发者：邮箱yume.w@outlook.com、QQ群1087498262"
+      "value": "点击确定后将导出本应用的脱敏日志，你可以在保存日志后，将日志通过以下方式发送给开发者：邮箱yume.w@outlook.com、QQ群1087498262"
     },
     {
       "name": "log_export_failed",

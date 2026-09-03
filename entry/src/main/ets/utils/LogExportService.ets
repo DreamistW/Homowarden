@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { fileIo, fileUri } from '@kit.CoreFileKit';
+import { hiAppEvent } from '@kit.PerformanceAnalysisKit';
 import { uniformTypeDescriptor } from '@kit.ArkData';
 import { systemShare } from '@kit.ShareKit';
 import { Logger } from '@nzy/logger';
@@ -9,24 +10,30 @@ import { SanitizingFileStrategy } from './SanitizingFileStrategy';
 
 const LOG_DIRECTORY = 'diagnostic_logs';
 const SESSION_LOG_FILE = 'current-session.log';
+const PREVIOUS_SESSION_LOG_FILE = 'previous-session.log';
+const CRASH_LOG_FILE = 'crash-events.log';
+const MAX_CRASH_LOG_CHARACTERS = 512 * 1024;
 const EXPORT_PREFIX = 'Homowarden_';
 const LEGACY_EXPORT_PREFIX = 'homowarden-logs-';
 
 /** 管理当前启动会话的 Logger 文件和系统分享流程。 */
 export class LogExportService {
   private static sessionLogPath: string = '';
+  private static logDirectory: string = '';
   private static exportDirectory: string = '';
   private static exporting: boolean = false;
+  private static crashWatcher?: hiAppEvent.Watcher;
 
   static initialize(context: common.UIAbilityContext): void {
     const logDirectory = `${context.filesDir}/${LOG_DIRECTORY}`;
+    LogExportService.logDirectory = logDirectory;
     LogExportService.exportDirectory = context.cacheDir;
     try {
-      LogExportService.clearDirectory(logDirectory);
       LogExportService.clearOldExports(context.cacheDir);
       if (!fileIo.accessSync(logDirectory)) {
         fileIo.mkdirSync(logDirectory, true);
       }
+      LogExportService.rotateSessionLog(logDirectory);
       LogExportService.sessionLogPath = `${logDirectory}/${SESSION_LOG_FILE}`;
       Logger.init({
         tag: 'Homowarden',
@@ -37,6 +44,7 @@ export class LogExportService {
         debugLevelWrite: true
       }, new SanitizingFileStrategy(SESSION_LOG_FILE));
       Logger.info('Diagnostic log session started');
+      LogExportService.registerCrashWatcher();
     } catch (error) {
       // 初始化失败时 Logger 仍可继续输出到 HiLog，不能因此阻止应用启动。
       console.error(`Failed to initialize diagnostic logging: ${LogExportService.errorMessage(error)}`);
@@ -50,8 +58,7 @@ export class LogExportService {
     LogExportService.exporting = true;
     try {
       Logger.info('Preparing sanitized diagnostic log export');
-      const sessionLog = fileIo.readTextSync(LogExportService.sessionLogPath, { encoding: 'utf-8' });
-      const sanitizedSnapshot = LogSanitizer.sanitize(sessionLog);
+      const sanitizedSnapshot = LogExportService.buildExportSnapshot();
       const exportPath = `${LogExportService.exportDirectory}/${EXPORT_PREFIX}${LogExportService.timestamp()}.log`;
       LogExportService.writeSnapshot(exportPath, sanitizedSnapshot);
 
@@ -85,17 +92,82 @@ export class LogExportService {
     }
   }
 
-  private static clearDirectory(path: string): void {
+  private static rotateSessionLog(logDirectory: string): void {
+    const currentPath = `${logDirectory}/${SESSION_LOG_FILE}`;
+    if (!fileIo.accessSync(currentPath)) {
+      return;
+    }
+    const previousPath = `${logDirectory}/${PREVIOUS_SESSION_LOG_FILE}`;
+    const previousSession = fileIo.readTextSync(currentPath, { encoding: 'utf-8' });
+    LogExportService.writeSnapshot(previousPath, LogSanitizer.sanitize(previousSession));
+    fileIo.unlinkSync(currentPath);
+  }
+
+  private static registerCrashWatcher(): void {
+    if (LogExportService.crashWatcher) {
+      return;
+    }
+    const watcher: hiAppEvent.Watcher = {
+      name: 'homowardenCrashLogWatcher',
+      appEventFilters: [{
+        domain: hiAppEvent.domain.OS,
+        names: [hiAppEvent.event.APP_CRASH]
+      }],
+      onReceive: (_domain: string, eventGroups: Array<hiAppEvent.AppEventGroup>): void => {
+        eventGroups.forEach((eventGroup: hiAppEvent.AppEventGroup) => {
+          eventGroup.appEventInfos.forEach((eventInfo: hiAppEvent.AppEventInfo) => {
+            LogExportService.persistCrashEvent(eventInfo);
+          });
+        });
+      }
+    };
+    LogExportService.crashWatcher = watcher;
+    hiAppEvent.addWatcher(watcher);
+  }
+
+  private static persistCrashEvent(eventInfo: hiAppEvent.AppEventInfo): void {
+    try {
+      let entry = `\n===== APP_CRASH ${new Date().toISOString()} =====\n` +
+        `${JSON.stringify(eventInfo.params)}\n`;
+      const externalLogs = eventInfo.params['external_log'] as Array<string> | undefined;
+      externalLogs?.forEach((path: string) => {
+        try {
+          entry += `\n--- external crash log ---\n${fileIo.readTextSync(path, { encoding: 'utf-8' })}\n`;
+        } catch (error) {
+          entry += `\n--- external crash log unavailable: ${LogExportService.errorMessage(error as Object)} ---\n`;
+        }
+      });
+
+      const crashPath = `${LogExportService.logDirectory}/${CRASH_LOG_FILE}`;
+      const oldContent = fileIo.accessSync(crashPath) ?
+        fileIo.readTextSync(crashPath, { encoding: 'utf-8' }) : '';
+      const combined = LogSanitizer.sanitize(oldContent + entry);
+      const retained = combined.length > MAX_CRASH_LOG_CHARACTERS ?
+        combined.substring(combined.length - MAX_CRASH_LOG_CHARACTERS) : combined;
+      LogExportService.writeSnapshot(crashPath, retained);
+      Logger.info('Previous application crash was added to the diagnostic archive');
+    } catch (error) {
+      Logger.error(`Failed to archive application crash: ${LogExportService.errorMessage(error as Object)}`);
+    }
+  }
+
+  private static buildExportSnapshot(): string {
+    const sections: Array<string> = [];
+    LogExportService.addLogSection(sections, 'CRASH EVENTS', CRASH_LOG_FILE);
+    LogExportService.addLogSection(sections, 'PREVIOUS SESSION', PREVIOUS_SESSION_LOG_FILE);
+    LogExportService.addLogSection(sections, 'CURRENT SESSION', SESSION_LOG_FILE);
+    return LogSanitizer.sanitize(sections.join('\n\n'));
+  }
+
+  private static addLogSection(sections: Array<string>, title: string, filename: string): void {
+    const path = `${LogExportService.logDirectory}/${filename}`;
     if (!fileIo.accessSync(path)) {
       return;
     }
-    const names = fileIo.listFileSync(path);
-    names.forEach((name: string) => {
-      const childPath = `${path}/${name}`;
-      if (fileIo.statSync(childPath).isFile()) {
-        fileIo.unlinkSync(childPath);
-      }
-    });
+    const content = fileIo.readTextSync(path, { encoding: 'utf-8' });
+    if (content.length > 0) {
+      sections.push(`===== ${title} =====\n${content}`);
+    }
   }
 
   private static clearOldExports(cacheDirectory: string): void {
