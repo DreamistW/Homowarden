@@ -12,6 +12,15 @@ import { DataPreferences } from '@abner/datastore';
 import { util } from '@kit.ArkTS';
 import { ServerConfig } from '../model/ServerConfig';
 import { LocaleUtil } from '../localization/LocaleUtil';
+import { LogSanitizer } from '../utils/LogSanitizer';
+
+const DIAGNOSTIC_AUTH_PATHS: Array<string> = [
+  '/accounts/prelogin',
+  '/connect/token',
+  '/two-factor/send-email-login',
+  '/accounts/resend-new-device-otp'
+];
+const MAX_DIAGNOSTIC_BODY_LENGTH = 8 * 1024;
 
 /**
  * 创建带客户端标识、语言协商和统一错误日志的 HTTP 客户端
@@ -34,7 +43,8 @@ export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
       config.headers['Accept-Language'] = LocaleUtil.getAcceptLanguage();
       // 正常请求日志不记录可能包含凭据的请求头和请求体
       const requestPath = (config.url ?? '').split('?')[0];
-      Logger.info(`[HTTP] Request ${config.method?.toUpperCase()} ${requestPath}`);
+      const diagnosticBody = formatDiagnosticBody(requestPath, config.data);
+      Logger.info(`[HTTP] Request ${config.method?.toUpperCase()} ${requestPath}${diagnosticBody}`);
       return config;
     },
     (error: AxiosError) => {
@@ -46,15 +56,38 @@ export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
   // 响应拦截器
   instance.interceptors.response.use(
     (response: AxiosResponse) => {
+      const responsePath = (response.config.url ?? '').split('?')[0];
+      const diagnosticBody = formatDiagnosticBody(responsePath, response.data);
+      Logger.info(`[HTTP] Response ${response.status} ${responsePath}${diagnosticBody}`);
       return response;
     },
     (error: AxiosError) => {
-      Logger.error(`[HTTP] Response Error: status=${error.response?.status ?? 0}, message=${error.message}`);
+      const responsePath = (error.config?.url ?? '').split('?')[0];
+      const responseData = error.response?.data as Object | string | undefined;
+      const diagnosticBody = formatDiagnosticBody(responsePath, responseData);
+      Logger.error(`[HTTP] Response Error: status=${error.response?.status ?? 0}, path=${responsePath}, ` +
+        `message=${error.message}${diagnosticBody}`);
       return Promise.reject(error);
     }
   );
 
   return instance;
+}
+
+/** 认证接口使用白名单记录负载，所有内容在进入 Logger 前再次脱敏并限制长度。 */
+function formatDiagnosticBody(path: string, body: Object | string | undefined): string {
+  if (!DIAGNOSTIC_AUTH_PATHS.includes(path) || body === undefined) {
+    return '';
+  }
+  try {
+    const serialized = typeof body === 'string' ? body : JSON.stringify(body);
+    const sanitized = LogSanitizer.sanitize(serialized);
+    const limited = sanitized.length > MAX_DIAGNOSTIC_BODY_LENGTH ?
+      `${sanitized.substring(0, MAX_DIAGNOSTIC_BODY_LENGTH)}...[TRUNCATED]` : sanitized;
+    return ` payload=${limited}`;
+  } catch (_) {
+    return ' payload=[UNSERIALIZABLE]';
+  }
 }
 
 // 从配置文件中读取服务器地址

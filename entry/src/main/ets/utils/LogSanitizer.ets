@@ -11,15 +11,16 @@ export class LogSanitizer {
     sanitized = sanitized.replace(/otpauth:\/\/[^\s"']+/gi, '[REDACTED_OTP_URI]');
     sanitized = sanitized.replace(/Bearer\s+[^\s,"'}]+/gi, 'Bearer [REDACTED]');
     sanitized = sanitized.replace(
-      /"(password|masterPasswordHash|access_token|refresh_token|token|twoFactorToken|newDeviceOtp|secret|key|privateKey|authorization|cookie)"\s*:\s*"[^"]*"/gi,
+      /"(password|masterPasswordHash|username|email|deviceIdentifier|deviceName|access_token|refresh_token|token|twoFactorToken|newDeviceOtp|ssoEmail2faSessionToken|secret|key|privateKey|authorization|cookie)"\s*:\s*"[^"]*"/gi,
       '"$1":"[REDACTED]"'
     );
     sanitized = sanitized.replace(
-      /(password|masterPasswordHash|access_token|refresh_token|token|twoFactorToken|newDeviceOtp|secret|key|privateKey|authorization|cookie)(\s*[:=]\s*)(["']?)[^\s,&}"']+/gi,
+      /(password|masterPasswordHash|username|email|deviceIdentifier|deviceName|access_token|refresh_token|token|twoFactorToken|newDeviceOtp|ssoEmail2faSessionToken|secret|key|privateKey|authorization|cookie)(\s*[:=]\s*)(["']?)[^\s,&}"']+/gi,
       '$1$2$3[REDACTED]'
     );
 
     sanitized = sanitized.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[REDACTED_EMAIL]');
+    sanitized = sanitized.replace(/[A-Z0-9._%+-]+%40[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[REDACTED_EMAIL]');
     sanitized = sanitized.replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/gi,
       '[REDACTED_ID]');
     sanitized = sanitized.replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, '[REDACTED_IP]');
