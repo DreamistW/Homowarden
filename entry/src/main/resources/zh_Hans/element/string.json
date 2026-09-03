@@ -869,6 +869,10 @@
       "value": "导入密钥成功"
     },
     {
+      "name": "totp_import_cancelled",
+      "value": "用户取消录入"
+    },
+    {
       "name": "totp_import_failed",
       "value": "导入密钥失败，错误信息：%1$s"
     },
