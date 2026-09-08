@@ -31,8 +31,18 @@ export struct TotpEditItem {
   }
 
   private showImportFailure(error: BusinessError): void {
+    if (this.isImportCancelled(error)) {
+      AppToast.show(this.getUIContext(), $r('app.string.totp_import_cancelled'));
+      return;
+    }
+
     const detail = error.message || error.code?.toString() || 'Unknown error';
     AppToast.show(this.getUIContext(), $r('app.string.totp_import_failed', detail));
+  }
+
+  private isImportCancelled(error: BusinessError): boolean {
+    const message = error.message?.toLowerCase() || '';
+    return error.code === 1000500002 || message.includes('cancel') || message.includes('取消');
   }
 
   /**
@@ -74,6 +84,7 @@ export struct TotpEditItem {
       const picker = new photoAccessHelper.PhotoViewPicker();
       const selection = await picker.select(pickerOptions);
       if (!selection.photoUris || selection.photoUris.length === 0) {
+        AppToast.show(this.getUIContext(), $r('app.string.totp_import_cancelled'));
         return;
       }
 

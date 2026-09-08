@@ -1,4 +1,5 @@
 import { describe, beforeAll, beforeEach, afterEach, afterAll, it, expect } from '@ohos/hypium';
+import { LogSanitizer } from '../main/ets/utils/LogSanitizer';
 
 export default function localUnitTest() {
   describe('localUnitTest', () => {
@@ -28,6 +29,15 @@ export default function localUnitTest() {
       // Defines a variety of assertion methods, which are used to declare expected boolean conditions.
       expect(a).assertContain(b);
       expect(a).assertEqual(a);
+    });
+    it('redactsEncodedAuthenticationPayloads', 0, () => {
+      const source = 'username=user%40example.com&password=derived-secret&' +
+        'SsoEmail2faSessionToken=session-secret';
+      const sanitized = LogSanitizer.sanitize(source);
+
+      expect(sanitized.includes('user%40example.com')).assertFalse();
+      expect(sanitized.includes('derived-secret')).assertFalse();
+      expect(sanitized.includes('session-secret')).assertFalse();
     });
   });
 }
