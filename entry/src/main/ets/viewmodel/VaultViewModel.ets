@@ -14,10 +14,11 @@ import { relationalStore } from '@kit.ArkData';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
 import { AppDropdownOption } from '../model/AppUiModels';
-import { queryAssetSync } from '../utils/AssetUtil';
+import { CredentialStore } from '../utils/CredentialStore';
 import { util } from '@kit.ArkTS';
 import { CryptoUtil } from '../utils/CryptoUtil';
 import { PreloginResponse } from '../model/Prelogin';
+import { KdfUtil } from '../utils/KdfUtil';
 import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
 import { AppOptionFactory } from '../localization/AppOptionFactory';
 import { AppText, AppTextKey } from '../localization/AppText';
@@ -243,6 +244,9 @@ export class VaultViewModel {
     this.buildFilterOptions();
 
     Logger.info(`Loaded ${this.allCiphers.length} ciphers from database`);
+    const failedDecryptions = this.allCiphers.filter((cipher: Cipher) =>
+      cipher.displayNameKind === CipherDisplayNameKind.DECRYPTION_FAILED).length;
+    Logger.info(`Vault decryption summary: total=${this.allCiphers.length}, failed=${failedDecryptions}`);
   }
 
   /**
@@ -387,21 +391,9 @@ export class VaultViewModel {
 
   // 获得对称密钥
   private async getSymmetricKey(): Promise<string> {
-    const masterKey = queryAssetSync(MASTER_KEY);
-    const masterKeyBytes = new util.Base64Helper().decodeSync(masterKey);
-    const encKey = await CryptoUtil.deriveKeyHKDF(masterKeyBytes, 'enc');
-    const macKey = await CryptoUtil.deriveKeyHKDF(masterKeyBytes, 'mac');
-    const encKeyBytes = new util.Base64Helper().decodeSync(encKey);
-    const userKey = queryAssetSync(USER_KEY);
-    // MAC验证
-    const macKeyBytes = new util.Base64Helper().decodeSync(macKey);
-    const macResult = await CryptoUtil.verifyHMAC(userKey, macKeyBytes);
-    if (macResult) {
-      const symKey = await CryptoUtil.decryptAESCBC(userKey, encKeyBytes);
-      return symKey;
-    } else {
-      throw new Error(`MAC verification failed`);
-    }
+    const masterKey = CredentialStore.querySync(MASTER_KEY);
+    const userKey = CredentialStore.querySync(USER_KEY);
+    return CryptoUtil.decryptUserKey(userKey, masterKey);
   }
 
   /**
@@ -740,15 +732,15 @@ export class VaultViewModel {
 
     try {
       // 获取存储的 KDF 参数
-      const kdfParamStr: string = queryAssetSync(KDF_PARAM_KEY);
+      const kdfParamStr: string = CredentialStore.querySync(KDF_PARAM_KEY);
       if (!kdfParamStr) {
         this.errorMessage = new AppText(AppTextKey.PARAMETERS_FAILED);
         return false;
       }
 
       const kdfParams: PreloginResponse = JSON.parse(kdfParamStr);
-      const storedMasterKey = queryAssetSync(MASTER_KEY);
-      const email = queryAssetSync(EMAIL_KEY);
+      const storedMasterKey = CredentialStore.querySync(MASTER_KEY);
+      const email = CredentialStore.querySync(EMAIL_KEY);
 
       if (!storedMasterKey) {
         this.errorMessage = new AppText(AppTextKey.PARAMETERS_FAILED);
@@ -756,31 +748,8 @@ export class VaultViewModel {
       }
 
       // 使用输入的密码重新派生主密钥
-      let derivedMasterKey: string = '';
-      const salt = email.trim().toLowerCase() || '';
-
-      if (kdfParams.kdf === 0) {
-        // PBKDF2
-        derivedMasterKey = await CryptoUtil.deriveKeyPBKDF2(
-          passwordInput,
-          salt,
-          kdfParams.kdfIterations || 100000,
-          32
-        );
-      } else if (kdfParams.kdf === 1) {
-        // Argon2id
-        derivedMasterKey = await CryptoUtil.deriveKeyArgon2id(
-          passwordInput,
-          salt,
-          kdfParams.kdfIterations || 2,
-          kdfParams.kdfMemory || 16,
-          kdfParams.kdfParallelism || 1,
-          32
-        );
-      } else {
-        this.errorMessage = new AppText(AppTextKey.KDF_UNSUPPORTED);
-        return false;
-      }
+      const params = KdfUtil.normalize(kdfParams, email);
+      const derivedMasterKey = await CryptoUtil.deriveMasterKey(passwordInput, params);
 
       // 验证派生的主密钥是否与存储的匹配
       if (derivedMasterKey === storedMasterKey) {

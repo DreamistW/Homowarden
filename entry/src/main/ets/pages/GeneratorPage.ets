@@ -7,7 +7,7 @@ import { AppDropdown } from '../component/AppDropdown';
 import { AppDropdownOption } from '../model/AppUiModels';
 import { AppToast } from '../utils/AppToast';
 import { EMAIL_KEY } from '../utils/Constants';
-import { queryAssetSync } from '../utils/AssetUtil';
+import { CredentialStore } from '../utils/CredentialStore';
 import { GeneratorDatabaseUtil, GENERATOR_HISTORY_TABLE } from '../utils/GeneratorDatabaseUtil';
 import { GeneratorRecordType } from '../model/GeneratorHistoryModel';
 import { PasswordGenerator } from '../utils/PasswordGenerator';
@@ -61,7 +61,7 @@ export struct GeneratorPage {
   ];
 
   async aboutToAppear(): Promise<void> {
-    this.email = queryAssetSync(EMAIL_KEY);
+    this.email = CredentialStore.querySync(EMAIL_KEY);
     await this.regenerate();
   }
 

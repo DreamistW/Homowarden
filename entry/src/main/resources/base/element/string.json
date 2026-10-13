@@ -1,5 +1,6 @@
 {
   "string": [
+    { "name": "common_retry", "value": "Retry" },
     {"name":"login_error_password_reset_required","value":"Reset your master password in the official client, then try signing in again."},
     {"name":"login_error_decryption_unsupported","value":"This account's vault encryption or unlock method is not supported yet. Please use the official client."},
     {"name":"login_error_device_verification_failed","value":"This device could not be verified. Please try signing in again."},

@@ -3,7 +3,6 @@ import {
   AUTO_LOCK_TIMEOUT,
   AutoLockTimeout,
   BIOMETRIC_AUTH,
-  LOGIN_STATUS_KEY,
   PRIVACY_AGREED_KEY,
   SCREEN_CAPTURE_PROTECTION,
   SAVE_EMAIL
@@ -20,6 +19,7 @@ import { BreakpointUtil } from '../utils/BreakpointUtil';
 import { AutoLockUtil } from '../utils/AutoLockUtil';
 import { VaultViewModel } from '../viewmodel/VaultViewModel';
 import { LocaleUtil } from '../localization/LocaleUtil';
+import { CredentialStore } from '../utils/CredentialStore';
 
 @CustomDialog
 struct PrivacyDialogContent {
@@ -94,6 +94,7 @@ struct Index {
   @State private showPrivacyDialog: boolean = true;
   @State private showPrivacyMask: boolean = false;
   @State private hasInitializedRoute: boolean = false;
+  @State private credentialInitializationFailed: boolean = false;
   private isLogin: boolean = false;
   private autoLockTimer: number = -1;
 
@@ -155,9 +156,10 @@ struct Index {
   }
 
   getLoginStatus() {
-    if (DataPreferences.getInstance().hasSync(LOGIN_STATUS_KEY)) {
-      const result = DataPreferences.getInstance().getSync<number>(LOGIN_STATUS_KEY);
-      this.isLogin = (result == 1);
+    try {
+      this.isLogin = CredentialStore.isLoggedInSync();
+    } catch (_) {
+      this.isLogin = false;
     }
   }
 
@@ -170,7 +172,15 @@ struct Index {
     this.pathInfos.pushPath({ name: EntryRouter.LoginPage });
   }
 
-  private initAppEntry() {
+  private async initAppEntry(): Promise<void> {
+    this.credentialInitializationFailed = false;
+    try {
+      await CredentialStore.initialize(this.getUIContext().getHostContext() as common.UIAbilityContext);
+    } catch (_) {
+      this.credentialInitializationFailed = true;
+      Logger.error('Credential database initialization failed; original credentials retained');
+      return;
+    }
     if (!DataPreferences.getInstance().hasSync(SAVE_EMAIL)) {
       DataPreferences.getInstance().putSync(SAVE_EMAIL, 0);
     }
@@ -263,8 +273,16 @@ struct Index {
           return;
         }
         this.hasInitializedRoute = true;
-        this.initAppEntry();
+        void this.initAppEntry();
       })
+      if (this.credentialInitializationFailed) {
+        Column({ space: 16 }) {
+          Text($r('app.string.error_storage'))
+          Button($r('app.string.common_retry'))
+            .onClick(() => { void this.initAppEntry(); })
+        }
+        .padding(24)
+      }
     }
     .width('100%')
     .height('100%')

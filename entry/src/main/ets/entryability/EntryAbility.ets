@@ -12,6 +12,7 @@ import { VaultChangeNotifier } from '../utils/VaultChangeNotifier';
 import { SystemTrayManager } from '../utils/SystemTrayManager';
 import { FormFactorUtil } from '../utils/FormFactorUtil';
 import { LogExportService } from '../utils/LogExportService';
+import { CredentialStore } from '../utils/CredentialStore';
 
 const DOMAIN = 0x0000;
 const PC_MIN_WINDOW_WIDTH = 840;
@@ -38,6 +39,9 @@ export default class EntryAbility extends UIAbility {
     this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
     DataPreferences.getInstance().init(this.context);
+    void CredentialStore.initialize(this.context).catch(() => {
+      hilog.error(DOMAIN, 'credentials', 'Credential storage initialization failed; waiting for retry');
+    });
     try {
       void DatabaseUtil.init(this.context).then(() => {
         return DatabaseUtil.getInstance().createTable();
