@@ -3,11 +3,26 @@ import { util } from '@kit.ArkTS';
 import { cryptoFramework } from '@kit.CryptoArchitectureKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { Logger } from '@nzy/logger';
+import { KdfParameters } from '../model/Prelogin';
 
 /**
  * 加密工具类
  */
 export class CryptoUtil {
+  static async deriveMasterKey(password: string, params: KdfParameters): Promise<string> {
+    if (params.salt === undefined) {
+      throw new Error('Missing normalized KDF salt');
+    }
+    if (params.kdf === 0) {
+      return CryptoUtil.deriveKeyPBKDF2(password, params.salt, params.kdfIterations, 32);
+    }
+    if (params.kdf === 1) {
+      return CryptoUtil.deriveKeyArgon2id(password, params.salt, params.kdfIterations,
+        params.kdfMemory, params.kdfParallelism, 32);
+    }
+    throw new Error('Unsupported KDF type');
+  }
+
   /**
    * PBKDF2密钥派生
    * @param password 明文密码
@@ -234,6 +249,25 @@ export class CryptoUtil {
       throw new Error('Invalid cipher key length');
     }
     return decryptedKey;
+  }
+
+  /** 验证主密钥包裹的用户密钥；完整校验 MAC 与解密长度后才允许保存登录状态。 */
+  static async decryptUserKey(encryptedUserKey: string, masterKey: string): Promise<string> {
+    const masterKeyBytes = new util.Base64Helper().decodeSync(masterKey);
+    if (masterKeyBytes.length !== 32 || !encryptedUserKey.startsWith('2.')) {
+      throw new Error('Unsupported user key format');
+    }
+    const encKey = await CryptoUtil.deriveKeyHKDF(masterKeyBytes, 'enc');
+    const macKey = await CryptoUtil.deriveKeyHKDF(masterKeyBytes, 'mac');
+    const helper = new util.Base64Helper();
+    if (!await CryptoUtil.verifyHMAC(encryptedUserKey, helper.decodeSync(macKey))) {
+      throw new Error('User key MAC verification failed');
+    }
+    const userKey = await CryptoUtil.decryptAESCBC(encryptedUserKey, helper.decodeSync(encKey));
+    if (helper.decodeSync(userKey).length !== 64) {
+      throw new Error('Unsupported user key length');
+    }
+    return userKey;
   }
 
   // Base64字符串解码

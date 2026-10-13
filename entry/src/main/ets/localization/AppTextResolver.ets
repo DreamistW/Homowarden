@@ -56,6 +56,12 @@ export class AppTextResolver {
         return $r('app.string.login_error_code_required');
       case AppTextKey.CODE_INVALID:
         return $r('app.string.login_error_code_invalid');
+      case AppTextKey.DEVICE_VERIFICATION_FAILED:
+        return $r('app.string.login_error_device_verification_failed');
+      case AppTextKey.PASSWORD_RESET_REQUIRED:
+        return $r('app.string.login_error_password_reset_required');
+      case AppTextKey.DECRYPTION_UNSUPPORTED:
+        return $r('app.string.login_error_decryption_unsupported');
       case AppTextKey.CODE_SEND_FAILED:
         return $r('app.string.login_error_code_send_failed');
       case AppTextKey.CODE_SENT:
