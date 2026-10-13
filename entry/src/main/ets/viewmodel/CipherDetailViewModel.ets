@@ -238,7 +238,7 @@ export class CipherDetailViewModel {
     } catch (error) {
       const errorMessage = ErrorMessageUtil.getMessage(error as Object);
       Logger.error(`Failed to update cipher: ${errorMessage}`);
-      throw new Error(errorMessage);
+      throw error as Error;
     }
   }
 
@@ -269,7 +269,7 @@ export class CipherDetailViewModel {
     } catch (error) {
       const errorMessage = ErrorMessageUtil.getMessage(error as Object);
       Logger.error(`Failed to update cipher favorite: ${errorMessage}`);
-      throw new Error(errorMessage);
+      throw error as Error;
     }
   }
 
@@ -564,7 +564,7 @@ export class CipherDetailViewModel {
     } catch (error) {
       const errorMessage = ErrorMessageUtil.getMessage(error as Object);
       Logger.error(`Failed to delete cipher: ${errorMessage}`);
-      throw new Error(errorMessage);
+      throw error as Error;
     }
   }
 
@@ -654,7 +654,7 @@ export class CipherDetailViewModel {
     } catch (error) {
       const errorMessage = ErrorMessageUtil.getMessage(error as Object);
       Logger.error(`Failed to restore cipher: ${errorMessage}`);
-      throw new Error(errorMessage);
+      throw error as Error;
     }
   }
 

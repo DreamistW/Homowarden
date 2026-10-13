@@ -1,5 +1,6 @@
 {
   "string": [
+    { "name": "http_request_failed", "value": "Request failed: %s" },
     { "name": "common_retry", "value": "Retry" },
     {"name":"login_error_password_reset_required","value":"Reset your master password in the official client, then try signing in again."},
     {"name":"login_error_decryption_unsupported","value":"This account's vault encryption or unlock method is not supported yet. Please use the official client."},

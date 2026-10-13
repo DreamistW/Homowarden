@@ -45,6 +45,7 @@ export class VaultViewModel {
   // 错误信息
   errorMessage: AppText | undefined = undefined;
   errorDetail: string = '';
+  errorIsRequestFailure: boolean = false;
   // 重新登录回调
   onReLoginRequired?: () => void;
   // 类型统计
@@ -61,6 +62,7 @@ export class VaultViewModel {
     try {
       this.errorMessage = undefined;
       this.errorDetail = '';
+      this.errorIsRequestFailure = false;
 
       if (forceSync) {
         this.isLoading = true;
@@ -75,6 +77,7 @@ export class VaultViewModel {
       Logger.error(`Failed to load ciphers: ${error}`);
       this.errorMessage = new AppText(AppTextKey.LOAD_FAILED);
       this.errorDetail = ErrorMessageUtil.getUserMessage(error, '');
+      this.errorIsRequestFailure = ErrorMessageUtil.isRequestFailure(error);
       return false;
     } finally {
       this.isLoading = false;
@@ -191,6 +194,7 @@ export class VaultViewModel {
       Logger.error(`Failed to sync ciphers from server: ${errorMessage}`);
       this.errorMessage = new AppText(AppTextKey.LOAD_FAILED);
       this.errorDetail = ErrorMessageUtil.getUserMessage(error as Object, '');
+      this.errorIsRequestFailure = ErrorMessageUtil.isRequestFailure(error);
 
       // 检查是否是认证错误（需要重新登录）
       if (businessError.message.includes('401') || businessError.message.includes('403')) {
@@ -265,6 +269,8 @@ export class VaultViewModel {
   async syncCiphersInBackground(shouldApplyResult?: () => boolean): Promise<boolean> {
     try {
       this.errorMessage = undefined;
+      this.errorDetail = '';
+      this.errorIsRequestFailure = false;
       const didApplySync = await this.syncCiphersFromServer(shouldApplyResult);
       if (!didApplySync) {
         if (shouldApplyResult && !shouldApplyResult()) {
@@ -284,6 +290,7 @@ export class VaultViewModel {
       const errorMessage = ErrorMessageUtil.getMessage(error as Object);
       Logger.error(`Background sync failed: ${errorMessage}`);
       this.errorMessage = new AppText(AppTextKey.LOAD_FAILED);
+      this.errorIsRequestFailure = ErrorMessageUtil.isRequestFailure(error);
       return false;
     }
   }

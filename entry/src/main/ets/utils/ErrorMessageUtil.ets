@@ -1,3 +1,5 @@
+import axios from '@ohos/axios';
+
 interface ErrorModelData {
   Message?: string | null;
   message?: string | null;
@@ -25,6 +27,11 @@ interface ErrorLike {
 
 /** 从不同网络错误结构中提取诊断信息和候选用户消息 */
 export class ErrorMessageUtil {
+  /** 仅识别 HTTP 客户端错误，避免把本地存储或解密失败标为请求失败 */
+  static isRequestFailure(error: Object | null | undefined): boolean {
+    return axios.isAxiosError(error);
+  }
+
   /** 提取供 UI 展示的候选消息并限制长度，不序列化完整响应对象 */
   static getUserMessage(error: Object | string | null | undefined, fallback: string = ''): string {
     if (error === null || error === undefined) {

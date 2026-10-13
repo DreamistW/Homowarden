@@ -218,7 +218,8 @@ struct VaultContent {
     } else {
       // 后台同步失败时，不影响已显示的本地数据
       if (!this.needReLogin && this.viewModel.errorMessage) {
-        AppToast.show(this.getUIContext(), $r('app.string.vault_sync_failed_local'));
+        AppToast.show(this.getUIContext(), $r('app.string.vault_sync_failed_local'),
+          this.viewModel.errorIsRequestFailure);
       }
     }
   }
@@ -270,9 +271,10 @@ struct VaultContent {
       if (result) {
         AppToast.show(this.getUIContext(), $r('app.string.vault_refresh_success'));
       } else if (this.viewModel.errorDetail.length > 0) {
-        AppToast.show(this.getUIContext(), this.viewModel.errorDetail);
+        AppToast.show(this.getUIContext(), this.viewModel.errorDetail, this.viewModel.errorIsRequestFailure);
       } else if (this.viewModel.errorMessage !== undefined) {
-        AppToast.show(this.getUIContext(), AppTextResolver.resource(this.viewModel.errorMessage));
+        AppToast.show(this.getUIContext(), AppTextResolver.resource(this.viewModel.errorMessage),
+          this.viewModel.errorIsRequestFailure);
       } else {
         AppToast.show(this.getUIContext(), $r('app.string.vault_refresh_failed'));
       }
@@ -280,7 +282,7 @@ struct VaultContent {
       this.refreshFilterOptions();
       this.publishVaultData();
     } catch (error) {
-      AppToast.show(this.getUIContext(), $r('app.string.vault_refresh_failed'));
+      AppToast.showError(this.getUIContext(), error, $r('app.string.vault_refresh_failed'));
     } finally {
       this.isLoading = false;
     }
