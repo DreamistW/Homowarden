@@ -303,10 +303,6 @@ export struct SettingsPage {
 
                 Blank()
 
-                Text($r('app.string.settings_logout_warning'))
-                  .fontSize(12)
-                  .fontColor('#666666')
-
                 AdaptiveTextButton({
                   text: $r('app.string.unlock_logout'),
                   barWidth: 150,

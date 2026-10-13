@@ -192,10 +192,7 @@
       "name": "privacy_intro_brand",
       "value": "欢迎使用 Homowarden\n\n"
     },
-    {
-      "name": "privacy_storage_notice",
-      "value": "本应用的密钥数据存储在关键资产区域，不会随应用卸载而清除。卸载应用前请务必注销登录。\n\n"
-    },
+
     {
       "name": "privacy_read_prefix",
       "value": "在开始使用之前，请仔细阅读并同意"
@@ -1072,10 +1069,7 @@
       "name": "settings_server",
       "value": "服务器："
     },
-    {
-      "name": "settings_logout_warning",
-      "value": "因为部分密钥数据不会随卸载自动删除，卸载应用前请务必注销登录"
-    },
+
     {
       "name": "settings_about",
       "value": "关于"
