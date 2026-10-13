@@ -39,7 +39,6 @@ struct PrivacyDialogContent {
 
         Text() {
           Span($r('app.string.privacy_intro_brand'))
-          Span($r('app.string.privacy_storage_notice'))
           Span($r('app.string.privacy_read_prefix'))
           Span($r('app.string.privacy_policy'))
             .fontColor(Color.Blue)
