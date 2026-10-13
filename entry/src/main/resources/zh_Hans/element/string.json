@@ -1,5 +1,8 @@
 {
   "string": [
+    {"name":"login_error_password_reset_required","value":"请先在官方客户端完成主密码重置，再重试登录"},
+    {"name":"login_error_decryption_unsupported","value":"暂不支持此账号的密码库加密或解锁方式，请使用官方客户端"},
+    {"name":"login_error_device_verification_failed","value":"无法验证此设备，请重试登录"},
     {
       "name": "module_desc",
       "value": "Homowarden 密码管理器"

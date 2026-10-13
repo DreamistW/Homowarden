@@ -11,11 +11,11 @@ export class LogSanitizer {
     sanitized = sanitized.replace(/otpauth:\/\/[^\s"']+/gi, '[REDACTED_OTP_URI]');
     sanitized = sanitized.replace(/Bearer\s+[^\s,"'}]+/gi, 'Bearer [REDACTED]');
     sanitized = sanitized.replace(
-      /"(password|masterPasswordHash|username|email|deviceIdentifier|deviceName|access_token|refresh_token|token|twoFactorToken|newDeviceOtp|ssoEmail2faSessionToken|secret|key|privateKey|authorization|cookie)"\s*:\s*"[^"]*"/gi,
+      /"(password|masterPasswordHash|username|email|deviceIdentifier|deviceName|access_token|refresh_token|token|twoFactorToken|newDeviceOtp|ssoEmail2faSessionToken|secret|key|privateKey|wrappedPrivateKey|MasterKeyEncryptedUserKey|salt|authorization|cookie)"\s*:\s*"[^"]*"/gi,
       '"$1":"[REDACTED]"'
     );
     sanitized = sanitized.replace(
-      /(password|masterPasswordHash|username|email|deviceIdentifier|deviceName|access_token|refresh_token|token|twoFactorToken|newDeviceOtp|ssoEmail2faSessionToken|secret|key|privateKey|authorization|cookie)(\s*[:=]\s*)(["']?)[^\s,&}"']+/gi,
+      /(password|masterPasswordHash|username|email|deviceIdentifier|deviceName|access_token|refresh_token|token|twoFactorToken|newDeviceOtp|ssoEmail2faSessionToken|secret|key|privateKey|wrappedPrivateKey|MasterKeyEncryptedUserKey|salt|authorization|cookie)(\s*[:=]\s*)(["']?)[^\s,&}"']+/gi,
       '$1$2$3[REDACTED]'
     );
 

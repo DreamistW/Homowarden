@@ -19,11 +19,42 @@ export interface AccessTokenResponse {
   refresh_token: string;
   PrivateKey?: string;
   Key?: string;
-  Kdf: number;
-  KdfIterations?: number;
-  KdfMemory?: number;
-  KdfParallelism?: number;
+  Kdf?: number;
+  KdfIterations?: number | null;
+  KdfMemory?: number | null;
+  KdfParallelism?: number | null;
   TwoFactorToken?: string;
+  UserDecryptionOptions?: UserDecryptionOptions | null;
+  AccountKeys?: AccountKeys | null;
+  ForcePasswordReset?: boolean;
+}
+
+export interface MasterPasswordUnlockKdf {
+  KdfType: number;
+  Iterations: number;
+  Memory?: number | null;
+  Parallelism?: number | null;
+}
+
+export interface MasterPasswordUnlock {
+  Kdf: MasterPasswordUnlockKdf;
+  MasterKeyEncryptedUserKey: string;
+  Salt?: string | null;
+  ContainedKeyId?: string | null;
+}
+
+export interface UserDecryptionOptions {
+  HasMasterPassword?: boolean;
+  MasterPasswordUnlock?: MasterPasswordUnlock | null;
+}
+
+export interface AccountKeys {
+  publicKeyEncryptionKeyPair?: PublicKeyEncryptionKeyPair | null;
+}
+
+export interface PublicKeyEncryptionKeyPair {
+  wrappedPrivateKey?: string | null;
+  publicKey?: string | null;
 }
 
 export enum TwoFactorProvider {
