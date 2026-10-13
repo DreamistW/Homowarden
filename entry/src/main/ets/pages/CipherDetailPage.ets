@@ -365,7 +365,7 @@ export struct CipherDetailPage {
       await this.loadCipherDetail();
     } catch (error) {
       Logger.error('Failed to save cipher:', error);
-      AppToast.show(this.getUIContext(), $r('app.string.error_save_failed'));
+      AppToast.showError(this.getUIContext(), error, $r('app.string.error_save_failed'));
     } finally {
       this.isSaving = false;
     }
@@ -426,7 +426,7 @@ export struct CipherDetailPage {
       AppToast.show(this.getUIContext(), $r('app.string.common_success'));
     } catch (error) {
       Logger.error('Failed to update favorite:', error);
-      AppToast.show(this.getUIContext(), $r('app.string.error_save_failed'));
+      AppToast.showError(this.getUIContext(), error, $r('app.string.error_save_failed'));
     } finally {
       this.isFavoriteSaving = false;
     }
@@ -446,7 +446,7 @@ export struct CipherDetailPage {
       AppToast.show(this.getUIContext(), $r('app.string.common_success'));
     } catch (error) {
       Logger.error('Failed to restore cipher:', error);
-      AppToast.show(this.getUIContext(), $r('app.string.error_save_failed'));
+      AppToast.showError(this.getUIContext(), error, $r('app.string.error_save_failed'));
     }
   }
 
@@ -1263,7 +1263,7 @@ export struct CipherDetailPage {
       Logger.error('Failed to delete cipher:', error);
 
       // 显示失败提示
-      AppToast.show(this.getUIContext(), $r('app.string.error_delete_failed'));
+      AppToast.showError(this.getUIContext(), error, $r('app.string.error_delete_failed'));
 
       return false;
     }

@@ -26,7 +26,7 @@ export struct Sure2SharePage {
     }
     const fullLink = await getFullLink(shareLink);
     if (fullLink == "") {
-      AppToast.show(this.getUIContext(), $r('app.string.error_network'));
+      AppToast.show(this.getUIContext(), $r('app.string.error_network'), true);
       return;
     }
     this.outputText = await replaceOutputText(this.inputText, fullLink);
