@@ -12,8 +12,9 @@ import {
   MASTER_KEY
 } from '../utils/Constants';
 import { Logger } from '@nzy/logger';
-import { clearAssetAndPreferences, queryAssetSync } from '../utils/AssetUtil';
+import { CredentialStore } from '../utils/CredentialStore';
 import { PreloginResponse } from '../model/Prelogin';
+import { KdfUtil } from '../utils/KdfUtil';
 import { CryptoUtil } from '../utils/CryptoUtil';
 import { HdsNavDestination } from '@hms.hds.hdsBaseComponent';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
@@ -168,10 +169,11 @@ export struct UnlockPage {
       Logger.error(`Failed to clear vault database during logout: ${error}`);
     }
     try {
-      clearAssetAndPreferences();
+      await CredentialStore.clear();
     } catch (error) {
-      cleanupErrors.push(`${error}`);
       Logger.error(`Failed to clear credentials during logout: ${error}`);
+      AppToast.show(this.getUIContext(), $r('app.string.error_storage'));
+      return;
     }
     try {
       await WindowPrivacyUtil.applyForCurrentState();
@@ -217,50 +219,30 @@ export struct UnlockPage {
 
     try {
       // 获取存储的 KDF 参数
-      const kdfParamStr: string = queryAssetSync(KDF_PARAM_KEY);
+      const kdfParamStr: string = CredentialStore.querySync(KDF_PARAM_KEY);
 
       if (!kdfParamStr) {
         AppToast.show(this.getUIContext(), $r('app.string.unlock_parameters_failed'));
         this.pathInfos.replacePath({ name: "LoginPage" });
+        return;
       }
 
       const kdfParams: PreloginResponse = JSON.parse(kdfParamStr);
-      const storedMasterKey = queryAssetSync(MASTER_KEY);
-      const email = queryAssetSync(EMAIL_KEY);
+      const storedMasterKey = CredentialStore.querySync(MASTER_KEY);
+      const email = CredentialStore.querySync(EMAIL_KEY);
       if (!storedMasterKey) {
         AppToast.show(this.getUIContext(), $r('app.string.unlock_parameters_failed'));
         this.pathInfos.replacePath({ name: "LoginPage" });
+        return;
       }
 
       // 使用输入的密码重新派生主密钥
-      let derivedMasterKey: string = '';
-      const salt = email.trim().toLowerCase() || '';
-
-      if (kdfParams.kdf === 0) {
-        // PBKDF2
-        derivedMasterKey = await CryptoUtil.deriveKeyPBKDF2(
-          this.masterPassword,
-          salt,
-          kdfParams.kdfIterations || 100000,
-          32
-        );
-      } else if (kdfParams.kdf === 1) {
-        // Argon2id
-        derivedMasterKey = await CryptoUtil.deriveKeyArgon2id(
-          this.masterPassword,
-          salt,
-          kdfParams.kdfIterations || 2,
-          kdfParams.kdfMemory || 16,
-          kdfParams.kdfParallelism || 1,
-          32
-        );
-      } else {
-        AppToast.show(this.getUIContext(), $r('app.string.unlock_parameters_failed'));
-        this.pathInfos.replacePath({ name: "LoginPage" });
-      }
+      const params = KdfUtil.normalize(kdfParams, email);
+      const derivedMasterKey = await CryptoUtil.deriveMasterKey(this.masterPassword, params);
 
       // 验证派生的主密钥是否与存储的匹配
       if (derivedMasterKey === storedMasterKey) {
+        Logger.info(`Master password unlock verified: KDF type=${params.kdf}, storedSalt=${kdfParams.salt !== undefined}`);
         // 解锁只更新时间戳和导航状态，不把输入的主密码持久化
         const info: NavPathInfo[] = this.pathInfos.getPathStack();
         const pathName = info[0].name;

@@ -1,16 +1,13 @@
 import { accessToken, prelogin, resendNewDeviceOtp, sendEmailLogin } from '../network/AuthApi';
 import {
-  ACCESS_TOKEN_KEY_1,
-  ACCESS_TOKEN_KEY_2,
   DeviceType,
   EMAIL_KEY,
+  ACCESS_TOKEN_KEY,
+  PRIVATE_KEY,
   GrantType,
   Header_Client_Name,
   KDF_PARAM_KEY,
-  LOGIN_STATUS_KEY,
   MASTER_KEY,
-  PRIVATE_KEY_1,
-  PRIVATE_KEY_2,
   REFRESH_TOKEN_KEY,
   SCOPE_KEY,
   SERVER_ADDRESS_KEY,
@@ -25,45 +22,21 @@ import { CryptoUtil } from '../utils/CryptoUtil';
 import { DeviceUtil } from '../utils/DeviceUtil';
 import { DataPreferences } from '@abner/datastore';
 import { util } from '@kit.ArkTS';
-import { addAsset, deleteAsset, queryAssetSync, updateAsset } from '../utils/AssetUtil';
-import { AssetModel } from '../model/AssetModel';
-import { asset } from '@kit.AssetStoreKit';
+import { CredentialStore } from '../utils/CredentialStore';
 import { getServerConfig } from '../network/HttpClient';
 import { AccessTokenRequest, AccessTokenResponse, TwoFactorProvider, TwoFactorProviderData } from '../model/AccessToken';
-import { PreloginRequest, PreloginResponse } from '../model/Prelogin';
+import { KdfParameters, PreloginRequest, PreloginResponse } from '../model/Prelogin';
+import { KdfUtil } from '../utils/KdfUtil';
 import { ResendNewDeviceOtpRequest, SendEmailLoginRequest } from '../model/SendEmailLogin';
 import { PasskeyTwoFactorUtil } from '../utils/PasskeyTwoFactorUtil';
 import { common } from '@kit.AbilityKit';
 import { getServerEndpoints } from '../network/ServerEndpointResolver';
 import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
 import { AppText, AppTextKey } from '../localization/AppText';
-
-interface LoginErrorModel {
-  Message?: string;
-  message?: string;
-  Object?: string;
-}
-
-interface LoginErrorResponseData {
-  error?: string;
-  error_description?: string;
-  message?: string;
-  ErrorModel?: LoginErrorModel;
-  errorModel?: LoginErrorModel;
-  TwoFactorProviders?: string[] | string;
-  TwoFactorProviders2?: Record<string, TwoFactorProviderData | null>;
-  SsoEmail2faSessionToken?: string;
-}
-
-interface LoginErrorResponse {
-  data?: LoginErrorResponseData;
-  status?: number;
-}
-
-interface LoginRequestError {
-  message?: string;
-  response?: LoginErrorResponse;
-}
+import { LoginErrorResponseData, LoginRequestError } from '../model/LoginError';
+import { LoginErrorUtil } from '../utils/LoginErrorUtil';
+import { DECRYPTION_UNSUPPORTED, LoginDecryptionMaterial, LoginResponseUtil,
+  PASSWORD_RESET_REQUIRED } from '../utils/LoginResponseUtil';
 
 /**
  * 编排预登录、密钥派生、多因素验证及凭据持久化的登录状态
@@ -91,6 +64,7 @@ export class LoginViewModel {
   kdfIterations: number = 0;
   kdfMemory: number = 0;
   kdfParallelism: number = 0;
+  kdfSalt: string = '';
   // 登录结果
   accessTokenResponse: AccessTokenResponse = {} as AccessTokenResponse;
   // 加密相关
@@ -154,25 +128,21 @@ export class LoginViewModel {
   // 预登录
   async performPrelogin(): Promise<boolean> {
     try {
-      // 先查询是否存在Asset
-      const queryResult = queryAssetSync(EMAIL_KEY);
-      if (queryResult) {
-        updateAsset(EMAIL_KEY, asset.Tag.SECRET, this.email);
-      } else {
-        const emailAsset: AssetModel = { alias: EMAIL_KEY, secret: this.email };
-        addAsset(emailAsset);
-      }
       const request: PreloginRequest = {
         email: this.email.trim().toLowerCase()
       };
       const response: PreloginResponse = await prelogin(request);
 
-      this.kdfType = response.kdf;
-      this.kdfIterations = response.kdfIterations;
-      this.kdfMemory = response.kdfMemory;
-      this.kdfParallelism = response.kdfParallelism;
+      const params = KdfUtil.normalize(response, request.email);
+      this.kdfType = params.kdf;
+      this.kdfIterations = params.kdfIterations;
+      this.kdfMemory = params.kdfMemory;
+      this.kdfParallelism = params.kdfParallelism;
+      this.kdfSalt = params.salt as string;
 
       Logger.info(`Prelogin successful: KDF type=${this.kdfType}, iterations=${this.kdfIterations}, memory=${this.kdfMemory}, parallelism=${this.kdfParallelism}`);
+      Logger.info(`Prelogin protocol: parameters=${response.kdfSettings ? 'kdfSettings' : 'legacy'}, ` +
+        `saltSource=${response.salt === undefined || response.salt === null ? 'email' : 'server'}`);
       return true;
     } catch (error) {
       Logger.error(`Prelogin failed: ${error}`);
@@ -182,34 +152,11 @@ export class LoginViewModel {
   }
 
   /**
-   * 使用服务端下发的 KDF 参数派生主密钥，登录成功后保存到关键资产供解锁使用
+   * 使用服务端下发的 KDF 参数派生主密钥，登录成功后保存到加密数据库供解锁使用
    */
   async deriveMasterKey(): Promise<boolean> {
     try {
-      const salt = this.email.trim().toLowerCase();
-
-      if (this.kdfType === 0) {
-        // PBKDF2
-        this.masterKey = await CryptoUtil.deriveKeyPBKDF2(
-          this.password,
-          salt,
-          this.kdfIterations,
-          32
-        );
-      } else if (this.kdfType === 1) {
-        // Argon2id
-        this.masterKey = await CryptoUtil.deriveKeyArgon2id(
-          this.password,
-          salt,
-          this.kdfIterations,
-          this.kdfMemory,
-          this.kdfParallelism,
-          32
-        );
-      } else {
-        this.errorMessage = new AppText(AppTextKey.KDF_UNSUPPORTED);
-        return false;
-      }
+      this.masterKey = await CryptoUtil.deriveMasterKey(this.password, this.getAuthenticationKdf());
 
       Logger.info('Master key derived successfully');
       return true;
@@ -218,6 +165,16 @@ export class LoginViewModel {
       this.errorMessage = new AppText(AppTextKey.MASTER_KEY_FAILED);
       return false;
     }
+  }
+
+  private getAuthenticationKdf(): KdfParameters {
+    return {
+      kdf: this.kdfType,
+      kdfIterations: this.kdfIterations,
+      kdfMemory: this.kdfMemory,
+      kdfParallelism: this.kdfParallelism,
+      salt: this.kdfSalt
+    };
   }
 
   // 二次派生得到服务器验证值，原始主密码不会作为登录请求的 password 发送
@@ -271,8 +228,7 @@ export class LoginViewModel {
       }
       const errorMessage = this.extractLoginErrorMessage(loginError);
       Logger.error(`Login failed: ${errorMessage}`);
-      this.errorMessage = new AppText(errorMessage === 'invalid_credentials' ?
-        AppTextKey.INVALID_CREDENTIALS : AppTextKey.LOGIN_FAILED);
+      this.errorMessage = this.getContinuationError(loginError);
       return false;
     }
   }
@@ -336,8 +292,9 @@ export class LoginViewModel {
   }
 
   private applyRememberedTwoFactor(request: AccessTokenRequest): void {
-    // “记住我”令牌存放在关键资产中，只在首次令牌请求时按专用 provider 回传
-    const rememberedToken = queryAssetSync(TWO_FACTOR_TOKEN_KEY);
+    // “记住我”令牌存放在加密数据库中，只在首次令牌请求时按专用 provider 回传
+    const rememberedToken = CredentialStore.rememberedTwoFactorSync(
+      CredentialStore.ownerKey(this.serverType, this.getNormalizedServerAddress(), this.email));
     if (!rememberedToken) {
       return;
     }
@@ -357,11 +314,7 @@ export class LoginViewModel {
   }
 
   private isNewDeviceVerificationRequired(errorData?: LoginErrorResponseData): boolean {
-    if (errorData?.error === 'device_error') {
-      return true;
-    }
-
-    return this.getErrorModelMessage(errorData).toLowerCase() === 'new device verification required';
+    return LoginErrorUtil.isNewDeviceVerificationRequired(errorData);
   }
 
   private handleTwoFactorRequired(errorData?: LoginErrorResponseData): void {
@@ -524,6 +477,7 @@ export class LoginViewModel {
     await this.saveServerConfig();
 
     try {
+      await CredentialStore.ready();
       // 执行预登录
       const preloginSuccess = await this.performPrelogin();
       if (!preloginSuccess) {
@@ -552,8 +506,7 @@ export class LoginViewModel {
       }
       if (loginSuccess) {
         // 登录成功，保存登录信息
-        this.saveLoginInfo();
-        return true;
+        return await this.saveLoginInfo();
       }
       return false;
     } catch (error) {
@@ -578,8 +531,7 @@ export class LoginViewModel {
       if (!loginSuccess) {
         return false;
       }
-      this.saveLoginInfo();
-      return true;
+      return await this.saveLoginInfo();
     } catch (error) {
       const errorMessage = ErrorMessageUtil.getMessage(error as Object);
       Logger.error(`Login continuation failed: ${errorMessage}`);
@@ -589,72 +541,61 @@ export class LoginViewModel {
   }
 
   /**
-   * 清理旧凭据后逐项保存新凭据及后续解密所需的 KDF 参数
+   * 校验解密材料后，在同一个数据库事务中替换凭据及 KDF 参数
    */
-  private saveLoginInfo() {
+  private async saveLoginInfo(): Promise<boolean> {
+    this.successMessage = undefined;
+    try {
+      const authentication = this.getAuthenticationKdf();
+      const material = LoginResponseUtil.normalize(this.accessTokenResponse, authentication, this.email);
+      const unlockMasterKey = LoginResponseUtil.sameKdf(authentication, material.params) ? this.masterKey :
+        await CryptoUtil.deriveMasterKey(this.password, material.params);
+      await CryptoUtil.decryptUserKey(material.encryptedUserKey, unlockMasterKey);
+      // 校验完成后才提交凭据事务，失败响应不会覆盖现有账号凭据。
+      await this.persistLoginInfo(material, unlockMasterKey);
+      this.successMessage = new AppText(AppTextKey.LOGIN_SUCCESS);
+      Logger.info(`Login credentials saved: decryptionSource=${material.source}, ` +
+        `KDF type=${material.params.kdf}, userKeyVerified=true`);
+      return true;
+    } catch (error) {
+      const message = (error as Error).message;
+      Logger.error(`Login credential initialization failed: ${message}`);
+      if (message === PASSWORD_RESET_REQUIRED) {
+        this.errorMessage = new AppText(AppTextKey.PASSWORD_RESET_REQUIRED);
+      } else if (message === DECRYPTION_UNSUPPORTED || message === 'Unsupported user key length') {
+        this.errorMessage = new AppText(AppTextKey.DECRYPTION_UNSUPPORTED);
+      } else {
+        this.errorMessage = new AppText(AppTextKey.ENCRYPTION_ERROR);
+      }
+      return false;
+    }
+  }
+
+  private async persistLoginInfo(material: LoginDecryptionMaterial, unlockMasterKey: string): Promise<void> {
+    const owner = CredentialStore.ownerKey(this.serverType, this.getNormalizedServerAddress(), this.email);
+    const values: Record<string, string> = {};
+    values[ACCESS_TOKEN_KEY] = this.accessTokenResponse.access_token;
+    values[REFRESH_TOKEN_KEY] = this.accessTokenResponse.refresh_token;
+    values[TOKEN_EXPIRE_TIME_KEY] = String(Math.floor(Date.now() / 1000) + this.accessTokenResponse.expires_in);
+    values[TWO_FACTOR_TOKEN_KEY] = this.accessTokenResponse.TwoFactorToken ??
+      CredentialStore.rememberedTwoFactorSync(owner);
+    values[MASTER_KEY] = unlockMasterKey;
+    values[PRIVATE_KEY] = material.encryptedPrivateKey ?? '';
+    values[USER_KEY] = material.encryptedUserKey;
+    values[KDF_PARAM_KEY] = JSON.stringify(material.params);
+    values[EMAIL_KEY] = this.email.trim().toLowerCase();
+    // 整组凭据与登录状态一起提交；写入失败会回滚到原有完整记录。
+    await CredentialStore.replaceLogin(values, owner);
     this.needTwoFactor = false;
     this.needNewDevice = false;
     this.twoFactorToken = '';
     this.availableTwoFactorProviders = [];
     this.twoFactorProviderData = null;
     this.twoFactorProvidersData = null;
-    // 删除原本的凭据
-    deleteAsset(MASTER_KEY);
-    deleteAsset(ACCESS_TOKEN_KEY_1);
-    deleteAsset(ACCESS_TOKEN_KEY_2);
-    deleteAsset(REFRESH_TOKEN_KEY);
-    deleteAsset(TOKEN_EXPIRE_TIME_KEY);
-    deleteAsset(PRIVATE_KEY_1);
-    deleteAsset(PRIVATE_KEY_2);
-    deleteAsset(USER_KEY);
-    deleteAsset(KDF_PARAM_KEY);
-    deleteAsset(TWO_FACTOR_TOKEN_KEY);
-    // 保存新的凭据
-    // 访问令牌超过单条边界时拆分；私钥固定按相同边界分段存储
-    if (this.accessTokenResponse.access_token.length > 1000) {
-      addAsset(this.createAssetModel(ACCESS_TOKEN_KEY_1, this.accessTokenResponse.access_token.substring(0, 1000)));
-      addAsset(this.createAssetModel(ACCESS_TOKEN_KEY_2, this.accessTokenResponse.access_token.substring(1000)));
-    } else {
-      addAsset(this.createAssetModel(ACCESS_TOKEN_KEY_1, this.accessTokenResponse.access_token));
-    }
-    addAsset(this.createAssetModel(MASTER_KEY, this.masterKey));
-    if (this.accessTokenResponse.PrivateKey) {
-      addAsset(this.createAssetModel(PRIVATE_KEY_1, this.accessTokenResponse.PrivateKey.substring(0, 1000)));
-      addAsset(this.createAssetModel(PRIVATE_KEY_2, this.accessTokenResponse.PrivateKey.substring(1000)));
-    }
-    if (this.accessTokenResponse.Key) {
-      addAsset(this.createAssetModel(USER_KEY, this.accessTokenResponse.Key));
-    }
-    addAsset(this.createAssetModel(REFRESH_TOKEN_KEY, this.accessTokenResponse.refresh_token));
-    let expireTime = Math.floor(Date.now() / 1000) + this.accessTokenResponse.expires_in;
-    addAsset(this.createAssetModel(TOKEN_EXPIRE_TIME_KEY, expireTime.toString()));
-    if (this.accessTokenResponse.TwoFactorToken) {
-      addAsset(this.createAssetModel(TWO_FACTOR_TOKEN_KEY, this.accessTokenResponse.TwoFactorToken));
-    }
-
-    // 保存后续加解密的参数
-    const kdfParam: PreloginResponse = {
-      kdf: this.accessTokenResponse.Kdf,
-      kdfIterations: this.accessTokenResponse.KdfIterations ?? this.kdfIterations,
-      kdfMemory: this.accessTokenResponse.KdfMemory ?? this.kdfMemory,
-      kdfParallelism: this.accessTokenResponse.KdfParallelism ?? this.kdfParallelism
-    };
-    addAsset(this.createAssetModel(KDF_PARAM_KEY, JSON.stringify(kdfParam)));
-
-    DataPreferences.getInstance().putSync(LOGIN_STATUS_KEY, 1);
   }
-
-  private createAssetModel(alias: string, secret: string, label?: string[]): AssetModel {
-    return {
-      alias: alias,
-      secret: secret,
-      label: label
-    }
-  }
-
   private extractLoginErrorMessage(error: LoginRequestError): string {
     const errorData = error.response?.data;
-    if (errorData?.error_description === 'invalid_username_or_password') {
+    if (LoginErrorUtil.isInvalidCredentials(errorData)) {
       return 'invalid_credentials';
     }
 
@@ -671,7 +612,6 @@ export class LoginViewModel {
   }
 
   private getContinuationError(error: LoginRequestError): AppText {
-    const status: number | undefined = error.response?.status;
     const message: string = error.message?.toLowerCase() ?? '';
     if (message.includes('timeout')) {
       return new AppText(AppTextKey.TIMEOUT_ERROR);
@@ -680,29 +620,24 @@ export class LoginViewModel {
       return new AppText(AppTextKey.NETWORK_ERROR);
     }
     const errorData: LoginErrorResponseData | undefined = error.response.data;
-    if (errorData?.error_description === 'invalid_username_or_password') {
+    if (LoginErrorUtil.isInvalidCredentials(errorData)) {
       return new AppText(AppTextKey.INVALID_CREDENTIALS);
     }
     if (this.isInvalidVerificationCodeError(errorData)) {
       return new AppText(AppTextKey.CODE_INVALID);
     }
+    if (errorData?.error === 'device_error') {
+      return new AppText(AppTextKey.DEVICE_VERIFICATION_FAILED);
+    }
     return new AppText(AppTextKey.LOGIN_FAILED);
   }
 
   private isInvalidVerificationCodeError(errorData: LoginErrorResponseData | undefined): boolean {
-    const serverMessage: string = (this.getErrorModelMessage(errorData) || errorData?.message ||
-      errorData?.error_description || '').toLowerCase();
-    return serverMessage.includes('verification code') || serverMessage.includes('two-factor token') ||
-      serverMessage.includes('two factor token') || serverMessage.includes('new device otp') ||
-      serverMessage.includes('invalid otp');
+    return LoginErrorUtil.isInvalidVerificationCode(errorData);
   }
 
   private getErrorModelMessage(errorData?: LoginErrorResponseData): string {
-    return errorData?.ErrorModel?.Message ||
-      errorData?.ErrorModel?.message ||
-      errorData?.errorModel?.Message ||
-      errorData?.errorModel?.message ||
-      '';
+    return LoginErrorUtil.getModelMessage(errorData);
   }
 
   // 清除错误信息
@@ -728,6 +663,7 @@ export class LoginViewModel {
     newViewModel.kdfIterations = this.kdfIterations;
     newViewModel.kdfMemory = this.kdfMemory;
     newViewModel.kdfParallelism = this.kdfParallelism;
+    newViewModel.kdfSalt = this.kdfSalt;
     newViewModel.masterKey = this.masterKey;
     newViewModel.loginPassword = this.loginPassword;
     newViewModel.deviceType = this.deviceType;
@@ -760,6 +696,7 @@ export class LoginViewModel {
     this.kdfIterations = 0;
     this.kdfMemory = 0;
     this.kdfParallelism = 0;
+    this.kdfSalt = '';
     this.masterKey = '';
     this.loginPassword = '';
     this.needTwoFactor = false;

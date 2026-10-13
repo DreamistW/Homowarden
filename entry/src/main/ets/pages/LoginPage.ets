@@ -1,5 +1,5 @@
 import { AppToast } from '../utils/AppToast';
-import { queryAssetSync } from '../utils/AssetUtil';
+import { CredentialStore } from '../utils/CredentialStore';
 import { EMAIL_KEY, SAVE_EMAIL, ServerType } from '../utils/Constants';
 import { LoginViewModel } from '../viewmodel/LoginViewModel';
 import { EntryRouter } from '../../../../EntryRouter';
@@ -167,7 +167,7 @@ export struct LoginPage {
   }
 
   private loadSaveEmail() {
-    const email = queryAssetSync(EMAIL_KEY);
+    const email = CredentialStore.querySync(EMAIL_KEY);
     if (email) {
       this.viewModel.email = email;
     }

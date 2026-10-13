@@ -41,6 +41,10 @@ export const ACCESS_TOKEN_KEY_1 = 'access_token_1';
 
 export const ACCESS_TOKEN_KEY_2 = 'access_token_2';
 
+// 数据库保存完整值；旧分段别名仅用于升级迁移。
+export const ACCESS_TOKEN_KEY = 'access_token';
+export const PRIVATE_KEY = 'private_key';
+
 export const PRIVATE_KEY_1 = "private_key_1";
 
 export const PRIVATE_KEY_2 = "private_key_2";

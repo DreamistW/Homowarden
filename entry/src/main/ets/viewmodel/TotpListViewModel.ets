@@ -1,7 +1,8 @@
 import { Logger } from '@nzy/logger';
 import { Cipher, CipherLogin } from '../model/CipherModels';
 import { PreloginResponse } from '../model/Prelogin';
-import { queryAssetSync } from '../utils/AssetUtil';
+import { KdfUtil } from '../utils/KdfUtil';
+import { CredentialStore } from '../utils/CredentialStore';
 import { CipherItemType, DBTableName, EMAIL_KEY, KDF_PARAM_KEY, MASTER_KEY } from '../utils/Constants';
 import { CryptoUtil } from '../utils/CryptoUtil';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
@@ -95,15 +96,15 @@ export class TotpListViewModel {
 
     try {
       // 获取存储的 KDF 参数
-      const kdfParamStr: string = queryAssetSync(KDF_PARAM_KEY);
+      const kdfParamStr: string = CredentialStore.querySync(KDF_PARAM_KEY);
       if (!kdfParamStr) {
         this.errorMessage = new AppText(AppTextKey.PARAMETERS_FAILED);
         return false;
       }
 
       const kdfParams: PreloginResponse = JSON.parse(kdfParamStr);
-      const storedMasterKey = queryAssetSync(MASTER_KEY);
-      const email = queryAssetSync(EMAIL_KEY);
+      const storedMasterKey = CredentialStore.querySync(MASTER_KEY);
+      const email = CredentialStore.querySync(EMAIL_KEY);
 
       if (!storedMasterKey) {
         this.errorMessage = new AppText(AppTextKey.PARAMETERS_FAILED);
@@ -111,31 +112,8 @@ export class TotpListViewModel {
       }
 
       // 使用输入的密码重新派生主密钥
-      let derivedMasterKey: string = '';
-      const salt = email.trim().toLowerCase() || '';
-
-      if (kdfParams.kdf === 0) {
-        // PBKDF2
-        derivedMasterKey = await CryptoUtil.deriveKeyPBKDF2(
-          passwordInput,
-          salt,
-          kdfParams.kdfIterations || 100000,
-          32
-        );
-      } else if (kdfParams.kdf === 1) {
-        // Argon2id
-        derivedMasterKey = await CryptoUtil.deriveKeyArgon2id(
-          passwordInput,
-          salt,
-          kdfParams.kdfIterations || 2,
-          kdfParams.kdfMemory || 16,
-          kdfParams.kdfParallelism || 1,
-          32
-        );
-      } else {
-        this.errorMessage = new AppText(AppTextKey.KDF_UNSUPPORTED);
-        return false;
-      }
+      const params = KdfUtil.normalize(kdfParams, email);
+      const derivedMasterKey = await CryptoUtil.deriveMasterKey(passwordInput, params);
 
       // 验证派生的主密钥是否与存储的匹配
       if (derivedMasterKey === storedMasterKey) {

@@ -1,7 +1,8 @@
 import { window } from '@kit.ArkUI';
 import { DataPreferences } from '@abner/datastore';
 import { Logger } from '@nzy/logger';
-import { LOGIN_STATUS_KEY, SCREEN_CAPTURE_PROTECTION } from './Constants';
+import { SCREEN_CAPTURE_PROTECTION } from './Constants';
+import { CredentialStore } from './CredentialStore';
 
 export class WindowPrivacyUtil {
   static ensureScreenCaptureProtectionDefault(): void {
@@ -65,10 +66,10 @@ export class WindowPrivacyUtil {
 
   private static isLoggedIn(): boolean {
     try {
-      return DataPreferences.getInstance().getSync<number>(LOGIN_STATUS_KEY) === 1;
+      return CredentialStore.isLoggedInSync();
     } catch (error) {
-      Logger.error(`Failed to read login status for window privacy mode. Error: ${JSON.stringify(error)}`);
-      return false;
+      // 初始化期间也保护窗口，避免存储尚未就绪时关闭隐私保护。
+      return true;
     }
   }
 }

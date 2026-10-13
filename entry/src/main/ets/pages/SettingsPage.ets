@@ -13,7 +13,7 @@ import { bundleManager, common, Want } from '@kit.AbilityKit';
 import { userAuth } from '@kit.UserAuthenticationKit';
 import { cryptoFramework } from '@kit.CryptoArchitectureKit';
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
-import { clearAssetAndPreferences, queryAssetSync } from '../utils/AssetUtil';
+import { CredentialStore } from '../utils/CredentialStore';
 import { Logger } from '@nzy/logger';
 import { AppToast } from '../utils/AppToast';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
@@ -102,7 +102,7 @@ export struct SettingsPage {
   }
 
   getEmail() {
-    this.email = queryAssetSync(EMAIL_KEY);
+    this.email = CredentialStore.querySync(EMAIL_KEY);
   }
 
   loadAutoLockStatus() {
@@ -678,10 +678,11 @@ export struct SettingsPage {
       Logger.error(`Failed to clear vault database during logout: ${error}`);
     }
     try {
-      clearAssetAndPreferences();
+      await CredentialStore.clear();
     } catch (error) {
-      cleanupErrors.push(`${error}`);
       Logger.error(`Failed to clear credentials during logout: ${error}`);
+      AppToast.show(this.getUIContext(), $r('app.string.error_storage'));
+      return;
     }
     try {
       await WindowPrivacyUtil.applyForCurrentState();

@@ -19,8 +19,10 @@ export class ShareDatabaseUtil {
     const STORE_CONFIG: relationalStore.StoreConfig = {
       name: "sure2share.sql",
       securityLevel: relationalStore.SecurityLevel.S4,
-      encrypt: true
+      encrypt: true,
+      allowRebuild: false
     }
+    // 仅本地数据库：不注册分布式表/调用同步或备份；backup_config 禁止备份恢复。
     if (!ShareDatabaseUtil.initPromise) {
       ShareDatabaseUtil.instance = new ShareDatabaseUtil();
       ShareDatabaseUtil.initPromise = new Promise((resolve, reject) => {

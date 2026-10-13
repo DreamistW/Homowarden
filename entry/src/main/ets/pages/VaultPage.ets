@@ -1,3 +1,4 @@
+import { CredentialStore } from '../utils/CredentialStore';
 import { EntryRouter } from '../../../../EntryRouter';
 import { Cipher, CipherDetailMode, CipherDetailParams, CipherIdentity } from '../model/CipherModels';
 import { VaultViewModel } from '../viewmodel/VaultViewModel';
@@ -8,7 +9,7 @@ import { FormDialog } from '../component/FormDialog';
 import { ConfirmDialog } from '../component/ConfirmDialog';
 import { DataPreferences } from '@abner/datastore';
 import {
-  CipherItemType, FilterType, LOGIN_STATUS_KEY, NEED_RELOAD_CIPHERS
+  CipherItemType, FilterType, NEED_RELOAD_CIPHERS
 } from '../utils/Constants';
 import { CipherCopyField, CipherItem } from '../component/CipherItem';
 import {
@@ -106,7 +107,7 @@ struct VaultContent {
       showCancel: false,
       onConfirm: async (): Promise<boolean> => {
         this.isReloginDialogOpen = false;
-        DataPreferences.getInstance().putSync(LOGIN_STATUS_KEY, 0);
+        await CredentialStore.deactivate();
         void WindowPrivacyUtil.applyForCurrentState();
         this.onRelogin();
         return true;
