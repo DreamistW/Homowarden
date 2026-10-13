@@ -1,6 +1,6 @@
 import { AxiosResponse } from '@ohos/axios';
 import { Logger } from '@nzy/logger';
-import { ResolvedServerEndpoints, ServerConfigResponse } from '../model/ServerEnvironment';
+import { ResolvedServerEndpoints, ServerConfigResponse, ServerEnvironmentUrls } from '../model/ServerEnvironment';
 import { ServerConfig } from '../model/ServerConfig';
 import { SERVER_BASE_URL_EU, SERVER_BASE_URL_US, ServerType } from '../utils/Constants';
 import { createHttpClient, getServerConfig } from './HttpClient';
@@ -68,6 +68,11 @@ async function resolveSelfHostedEndpoints(fallback: ResolvedServerEndpoints): Pr
       return fallback;
     }
 
+    // Vaultwarden 等单地址部署按 DOMAIN 生成端点，反代地址应以用户实际访问的地址为准。
+    if (usesDefaultSelfHostedPaths(environment)) {
+      return fallback;
+    }
+
     return {
       vaultBaseUrl: normalizeEnvironmentUrl(environment.vault, fallback.vaultBaseUrl, '', fallback.vaultBaseUrl),
       apiBaseUrl: normalizeEnvironmentUrl(environment.api, fallback.vaultBaseUrl, 'api', fallback.apiBaseUrl),
@@ -83,6 +88,21 @@ async function resolveSelfHostedEndpoints(fallback: ResolvedServerEndpoints): Pr
     Logger.info(`Failed to fetch server config, use fallback endpoints. Error: ${error.message}`);
     return fallback;
   }
+}
+
+function usesDefaultSelfHostedPaths(environment: ServerEnvironmentUrls): boolean {
+  const vault = parseHttpUrl(environment.vault ?? '');
+  const api = parseHttpUrl(environment.api ?? '');
+  const identity = parseHttpUrl(environment.identity ?? '');
+  if (!vault || !api || !identity) {
+    return false;
+  }
+
+  // 仅识别同一基础地址下的标准路径，独立域名或自定义服务路径仍遵循服务端配置。
+  return vault.origin.toLowerCase() === api.origin.toLowerCase() &&
+    vault.origin.toLowerCase() === identity.origin.toLowerCase() &&
+    api.path === `${vault.path}/api` &&
+    identity.path === `${vault.path}/identity`;
 }
 
 function normalizeSelfHostedBaseUrl(serverAddress: string | null | undefined): string {
