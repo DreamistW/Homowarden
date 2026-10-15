@@ -1,4 +1,4 @@
-import { AbilityConstant, Configuration, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
+import { AbilityConstant, Configuration, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { display, window } from '@kit.ArkUI';
 import { DataPreferences } from '@abner/datastore';
@@ -14,6 +14,7 @@ import { FormFactorUtil } from '../utils/FormFactorUtil';
 import { LogExportService } from '../utils/LogExportService';
 import { CredentialStore } from '../utils/CredentialStore';
 import { QuickEntryManager } from '../utils/QuickEntryManager';
+import { AppearanceUtil } from '../utils/AppearanceUtil';
 
 const DOMAIN = 0x0000;
 const PC_MIN_WINDOW_WIDTH = 840;
@@ -36,9 +37,13 @@ export default class EntryAbility extends UIAbility {
     LogExportService.initialize(this.context);
     // 页面创建前先注册全局状态，确保后续 @StorageLink 可以稳定订阅
     LocaleState.initialize();
+    try {
+      AppearanceUtil.initialize(this.context);
+    } catch (error) {
+      hilog.error(DOMAIN, 'appearance', 'Failed to initialize appearance preferences: %{public}s', JSON.stringify(error));
+    }
     BreakpointUtil.initialize();
     VaultChangeNotifier.initialize();
-    this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
     DataPreferences.getInstance().init(this.context);
     void CredentialStore.initialize(this.context).catch(() => {
@@ -88,6 +93,7 @@ export default class EntryAbility extends UIAbility {
         return;
       }
       hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
+      AppearanceUtil.restoreColor(this.context);
       void SystemTrayManager.initialize(this.context, windowStage);
     });
   }

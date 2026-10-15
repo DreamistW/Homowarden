@@ -1,4 +1,5 @@
 import { AppDropdownOption } from '../model/AppUiModels';
+import { InterfaceColor, InterfaceLanguage } from '../utils/AppearanceUtil';
 import {
   AutoLockTimeout,
   CardBrandType,
@@ -9,6 +10,22 @@ import {
 
 /** 集中创建使用本地化资源的下拉选项 */
 export class AppOptionFactory {
+  static interfaceLanguages(): AppDropdownOption[] {
+    return [
+      AppDropdownOption.create($r('app.string.settings_follow_system'), InterfaceLanguage.SYSTEM),
+      AppDropdownOption.create($r('app.string.settings_language_chinese'), InterfaceLanguage.CHINESE),
+      AppDropdownOption.create($r('app.string.settings_language_english'), InterfaceLanguage.ENGLISH)
+    ];
+  }
+
+  static interfaceColors(): AppDropdownOption[] {
+    return [
+      AppDropdownOption.create($r('app.string.settings_follow_system'), InterfaceColor.SYSTEM),
+      AppDropdownOption.create($r('app.string.settings_color_light'), InterfaceColor.LIGHT),
+      AppDropdownOption.create($r('app.string.settings_color_dark'), InterfaceColor.DARK)
+    ];
+  }
+
   static autoLockTimeouts(): AppDropdownOption[] {
     const options: AppDropdownOption[] = [];
     options.push(AppDropdownOption.create($r('app.string.settings_auto_lock_never'), AutoLockTimeout.NEVER));
