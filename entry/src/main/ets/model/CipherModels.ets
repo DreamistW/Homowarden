@@ -242,12 +242,20 @@ export interface CipherJsonRequest {
   organizationId: string | null;
   identity: CipherIdentity | null;
   name: string | null;
-  fields: CipherField[] | null;
+  fields: CipherFieldJsonRequest[] | null;
   favorite: boolean;
   card: CipherCard | null;
   key: string | null;
   archivedDate: string | null;
   encryptedFor: string | null;
+}
+
+/** 加密请求的空字段使用 null；界面中的空文本仍使用字符串。 */
+export interface CipherFieldJsonRequest {
+  name: string | null;
+  value: string | null;
+  type: CipherFieldType;
+  linkedId?: number | null;
 }
 
 export interface CipherPartialRequest {

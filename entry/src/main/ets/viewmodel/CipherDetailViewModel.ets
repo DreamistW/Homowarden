@@ -29,6 +29,27 @@ export class CipherDetailViewModel {
   symmetricKey: string = '';
   private cipherKey: string = '';
   private isCipherDecrypted: boolean = false;
+  private batchRows: Map<string, relationalStore.ValuesBucket[]> | null = null;
+
+  /** 导出时只读取一次详情子表，避免逐条全表查询。普通详情页仍实时读取。 */
+  async prepareBatchRead(): Promise<void> {
+    const rows: Map<string, relationalStore.ValuesBucket[]> = new Map();
+    for (const table of [DBTableName.LOGINS, DBTableName.CARDS, DBTableName.IDENTITIES,
+      DBTableName.NOTES, DBTableName.FIELDS]) {
+      rows.set(table, await DatabaseUtil.getInstance().queryAllData(table));
+    }
+    this.batchRows = rows;
+  }
+
+  clearBatchRead(): void {
+    this.batchRows = null;
+    this.cipherKey = '';
+    this.symmetricKey = '';
+  }
+
+  private async queryDetailRows(table: string): Promise<relationalStore.ValuesBucket[]> {
+    return this.batchRows?.get(table) ?? await DatabaseUtil.getInstance().queryAllData(table);
+  }
 
   /**
    * 获取完整的密码项详情
@@ -63,7 +84,7 @@ export class CipherDetailViewModel {
    * 获取登录信息
    */
   private async getCipherLogin(cipherId: string): Promise<CipherLogin> {
-    const loginData = await DatabaseUtil.getInstance().queryAllData(DBTableName.LOGINS);
+    const loginData = await this.queryDetailRows(DBTableName.LOGINS);
     const loginRecord = loginData.find(data => data.cipher_id === cipherId);
     if (!loginRecord) {
       throw new Error(`Cipher login not found: ${cipherId}`);
@@ -100,7 +121,7 @@ export class CipherDetailViewModel {
    * 获取卡片信息
    */
   private async getCipherCard(cipherId: string): Promise<CipherCard> {
-    const cardData = await DatabaseUtil.getInstance().queryAllData(DBTableName.CARDS);
+    const cardData = await this.queryDetailRows(DBTableName.CARDS);
     const cardRecord = cardData.find(data => data.cipher_id === cipherId);
     if (!cardRecord) {
       throw new Error(`Cipher card not found: ${cipherId}`);
@@ -126,7 +147,7 @@ export class CipherDetailViewModel {
    * 获取身份信息
    */
   private async getCipherIdentity(cipherId: string): Promise<CipherIdentity> {
-    const identityData = await DatabaseUtil.getInstance().queryAllData(DBTableName.IDENTITIES);
+    const identityData = await this.queryDetailRows(DBTableName.IDENTITIES);
     const identityRecord = identityData.find(data => data.cipher_id === cipherId);
     if (!identityRecord) {
       throw new Error(`Cipher identity not found: ${cipherId}`);
@@ -176,7 +197,7 @@ export class CipherDetailViewModel {
    * 获取安全笔记
    */
   private async getCipherSecureNote(cipherId: string): Promise<CipherSecureNote> {
-    const noteData = await DatabaseUtil.getInstance().queryAllData(DBTableName.NOTES);
+    const noteData = await this.queryDetailRows(DBTableName.NOTES);
     const noteRecord = noteData.find(data => data.cipher_id === cipherId);
     if (!noteRecord) {
       throw new Error(`Cipher secure note not found: ${cipherId}`);
@@ -192,7 +213,7 @@ export class CipherDetailViewModel {
    */
   private async getCipherFields(cipherId: string): Promise<CipherField[]> {
     try {
-      const fieldsData = await DatabaseUtil.getInstance().queryAllData(DBTableName.FIELDS);
+      const fieldsData = await this.queryDetailRows(DBTableName.FIELDS);
       const fields: CipherField[] = [];
 
       for (const fieldData of fieldsData) {

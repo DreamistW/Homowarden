@@ -1,6 +1,8 @@
 import { createHttpClient } from './HttpClient';
 import {
   Cipher,
+  CipherField,
+  CipherFieldJsonRequest,
   CipherJsonRequest,
   CipherPartialRequest,
   CreateCipherInOrganizationRequest,
@@ -12,6 +14,7 @@ import { SessionTokenUtil } from '../utils/SessionTokenUtil';
 import { AxiosResponse } from '@ohos/axios';
 import { getServerEndpoints } from './ServerEndpointResolver';
 import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
+import { util } from '@kit.ArkTS';
 
 /**
  * 获取基础URL
@@ -86,6 +89,53 @@ export async function createCipher(cipher: Cipher): Promise<Cipher> {
     Logger.error('Failed to create cipher item: ' + error.message);
     return Promise.reject(error);
   });
+}
+
+/** 导入已在本地加密的个人条目；文件中的归属、ID 和密钥不参与请求。 */
+export async function importCiphers(ciphers: Cipher[], shouldContinue: () => boolean): Promise<void> {
+  const baseURL = await getApiBaseUrl();
+  const client = createHttpClient(baseURL);
+  const token = await SessionTokenUtil.getAccessToken();
+  if (!shouldContinue()) {
+    throw new Error('transfer_session_expired');
+  }
+  const userId = getImportUserId(token);
+  const body: CipherImportRequest = {
+    ciphers: ciphers.map((cipher: Cipher): CipherJsonRequest => {
+      const request = buildCipherJsonRequest(cipher, false);
+      // 新版服务端要求明确声明密文对应的用户，必须来自当前令牌而非导入文件。
+      request.encryptedFor = userId;
+      return request;
+    }),
+    folders: [],
+    folderRelationships: []
+  };
+  await client.post('/ciphers/import', body, { headers: { 'Authorization': `Bearer ${token}` } });
+}
+
+interface ImportTokenClaims {
+  sub?: string;
+}
+
+function getImportUserId(token: string): string {
+  const payload = token.split('.')[1];
+  if (!payload) {
+    throw new Error('transfer_session_expired');
+  }
+  const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+  const claims: ImportTokenClaims = JSON.parse(new util.TextDecoder().decodeToString(
+    new util.Base64Helper().decodeSync(padded)));
+  if (!claims || typeof claims.sub !== 'string' || !claims.sub) {
+    throw new Error('transfer_session_expired');
+  }
+  return claims.sub;
+}
+
+interface CipherImportRequest {
+  ciphers: CipherJsonRequest[];
+  folders: Object[];
+  folderRelationships: Object[];
 }
 
 /**
@@ -193,13 +243,22 @@ export async function restoreCipher(id: string): Promise<Cipher> {
 
 function buildCipherJsonRequest(cipher: Cipher, includeLastKnownRevisionDate: boolean): CipherJsonRequest {
   return {
-    notes: cipher.notes,
+    notes: cipher.notes || null,
     attachments2: cipher.attachments2 || null,
     reprompt: cipher.reprompt,
     passwordHistory: cipher.passwordHistory || null,
     lastKnownRevisionDate: includeLastKnownRevisionDate ? (cipher.lastKnownRevisionDate || cipher.revisionDate) : null,
     type: cipher.type,
-    login: cipher.login,
+    login: cipher.login ? {
+      username: cipher.login.username || null,
+      password: cipher.login.password || null,
+      totp: cipher.login.totp || null,
+      passwordRevisionDate: cipher.login.passwordRevisionDate,
+      uris: cipher.login.uris,
+      uri: cipher.login.uri || null,
+      autofillOnPageLoad: cipher.login.autofillOnPageLoad,
+      fido2Credentials: cipher.login.fido2Credentials
+    } : null,
     secureNote: cipher.secureNote,
     sshKey: cipher.sshKey || null,
     bankAccount: cipher.bankAccount || null,
@@ -209,9 +268,22 @@ function buildCipherJsonRequest(cipher: Cipher, includeLastKnownRevisionDate: bo
     organizationId: cipher.organizationId,
     identity: cipher.identity,
     name: cipher.name,
-    fields: cipher.fields || null,
+    fields: cipher.fields ? cipher.fields.map((field: CipherField): CipherFieldJsonRequest => ({
+      name: field.name || null,
+      value: field.value || null,
+      type: field.type,
+      linkedId: field.linkedId
+    })) : null,
     favorite: cipher.favorite,
-    card: cipher.card,
+    // 新增、编辑和批量导入均经过此处；兼容旧数据和表单中的空字符串。
+    card: cipher.card ? {
+      cardholderName: cipher.card.cardholderName || null,
+      brand: cipher.card.brand || null,
+      number: cipher.card.number || null,
+      expMonth: cipher.card.expMonth || null,
+      expYear: cipher.card.expYear || null,
+      code: cipher.card.code || null
+    } : null,
     key: cipher.key || null,
     archivedDate: cipher.archivedDate || null,
     encryptedFor: cipher.encryptedFor || null

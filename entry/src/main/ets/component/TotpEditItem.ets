@@ -36,8 +36,9 @@ export struct TotpEditItem {
       return;
     }
 
-    const detail = error.message || error.code?.toString() || 'Unknown error';
-    AppToast.show(this.getUIContext(), $r('app.string.totp_import_failed', detail));
+    const detail = error.message || error.code?.toString();
+    AppToast.show(this.getUIContext(), detail ? $r('app.string.totp_import_failed', detail) :
+      $r('app.string.error_unknown'));
   }
 
   private isImportCancelled(error: BusinessError): boolean {

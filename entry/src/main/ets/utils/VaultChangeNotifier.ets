@@ -2,7 +2,8 @@ import { Cipher } from '../model/CipherModels';
 
 export enum VaultLocalChangeType {
   UPSERT = 0,
-  DELETE = 1
+  DELETE = 1,
+  RELOAD = 2
 }
 
 export interface VaultLocalChange {
@@ -16,6 +17,12 @@ let changeRevision: number = 0;
 const COMMITTED_CHANGE_REVISION_KEY = 'vaultCommittedChangeRevision';
 
 export class VaultChangeNotifier {
+  static setVaultReloadRequired(): void {
+    pendingChange = { type: VaultLocalChangeType.RELOAD };
+    changeRevision++;
+    VaultChangeNotifier.notifyCommittedChange();
+  }
+
   static initialize(): void {
     AppStorage.setOrCreate(COMMITTED_CHANGE_REVISION_KEY, 0);
   }
