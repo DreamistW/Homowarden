@@ -343,6 +343,23 @@ export struct SettingsPage {
               .padding({ top: 12, bottom: 12 })
 
               Row() {
+                Text($r('app.string.settings_registration'))
+                  .fontSize(16)
+
+                Blank()
+
+                Text($r('app.string.settings_registration_value'))
+                  .fontSize(16)
+                  .fontColor($r('app.color.brand_accent_color'))
+                  .decoration({ type: TextDecorationType.Underline })
+                  .onClick(() => {
+                    this.clickBeian();
+                  })
+              }
+              .width('100%')
+              .padding({ top: 12, bottom: 12 })
+
+              Row() {
                 Text($r('app.string.settings_author_email'))
                   .fontSize(16)
 
@@ -392,23 +409,6 @@ export struct SettingsPage {
               .onClick(() => {
                 this.logExportDialogController.open();
               })
-
-              Row() {
-                Text($r('app.string.settings_registration'))
-                  .fontSize(16)
-
-                Blank()
-
-                Text($r('app.string.settings_registration_value'))
-                  .fontSize(16)
-                  .fontColor($r('app.color.brand_accent_color'))
-                  .decoration({ type: TextDecorationType.Underline })
-                  .onClick(() => {
-                    this.clickBeian();
-                  })
-              }
-              .width('100%')
-              .padding({ top: 12, bottom: 12 })
 
               Row() {
                 Text($r('app.string.privacy_policy'))
