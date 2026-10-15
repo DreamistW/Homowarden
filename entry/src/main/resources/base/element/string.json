@@ -1,5 +1,7 @@
 {
   "string": [
+    {"name": "totp_search_placeholder", "value": "Search names or usernames"},
+    {"name": "totp_search_empty", "value": "No matching verification codes"},
     {"name": "login_error_rate_limited", "value": "Too many attempts. Wait a while before trying again."},
     {"name": "login_error_email_unverified", "value": "Verify your email using the server email, then try again."},
     {"name": "login_error_account_disabled", "value": "This account is disabled. Contact your server administrator."},

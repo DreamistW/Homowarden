@@ -16,6 +16,7 @@ export class TotpListViewModel {
   allCiphers: Cipher[] = [];
   // 筛选后的密码项
   filteredCiphers: Cipher[] = [];
+  private totpCiphers: Cipher[] = [];
   // 对称密钥
   symmetricKey: string = '';
   // 错误信息
@@ -82,7 +83,16 @@ export class TotpListViewModel {
       }
     }));
 
-    this.filteredCiphers = loginCiphers.filter(cipher => !!cipher.login?.totp);
+    this.totpCiphers = loginCiphers.filter(cipher => !!cipher.login?.totp);
+    this.filterCiphers('');
+  }
+
+  /** 仅匹配 TOTP 列表展示的名称和用户名，每次从完整列表筛选 */
+  filterCiphers(searchText: string): void {
+    const query = searchText.trim().toLowerCase();
+    this.filteredCiphers = this.totpCiphers.filter(cipher =>
+      !query || cipher.name.toLowerCase().includes(query) ||
+        (cipher.login?.username ?? '').toLowerCase().includes(query));
   }
 
   /**

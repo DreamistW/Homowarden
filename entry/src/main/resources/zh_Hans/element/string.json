@@ -835,6 +835,14 @@
       "value": "验证码"
     },
     {
+      "name": "totp_search_placeholder",
+      "value": "搜索名称或用户名"
+    },
+    {
+      "name": "totp_search_empty",
+      "value": "未找到匹配的验证码"
+    },
+    {
       "name": "totp_empty",
       "value": "暂无验证码"
     },
