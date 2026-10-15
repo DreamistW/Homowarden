@@ -6,6 +6,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { CredentialDatabase, CredentialSnapshot } from './CredentialDatabase';
 import { LegacyAssetSource, LegacyCredentialMigration } from './LegacyCredentialMigration';
 import { RefreshTokenResponse } from '../model/RefreshToken';
+import { QuickEntryManager } from './QuickEntryManager';
 import {
   AUTO_LOCK_TIMEOUT, BIOMETRIC_AUTH, EMAIL_KEY, LOGIN_STATUS_KEY,
   SERVER_ADDRESS_KEY, SERVER_TYPE_KEY, ServerType,
@@ -64,6 +65,7 @@ export class CredentialStore {
         Logger.warn('Login status preference mirror failed; database remains authoritative');
       }
       CredentialStore.database = database;
+      await QuickEntryManager.updateLoginState(database.readSync()?.loggedIn ?? false);
       Logger.info('Encrypted credential database ready');
     } catch (error) {
       // 只输出阶段、数值错误码；旧资产读取包装错误的内容也仅包含数值码。
@@ -128,6 +130,7 @@ export class CredentialStore {
     // 提交后重试清理旧版残留资产。
     await LegacyCredentialMigration.run(database, new LegacyAssetSource(), true, owner);
     CredentialStore.mirrorStatus(true);
+    await QuickEntryManager.updateLoginState(true);
     Logger.info('Login credentials committed to encrypted database');
   }
 
@@ -147,6 +150,7 @@ export class CredentialStore {
     values[EMAIL_KEY] = old.values[EMAIL_KEY] ?? '';
     await CredentialStore.getDatabase().replace(values, false, '', old.legacyCleaned);
     CredentialStore.mirrorStatus(false);
+    await QuickEntryManager.updateLoginState(false);
     try {
       DataPreferences.getInstance().putSync(BIOMETRIC_AUTH, 0);
       DataPreferences.getInstance().putSync(AUTO_LOCK_TIMEOUT, 0);
@@ -160,6 +164,7 @@ export class CredentialStore {
     const old = CredentialStore.readSnapshotSync();
     await CredentialStore.getDatabase().replace(old.values, false, old.owner, old.legacyCleaned);
     CredentialStore.mirrorStatus(false);
+    await QuickEntryManager.updateLoginState(false);
   }
 
   private static mirrorStatus(loggedIn: boolean): void {

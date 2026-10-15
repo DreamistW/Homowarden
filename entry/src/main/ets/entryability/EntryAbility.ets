@@ -13,6 +13,7 @@ import { SystemTrayManager } from '../utils/SystemTrayManager';
 import { FormFactorUtil } from '../utils/FormFactorUtil';
 import { LogExportService } from '../utils/LogExportService';
 import { CredentialStore } from '../utils/CredentialStore';
+import { QuickEntryManager } from '../utils/QuickEntryManager';
 
 const DOMAIN = 0x0000;
 const PC_MIN_WINDOW_WIDTH = 840;
@@ -31,6 +32,7 @@ export default class EntryAbility extends UIAbility {
     LocaleState.notifyChanged();
   }
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+    QuickEntryManager.handleWant(want);
     LogExportService.initialize(this.context);
     // 页面创建前先注册全局状态，确保后续 @StorageLink 可以稳定订阅
     LocaleState.initialize();
@@ -53,6 +55,10 @@ export default class EntryAbility extends UIAbility {
     } catch (err) {
       console.error(`Failed to init database. Error: ${JSON.stringify(err)}`);
     }
+  }
+
+  onNewWant(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+    QuickEntryManager.handleWant(want);
   }
 
   private async initializeGeneratorDatabase(): Promise<void> {

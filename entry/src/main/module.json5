@@ -32,6 +32,12 @@
         "launchType": "singleton",
         "exported": true,
         "removeMissionAfterTerminate": true,
+        "metadata": [
+          {
+            "name": "ohos.ability.shortcuts",
+            "resource": "$profile:shortcuts_config"
+          }
+        ],
         "skills": [
           {
             "entities": [

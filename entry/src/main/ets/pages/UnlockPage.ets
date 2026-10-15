@@ -23,6 +23,7 @@ import { DatabaseUtil } from '../utils/DatabaseUtil';
 import { GENERATOR_HISTORY_TABLE, GeneratorDatabaseUtil } from '../utils/GeneratorDatabaseUtil';
 import { VaultViewModel } from '../viewmodel/VaultViewModel';
 import { FormFactorUtil } from '../utils/FormFactorUtil';
+import { QuickEntryManager } from '../utils/QuickEntryManager';
 
 @Builder
 export function UnlockPageBuilder() {
@@ -254,6 +255,8 @@ export struct UnlockPage {
         } else {
           this.pathInfos.pop();
         }
+        // 解锁前可能停留在详情页，不能只依赖主页的 onActive 消费快捷入口。
+        setTimeout(() => QuickEntryManager.dispatchPending(), 0);
       } else {
         AppToast.show(this.getUIContext(), $r('app.string.unlock_wrong_password'));
         return;
@@ -322,6 +325,7 @@ export struct UnlockPage {
             } else {
               this.pathInfos.pop();
             }
+            setTimeout(() => QuickEntryManager.dispatchPending(), 0);
           } else {
             // 认证失败，显示提示
             AppToast.show(this.getUIContext(), $r('app.string.unlock_biometric_failed'));

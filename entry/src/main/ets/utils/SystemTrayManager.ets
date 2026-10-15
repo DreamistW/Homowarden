@@ -4,6 +4,7 @@ import { statusBarManager } from '@kit.DeskTopExtensionKit';
 import { image } from '@kit.ImageKit';
 import { window } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import { QuickEntryItem, QuickEntryManager, QUICK_ENTRY_PARAMETER } from './QuickEntryManager';
 
 const DOMAIN = 0x0000;
 const TAG = 'SystemTray';
@@ -37,6 +38,11 @@ export class SystemTrayManager {
     const data = eventData.data;
     if (data && data['menuCode'] === OPEN_MENU_CODE) {
       void SystemTrayManager.openMainWindow();
+    } else if (data && QuickEntryManager.isLoggedIn()) {
+      const item = QuickEntryManager.items.find((entry: QuickEntryItem) => entry.id === data['menuCode']);
+      if (item) {
+        void SystemTrayManager.openMainWindow(item.id);
+      }
     }
   };
 
@@ -76,6 +82,7 @@ export class SystemTrayManager {
         statusBarManager.on('statusBarIconClick', SystemTrayManager.iconClickCallback);
         statusBarManager.on('rightMenuClick', SystemTrayManager.rightMenuClickCallback);
         SystemTrayManager.isRegistered = true;
+        QuickEntryManager.registerLoginStateHandler(() => SystemTrayManager.updateQuickEntryMenu());
       }
 
       await SystemTrayManager.startKeepAliveAbility(context);
@@ -166,18 +173,6 @@ export class SystemTrayManager {
       await Promise.all([whiteImageSource.release(), blackImageSource.release()]);
     }
     const appName = resourceManager.getStringByNameSync('EntryAbility_label');
-    const openLabel = resourceManager.getStringByNameSync('tray_open');
-
-    const openAction: statusBarManager.StatusBarMenuAction = {
-      abilityName: ENTRY_ABILITY_NAME,
-      moduleName: ENTRY_MODULE_NAME,
-      notifyOnly: true
-    };
-    const openMenuItem: statusBarManager.StatusBarMenuItem = {
-      title: openLabel,
-      menuCode: OPEN_MENU_CODE,
-      menuAction: openAction
-    };
     const item: statusBarManager.StatusBarItem = {
       icons: {
         white: whitePixelMap,
@@ -189,7 +184,7 @@ export class SystemTrayManager {
         height: 1,
         moduleName: ENTRY_MODULE_NAME
       },
-      statusBarGroupMenu: [[openMenuItem]],
+      statusBarGroupMenu: SystemTrayManager.createMenu(context),
       hoverTips: appName
     };
 
@@ -197,10 +192,55 @@ export class SystemTrayManager {
     hilog.info(DOMAIN, TAG, 'Status bar icon added.');
   }
 
-  private static async openMainWindow(): Promise<void> {
+  private static createMenu(context: common.UIAbilityContext): statusBarManager.StatusBarGroupMenu[] {
+    const openItem = SystemTrayManager.createMenuItem(context, OPEN_MENU_CODE, 'tray_open');
+    const groups: statusBarManager.StatusBarGroupMenu[] = [[openItem]];
+    if (QuickEntryManager.isLoggedIn()) {
+      groups.push(QuickEntryManager.items.map((item: QuickEntryItem) => {
+        return SystemTrayManager.createMenuItem(context, item.id, item.label);
+      }));
+    }
+    return groups;
+  }
+
+  private static createMenuItem(context: common.UIAbilityContext, code: string,
+    label: string): statusBarManager.StatusBarMenuItem {
+    return {
+      title: context.resourceManager.getStringByNameSync(label),
+      menuCode: code,
+      menuAction: {
+        abilityName: ENTRY_ABILITY_NAME,
+        moduleName: ENTRY_MODULE_NAME,
+        notifyOnly: true
+      }
+    };
+  }
+
+  private static async updateQuickEntryMenu(): Promise<void> {
+    const context = SystemTrayManager.keepAliveContext ?? SystemTrayManager.fallbackContext;
+    if (!context || !SystemTrayManager.isRegistered) {
+      return;
+    }
+    try {
+      await new Promise<void>((resolve, reject) => {
+        statusBarManager.updateStatusBarMenu(context, SystemTrayManager.createMenu(context), (error) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve();
+          }
+        });
+      });
+    } catch (error) {
+      hilog.error(DOMAIN, TAG, 'Failed to update quick entry menu: %{public}s', JSON.stringify(error));
+    }
+  }
+
+  private static async openMainWindow(quickEntry?: string): Promise<void> {
     try {
       if (!SystemTrayManager.isKeepAliveReady && SystemTrayManager.mainWindow) {
         await SystemTrayManager.mainWindow.restore();
+        QuickEntryManager.request(quickEntry);
         hilog.info(DOMAIN, TAG, 'Main window restored from the status bar fallback.');
         return;
       }
@@ -215,6 +255,11 @@ export class SystemTrayManager {
         moduleName: ENTRY_MODULE_NAME,
         abilityName: ENTRY_ABILITY_NAME
       };
+      if (quickEntry) {
+        const parameters: Record<string, Object> = {};
+        parameters[QUICK_ENTRY_PARAMETER] = quickEntry;
+        want.parameters = parameters;
+      }
       await context.startAbility(want);
       hilog.info(DOMAIN, TAG, 'Main window opened from the status bar.');
     } catch (error) {
