@@ -195,19 +195,18 @@ struct Index {
     AntiPeepUtil.ensureDefaults();
     this.getLoginStatus();
     void WindowPrivacyUtil.applyForCurrentState();
-    this.getPrivacyStatus();
-    if (this.showPrivacyDialog) {
-      this.privacyDialogController.open();
+    // 隐私政策已接入托管，停用应用内首次启动弹窗。
+    // this.getPrivacyStatus();
+    // if (this.showPrivacyDialog) {
+    //   this.privacyDialogController.open();
+    // }
+    if (!this.isLogin) {
+      this.pathInfos.pushPath({ name: EntryRouter.LoginPage });
+    } else if (VaultViewModel.isSessionActive() && this.canRestoreUnlockedVault()) {
+      this.pathInfos.pushPath({ name: EntryRouter.VaultPage });
     } else {
-      this.getLoginStatus();
-      if (!this.isLogin) {
-        this.pathInfos.pushPath({ name: EntryRouter.LoginPage });
-      } else if (VaultViewModel.isSessionActive() && this.canRestoreUnlockedVault()) {
-        this.pathInfos.pushPath({ name: EntryRouter.VaultPage });
-      } else {
-        VaultViewModel.lockSession();
-        this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
-      }
+      VaultViewModel.lockSession();
+      this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
     }
   }
 
