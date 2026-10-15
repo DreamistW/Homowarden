@@ -15,6 +15,8 @@ export struct TotpListPage {
   @Prop @Watch('handleDataRevisionChanged') dataRevision: number = 0;
   onNavigateToDetail: (params: CipherDetailParams) => void = () => {};
   @State viewModel: TotpListViewModel = new TotpListViewModel();
+  @State searchText: string = '';
+  @State displayCiphers: Cipher[] = [];
   @State currentTime: number = Date.now();
   @State isLoading: boolean = true;
   @State passwordInput: string = '';
@@ -74,9 +76,15 @@ export struct TotpListPage {
     this.viewModel.allCiphers = this.ciphers;
     this.viewModel.symmetricKey = this.symmetricKey;
     await this.viewModel.loadLogins();
+    this.applyCurrentFilter();
     // 加载结束后记录当前修订号，避免普通页签切换重复解密同一批数据
     this.loadedRevision = this.dataRevision;
     this.isLoading = false;
+  }
+
+  private applyCurrentFilter(): void {
+    this.viewModel.filterCiphers(this.searchText);
+    this.displayCiphers = this.viewModel.filteredCiphers.slice();
   }
 
   private startTimer(): void {
@@ -150,6 +158,19 @@ export struct TotpListPage {
 
   build() {
     Column() {
+      Row() {
+        Search({ value: this.searchText, placeholder: $r('app.string.totp_search_placeholder') })
+          .id('totp_search')
+          .accessibilityText($r('app.string.totp_search_placeholder'))
+          .onChange((value: string) => {
+            this.searchText = value;
+            this.applyCurrentFilter();
+          })
+          .layoutWeight(1)
+      }
+      .width('100%')
+      .padding({ left: 16, right: 16, bottom: 8 })
+
       if (this.isLoading) {
         Column() {
           Text($r('app.string.common_loading'))
@@ -157,26 +178,26 @@ export struct TotpListPage {
             .fontColor('#666666')
         }
         .width('100%')
-        .height('100%')
+        .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
-      } else if (this.viewModel.filteredCiphers.length === 0) {
+      } else if (this.displayCiphers.length === 0) {
         Column() {
           Image($r('app.media.icon_key'))
             .width(80)
             .height(80)
             .fillColor('#CCCCCC')
             .margin({ bottom: 16 })
-          Text($r('app.string.totp_empty'))
+          Text(this.searchText.trim() ? $r('app.string.totp_search_empty') : $r('app.string.totp_empty'))
             .fontSize(16)
             .fontColor('#999999')
             .textAlign(TextAlign.Center)
         }
         .width('100%')
-        .height('100%')
+        .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
       } else {
         List({ space: 8 }) {
-          ForEach(this.viewModel.filteredCiphers, (cipher: Cipher) => {
+          ForEach(this.displayCiphers, (cipher: Cipher) => {
             ListItem() {
               TotpListItem({
                 cipher: cipher,
@@ -186,10 +207,9 @@ export struct TotpListPage {
                 }
               })
             }
-          })
+          }, (cipher: Cipher) => cipher.id)
         }
         .width('100%')
-        .height('100%')
         .layoutWeight(1)
         .padding({ left: 16, right: 16 })
         .contentEndOffset(this.bottomContentInset)
