@@ -39,6 +39,7 @@ export default class EntryAbility extends UIAbility {
     LocaleState.initialize();
     try {
       AppearanceUtil.initialize(this.context);
+      AppearanceUtil.startLanguageObserver();
     } catch (error) {
       hilog.error(DOMAIN, 'appearance', 'Failed to initialize appearance preferences: %{public}s', JSON.stringify(error));
     }
@@ -76,6 +77,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onDestroy(): void {
+    AppearanceUtil.stopLanguageObserver();
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onDestroy');
   }
 
@@ -184,6 +186,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onForeground(): void {
+    AppearanceUtil.syncSystemLanguage();
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onForeground');
   }
 

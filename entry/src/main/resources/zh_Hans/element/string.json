@@ -8,7 +8,6 @@
     {"name":"settings_language_english","value":"English","attr":{"translatable":false}},
     {"name":"settings_color_light","value":"浅色"},
     {"name":"settings_color_dark","value":"深色"},
-    {"name":"settings_language_system_restart","value":"重启应用后将跟随系统语言"},
     {"name":"transfer_import_title","value":"导入数据"},
     {"name":"transfer_export_title","value":"导出数据"},
     {"name":"transfer_format","value":"文件格式"},

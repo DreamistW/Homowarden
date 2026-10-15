@@ -1,7 +1,9 @@
 import { common, ConfigurationConstant } from '@kit.AbilityKit';
 import { preferences } from '@kit.ArkData';
 import { i18n } from '@kit.LocalizationKit';
+import { commonEventManager } from '@kit.BasicServicesKit';
 import { Logger } from '@nzy/logger';
+import { LocaleState } from '../localization/LocaleState';
 
 export enum InterfaceLanguage {
   SYSTEM = 0,
@@ -21,10 +23,12 @@ const COLOR_KEY = 'interface_color';
 /** 外观是设备上的应用偏好，不随账户退出而清除。 */
 export class AppearanceUtil {
   private static store?: preferences.Preferences;
+  private static languageSubscriber?: commonEventManager.CommonEventSubscriber;
 
   static initialize(context: common.Context): void {
     // 同步打开，保证窗口首次加载时就能读取上次的选择。
     AppearanceUtil.store = preferences.getPreferencesSync(context, { name: 'appearance' });
+    AppearanceUtil.syncSystemLanguage();
   }
 
   static getLanguage(): InterfaceLanguage {
@@ -39,10 +43,71 @@ export class AppearanceUtil {
 
   static async setLanguage(value: InterfaceLanguage): Promise<void> {
     const language = value === InterfaceLanguage.CHINESE ? 'zh-Hans' :
-      (value === InterfaceLanguage.ENGLISH ? 'en' : 'default');
-    // 系统持久化应用偏好语言；default 恢复跟随系统在下次冷启动生效。
-    i18n.System.setAppPreferredLanguage(language);
+      (value === InterfaceLanguage.ENGLISH ? 'en' : i18n.System.getSystemLanguage());
+    // default 需要冷启动；显式应用当前系统语言，同时独立保存 SYSTEM 选择以继续跟随。
+    AppearanceUtil.applyLanguage(language);
     await AppearanceUtil.savePreference(LANGUAGE_KEY, value);
+  }
+
+  static syncSystemLanguage(): void {
+    if (!AppearanceUtil.store || AppearanceUtil.getLanguage() !== InterfaceLanguage.SYSTEM) {
+      return;
+    }
+    try {
+      AppearanceUtil.applyLanguage(i18n.System.getSystemLanguage());
+    } catch (error) {
+      Logger.error(`Failed to follow system language: ${JSON.stringify(error)}`);
+    }
+  }
+
+  static startLanguageObserver(): void {
+    if (AppearanceUtil.languageSubscriber) {
+      return;
+    }
+    try {
+      const subscriber = commonEventManager.createSubscriberSync({
+        events: [commonEventManager.Support.COMMON_EVENT_LOCALE_CHANGED]
+      });
+      AppearanceUtil.languageSubscriber = subscriber;
+      commonEventManager.subscribe(subscriber, (error) => {
+        if (AppearanceUtil.languageSubscriber !== subscriber) {
+          return;
+        }
+        if (error) {
+          Logger.error(`Failed to observe system language: ${JSON.stringify(error)}`);
+          return;
+        }
+        AppearanceUtil.syncSystemLanguage();
+      });
+      AppearanceUtil.syncSystemLanguage();
+    } catch (error) {
+      AppearanceUtil.stopLanguageObserver();
+      Logger.error(`Failed to observe system language: ${JSON.stringify(error)}`);
+    }
+  }
+
+  static stopLanguageObserver(): void {
+    const subscriber = AppearanceUtil.languageSubscriber;
+    AppearanceUtil.languageSubscriber = undefined;
+    if (!subscriber) {
+      return;
+    }
+    try {
+      commonEventManager.unsubscribe(subscriber, (error) => {
+        if (error) {
+          Logger.error(`Failed to stop observing system language: ${JSON.stringify(error)}`);
+        }
+      });
+    } catch (error) {
+      Logger.error(`Failed to stop observing system language: ${JSON.stringify(error)}`);
+    }
+  }
+
+  private static applyLanguage(language: string): void {
+    if (language.length > 0 && i18n.System.getAppPreferredLanguage() !== language) {
+      i18n.System.setAppPreferredLanguage(language);
+      LocaleState.notifyChanged();
+    }
   }
 
   static async setColor(context: common.Context, value: InterfaceColor): Promise<void> {
