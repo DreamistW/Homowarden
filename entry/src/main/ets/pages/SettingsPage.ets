@@ -671,9 +671,6 @@ export struct SettingsPage {
       this.interfaceLanguage = value;
       // 通知已挂载的下拉框重新提交资源选项。
       LocaleState.notifyChanged();
-      if (value === InterfaceLanguage.SYSTEM) {
-        AppToast.show(this.getUIContext(), $r('app.string.settings_language_system_restart'));
-      }
     } catch (error) {
       Logger.error(`Failed to change interface language: ${JSON.stringify(error)}`);
       AppToast.show(this.getUIContext(), $r('app.string.error_save_failed'));

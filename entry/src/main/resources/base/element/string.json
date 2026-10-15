@@ -8,7 +8,6 @@
     {"name":"settings_language_english","value":"English","attr":{"translatable":false}},
     {"name":"settings_color_light","value":"Light"},
     {"name":"settings_color_dark","value":"Dark"},
-    {"name":"settings_language_system_restart","value":"Restart the app to follow the system language"},
     {"name":"transfer_import_title","value":"Import data"},
     {"name":"transfer_export_title","value":"Export data"},
     {"name":"transfer_format","value":"File format"},
