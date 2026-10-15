@@ -38,6 +38,8 @@ import { Logger } from '@nzy/logger';
 import { TOTPUtil } from '../utils/TOTPUtil';
 import { promptAction } from '@kit.ArkUI';
 import { FormFactorUtil } from '../utils/FormFactorUtil';
+import { QuickEntryManager } from '../utils/QuickEntryManager';
+import { AutoLockUtil } from '../utils/AutoLockUtil';
 
 const COMPACT_TAB_CONTENT_INSET = 104;
 
@@ -751,9 +753,43 @@ export struct VaultPage {
     }
     this.pathInfos.pop();
   };
+  private readonly quickEntryHandler = (): void => {
+    if (!CredentialStore.isLoggedInSync()) {
+      return;
+    }
+    if (!VaultViewModel.isSessionActive() || AutoLockUtil.hasTimedOut()) {
+      VaultViewModel.lockSession();
+      const names = this.pathInfos.getAllPathName();
+      if (names[names.length - 1] !== EntryRouter.UnlockPage) {
+        this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
+      }
+      return;
+    }
+    DetailLeaveGuard.requestLeave(() => {
+      // 确认放弃编辑可能异步返回；重新校验登录和锁定状态。
+      if (!CredentialStore.isLoggedInSync() || !VaultViewModel.isSessionActive() || AutoLockUtil.hasTimedOut()) {
+        return;
+      }
+      const tab = QuickEntryManager.consumePending();
+      if (tab === null) {
+        return;
+      }
+      const names = this.pathInfos.getAllPathName();
+      if (names[names.length - 1] !== EntryRouter.VaultPage) {
+        this.pathInfos.popToName(EntryRouter.VaultPage);
+      }
+      this.applyPendingSplitViewChange();
+      if (this.activeSplitView) {
+        this.showDetailPlaceholder();
+      }
+      this.selectedMainTab = tab;
+      this.tabsController.changeIndex(tab);
+    }, () => QuickEntryManager.clearPending());
+  };
 
   aboutToDisappear(): void {
     DetailRouter.unregisterCloseHandler(this.closeDetailHandler);
+    QuickEntryManager.unregisterNavigationHandler(this.quickEntryHandler);
   }
   historyBtn: HdsNavigationBadgeIconOptions = {
     content: {
@@ -1197,11 +1233,13 @@ export struct VaultPage {
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
       DetailRouter.registerCloseHandler(this.closeDetailHandler);
+      QuickEntryManager.registerNavigationHandler(this.quickEntryHandler);
     })
     .onActive(() => {
       // NavDestination 返回前台时通知密码库内容消费本地增删改
       this.vaultActivationRevision++;
       this.applyPendingSplitViewChange();
+      setTimeout(() => QuickEntryManager.dispatchPending(), 0);
     })
     .onAppear(() => {
       this.activeSplitView = this.isSplitView;

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <g transform="translate(128 128) scale(0.75)">
+  <defs>
+    <mask id="share_cutout">
+      <rect width="1024" height="1024" fill="#FFFFFF"/>
+      <g transform="translate(488 512) scale(1.6) translate(-540 -512)" fill="#000000">
+        <path d="M408 494 L648 342 A30 30 0 0 1 672 378 L432 530 A30 30 0 0 1 408 494 Z"/>
+        <path d="M408 530 L648 682 A30 30 0 0 1 672 646 L432 494 A30 30 0 0 1 408 530 Z"/>
+        <circle cx="420" cy="512" r="70"/>
+        <circle cx="660" cy="360" r="70"/>
+        <circle cx="660" cy="664" r="70"/>
+      </g>
+    </mask>
+  </defs>
+  <circle cx="512" cy="512" r="470" fill="#333333" mask="url(#share_cutout)"/>
+  </g>
+</svg>

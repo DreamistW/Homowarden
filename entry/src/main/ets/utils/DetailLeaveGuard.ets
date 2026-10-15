@@ -17,7 +17,7 @@ export class DetailLeaveGuard {
     }
   }
 
-  static requestLeave(onLeave: () => void): void {
+  static requestLeave(onLeave: () => void, onStay?: () => void): void {
     if (DetailLeaveGuard.isRequesting) {
       return;
     }
@@ -29,6 +29,7 @@ export class DetailLeaveGuard {
         onLeave();
       }, () => {
         DetailLeaveGuard.isRequesting = false;
+        onStay?.();
       });
       return;
     }
