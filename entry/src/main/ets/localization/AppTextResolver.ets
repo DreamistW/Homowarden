@@ -4,6 +4,23 @@ import { AppText, AppTextKey } from './AppText';
 export class AppTextResolver {
   static resource(text: AppText): Resource {
     switch (text.key) {
+      case AppTextKey.RATE_LIMITED:
+        return $r('app.string.login_error_rate_limited');
+      case AppTextKey.EMAIL_UNVERIFIED:
+        return $r('app.string.login_error_email_unverified');
+      case AppTextKey.ACCOUNT_DISABLED:
+        return $r('app.string.login_error_account_disabled');
+      case AppTextKey.SSO_REQUIRED:
+        return $r('app.string.login_error_sso_required');
+      case AppTextKey.ACCOUNT_MIGRATION_REQUIRED:
+        return $r('app.string.login_error_account_migration_required');
+      case AppTextKey.CLIENT_VERSION_UNSUPPORTED:
+        return $r('app.string.login_error_client_version');
+      case AppTextKey.ACCESS_RESTRICTED:
+        return $r('app.string.login_error_access_restricted');
+      case AppTextKey.KDF_RESOURCES_UNAVAILABLE:
+        return $r('app.string.login_error_kdf_resources');
+
       case AppTextKey.NETWORK_ERROR:
         return $r('app.string.error_network');
       case AppTextKey.TIMEOUT_ERROR:

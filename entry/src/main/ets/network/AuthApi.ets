@@ -7,13 +7,14 @@ import { AccessTokenRequest, AccessTokenResponse } from '../model/AccessToken';
 import { RefreshTokenRequest, RefreshTokenResponse } from '../model/RefreshToken';
 import { ResendNewDeviceOtpRequest, SendEmailLoginRequest } from '../model/SendEmailLogin';
 import { getServerEndpoints } from './ServerEndpointResolver';
+import { AUTH_TIMEOUT_MS, AuthProtocolUtil } from '../utils/AuthProtocolUtil';
 
 
 // 预登录接口
 export async function prelogin(request: PreloginRequest): Promise<PreloginResponse> {
   const endpoints = await getServerEndpoints();
   const baseURL = endpoints.identityBaseUrl;
-  const client = createHttpClient(baseURL);
+  const client = createHttpClient(baseURL, { timeout: AUTH_TIMEOUT_MS });
   return client.post(
     '/accounts/prelogin',
     request,
@@ -37,7 +38,7 @@ export async function prelogin(request: PreloginRequest): Promise<PreloginRespon
 export async function accessToken(request: AccessTokenRequest): Promise<AccessTokenResponse> {
   const endpoints = await getServerEndpoints();
   const baseURL = endpoints.identityBaseUrl;
-  const client = createHttpClient(baseURL);
+  const client = createHttpClient(baseURL, { timeout: AUTH_TIMEOUT_MS });
 
   let fields = [
     'scope',
@@ -69,7 +70,7 @@ export async function accessToken(request: AccessTokenRequest): Promise<AccessTo
         'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
         // auth-email 仅做协议要求的 Base64 编码，不代表对邮箱进行了加密
         'auth-email': encodeStringToBase64(request.username),
-        'origin': endpoints.vaultBaseUrl
+        'origin': AuthProtocolUtil.origin(endpoints.vaultBaseUrl)
       }
     })
     .then((response: AxiosResponse<AccessTokenResponse>) => {
@@ -85,7 +86,7 @@ export async function accessToken(request: AccessTokenRequest): Promise<AccessTo
 export async function refreshToken(request: RefreshTokenRequest): Promise<RefreshTokenResponse> {
   const endpoints = await getServerEndpoints();
   const baseURL = endpoints.identityBaseUrl;
-  const client = createHttpClient(baseURL);
+  const client = createHttpClient(baseURL, { timeout: AUTH_TIMEOUT_MS });
 
   let fields = [
     'grant_type',
@@ -113,10 +114,10 @@ export async function refreshToken(request: RefreshTokenRequest): Promise<Refres
 export async function sendEmailLogin(request: SendEmailLoginRequest): Promise<boolean> {
   const endpoints = await getServerEndpoints();
   const baseURL = endpoints.apiBaseUrl;
-  const client = createHttpClient(baseURL);
+  const client = createHttpClient(baseURL, { timeout: AUTH_TIMEOUT_MS });
   return client.post('/two-factor/send-email-login', request, {
     headers: {
-      'origin': endpoints.vaultBaseUrl,
+      'origin': AuthProtocolUtil.origin(endpoints.vaultBaseUrl),
       'Content-Type': 'application/json',
     }
   }).then((response: AxiosResponse) => {
@@ -130,13 +131,18 @@ export async function sendEmailLogin(request: SendEmailLoginRequest): Promise<bo
   })
 }
 
-export async function resendNewDeviceOtp(request: ResendNewDeviceOtpRequest): Promise<boolean> {
+export async function resendNewDeviceOtp(request: ResendNewDeviceOtpRequest,
+  deviceIdentifier: string): Promise<boolean> {
+  if (!deviceIdentifier) {
+    throw new Error('Missing device identifier');
+  }
   const endpoints = await getServerEndpoints();
   const baseURL = endpoints.apiBaseUrl;
-  const client = createHttpClient(baseURL);
+  const client = createHttpClient(baseURL, { timeout: AUTH_TIMEOUT_MS });
   return client.post('/accounts/resend-new-device-otp', request, {
     headers: {
-      'origin': endpoints.vaultBaseUrl,
+      'origin': AuthProtocolUtil.origin(endpoints.vaultBaseUrl),
+      'Device-Identifier': deviceIdentifier,
       'Content-Type': 'application/json',
     }
   }).then((response: AxiosResponse) => {

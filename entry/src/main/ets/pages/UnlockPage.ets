@@ -263,7 +263,8 @@ export struct UnlockPage {
       }
     } catch (error) {
       Logger.error(`Master password verification failed: ${error}`);
-      AppToast.show(this.getUIContext(), $r('app.string.unlock_verification_failed'));
+      AppToast.show(this.getUIContext(), (error as Error).message === 'argon2_resources_unavailable' ?
+        $r('app.string.login_error_kdf_resources') : $r('app.string.unlock_verification_failed'));
       return;
     }
   }

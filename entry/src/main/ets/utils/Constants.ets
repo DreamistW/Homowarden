@@ -63,6 +63,7 @@ export const KDF_PARAM_KEY = 'kdf_param';
 
 export const Header_Client_Name = 'mobile';
 
+// Bitwarden 协议兼容版本，不是应用发行版本；新协议回归通过后才调整。
 export const Header_Client_Version = '2025.12.1';
 
 export const SCOPE_KEY = 'api offline_access';

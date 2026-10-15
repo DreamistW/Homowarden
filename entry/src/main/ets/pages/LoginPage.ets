@@ -414,6 +414,11 @@ export struct LoginPage {
             .fontSize(14)
             .fontColor(Color.Red)
             .margin(12)
+          Text(this.viewModel.serverType === ServerType.US ? $r('app.string.login_region_us') :
+            this.viewModel.serverType === ServerType.EU ? $r('app.string.login_region_eu') :
+              $r('app.string.login_region_self_hosted'))
+            .fontSize(12)
+            .fontColor(Color.Gray)
           if (this.feedbackVisible) {
             this.feedbackEntry()
           }
@@ -533,6 +538,7 @@ export struct LoginPage {
       const context = this.getUIContext().getHostContext() as common.Context;
       const passkeyResult = await this.viewModel.performPasskeyTwoFactor(context);
       if (!passkeyResult) {
+        this.syncVerificationDialogs();
         this.twoFactorInputError = true;
         this.feedbackVisible = true;
         this.twoFactorInputHint = AppTextResolver.resource(this.viewModel.errorMessage ??
@@ -550,6 +556,7 @@ export struct LoginPage {
     }
     const result = await this.viewModel.continueLogin();
     if (!result) {
+      this.syncVerificationDialogs();
       this.twoFactorInputError = true;
       this.feedbackVisible = true;
       this.twoFactorInputHint = AppTextResolver.resource(this.viewModel.errorMessage ??
@@ -586,6 +593,7 @@ export struct LoginPage {
     }
     const result = await this.viewModel.continueLogin();
     if (!result) {
+      this.syncVerificationDialogs();
       this.twoFactorInputError = true;
       this.feedbackVisible = true;
       this.twoFactorInputHint = AppTextResolver.resource(this.viewModel.errorMessage ??
@@ -596,6 +604,28 @@ export struct LoginPage {
     this.isNeedNewDevice = false;
     this.newDeviceDialogController.close();
     await this.navigateToVault();
+  }
+
+  private syncVerificationDialogs(): void {
+    this.updateUI();
+    if (this.viewModel.needTwoFactor) {
+      if (!this.prepareTwoFactorDialog()) {
+        this.twoFactorDialogController.close();
+        this.newDeviceDialogController.close();
+        this.isNeed2FA = false;
+        this.isNeedNewDevice = false;
+      } else if (!this.isNeed2FA) {
+        this.newDeviceDialogController.close();
+        this.isNeedNewDevice = false;
+        this.isNeed2FA = true;
+        this.twoFactorDialogController.open();
+      }
+    } else if (this.viewModel.needNewDevice && !this.isNeedNewDevice) {
+      this.twoFactorDialogController.close();
+      this.isNeed2FA = false;
+      this.isNeedNewDevice = true;
+      this.newDeviceDialogController.open();
+    }
   }
 
   private prepareTwoFactorDialog(): boolean {

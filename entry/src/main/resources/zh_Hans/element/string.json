@@ -1,5 +1,17 @@
 {
   "string": [
+    {"name": "login_error_rate_limited", "value": "请求过于频繁，请稍后再试。"},
+    {"name": "login_error_email_unverified", "value": "请先通过服务端邮件验证邮箱，再尝试登录。"},
+    {"name": "login_error_account_disabled", "value": "此账号已被禁用，请联系服务器管理员。"},
+    {"name": "login_error_sso_required", "value": "此账号需要单点登录（SSO），请使用官方客户端登录。"},
+    {"name": "login_error_account_migration_required", "value": "请先在官方客户端完成账号恢复或加密迁移，再尝试登录。"},
+    {"name": "login_error_client_version", "value": "服务器不接受此客户端协议版本，请更新 Homowarden 或使用官方客户端。"},
+    {"name": "login_error_access_restricted", "value": "服务器限制访问或要求浏览器验证，请检查网络或联系服务器管理员。"},
+    {"name": "login_error_kdf_resources", "value": "设备无法为此账号的加密参数分配足够资源，请关闭其他应用后重试或使用其他设备。"},
+    {"name": "login_region_us", "value": "当前服务器：Bitwarden US（bitwarden.com）"},
+    {"name": "login_region_eu", "value": "当前服务器：Bitwarden EU（bitwarden.eu）"},
+    {"name": "login_region_self_hosted", "value": "当前服务器：自托管，请确认地址与账号所属服务器一致。"},
+
     { "name": "http_request_failed", "value": "发送请求失败: %s" },
     { "name": "common_retry", "value": "重试" },
     {"name":"login_error_password_reset_required","value":"请先在官方客户端完成主密码重置，再重试登录"},
@@ -284,7 +296,7 @@
     },
     {
       "name": "login_code_sent",
-      "value": "验证码已发送"
+      "value": "重发请求已受理；若账号信息正确，请检查邮箱及垃圾邮件。"
     },
     {
       "name": "login_provider_passkey",

@@ -16,32 +16,42 @@ export const DECRYPTION_UNSUPPORTED = 'account_decryption_unsupported';
 export class LoginResponseUtil {
   static normalize(response: AccessTokenResponse, authentication: KdfParameters,
     email: string): LoginDecryptionMaterial {
-    if (response.ForcePasswordReset === true) {
+    if (response.ForcePasswordReset === true || response.forcePasswordReset === true) {
       throw new Error(PASSWORD_RESET_REQUIRED);
     }
     if (!response.access_token || !response.refresh_token || !Number.isFinite(response.expires_in) ||
       response.expires_in <= 0) {
       throw new Error('Invalid password token response');
     }
-    const options = response.UserDecryptionOptions;
-    const unlock = options?.MasterPasswordUnlock;
+    const options = response.userDecryptionOptions ?? response.UserDecryptionOptions;
+    const unlock = options?.masterPasswordUnlock ?? options?.MasterPasswordUnlock;
     let params = authentication;
-    let userKey = response.Key ?? '';
+    let userKey = response.key ?? response.Key ?? '';
     if (unlock) {
+      const kdf = unlock.kdf ?? unlock.Kdf;
       params = KdfUtil.normalize({
         kdfSettings: {
-          kdfType: unlock.Kdf?.KdfType,
-          iterations: unlock.Kdf?.Iterations,
-          memory: unlock.Kdf?.Memory,
-          parallelism: unlock.Kdf?.Parallelism
+          kdfType: kdf?.kdfType ?? kdf?.KdfType ?? -1,
+          iterations: kdf?.iterations ?? kdf?.Iterations ?? -1,
+          memory: kdf?.memory ?? kdf?.Memory,
+          parallelism: kdf?.parallelism ?? kdf?.Parallelism
         },
-        salt: unlock.Salt
+        salt: unlock.salt ?? unlock.Salt
       }, email);
-      userKey = unlock.MasterKeyEncryptedUserKey;
-    } else if (options && options.HasMasterPassword !== true) {
+      // wrapped 是标准名；存在但无效时拒绝，不能回退到旧字段绕过校验。
+      if (unlock.masterKeyWrappedUserKey !== undefined) {
+        userKey = unlock.masterKeyWrappedUserKey;
+      } else if (unlock.MasterKeyWrappedUserKey !== undefined) {
+        userKey = unlock.MasterKeyWrappedUserKey;
+      } else {
+        userKey = unlock.masterKeyEncryptedUserKey ?? unlock.MasterKeyEncryptedUserKey ?? '';
+      }
+    } else if (options && (options.hasMasterPassword ?? options.HasMasterPassword) !== true) {
       throw new Error(DECRYPTION_UNSUPPORTED);
     }
-    const privateKey = response.AccountKeys?.publicKeyEncryptionKeyPair?.wrappedPrivateKey ?? response.PrivateKey;
+    const accountKeys = response.accountKeys ?? response.AccountKeys;
+    const pair = accountKeys?.publicKeyEncryptionKeyPair ?? accountKeys?.PublicKeyEncryptionKeyPair;
+    const privateKey = pair?.wrappedPrivateKey ?? pair?.WrappedPrivateKey ?? response.privateKey ?? response.PrivateKey;
     if (!LoginResponseUtil.isSupportedEncryptedString(userKey) ||
       (privateKey !== undefined && privateKey !== null && privateKey.length > 0 &&
         !LoginResponseUtil.isSupportedEncryptedString(privateKey))) {

@@ -1,5 +1,14 @@
 /** 可跨 ViewModel 和 UI 层传递的本地化文案键 */
 export enum AppTextKey {
+  RATE_LIMITED = 'login_error_rate_limited',
+  EMAIL_UNVERIFIED = 'login_error_email_unverified',
+  ACCOUNT_DISABLED = 'login_error_account_disabled',
+  SSO_REQUIRED = 'login_error_sso_required',
+  ACCOUNT_MIGRATION_REQUIRED = 'login_error_account_migration_required',
+  CLIENT_VERSION_UNSUPPORTED = 'login_error_client_version',
+  ACCESS_RESTRICTED = 'login_error_access_restricted',
+  KDF_RESOURCES_UNAVAILABLE = 'login_error_kdf_resources',
+
   UNKNOWN_ERROR = 'error_unknown',
   NETWORK_ERROR = 'error_network',
   TIMEOUT_ERROR = 'error_timeout',

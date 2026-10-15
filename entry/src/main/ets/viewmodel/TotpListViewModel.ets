@@ -124,7 +124,8 @@ export class TotpListViewModel {
       }
     } catch (error) {
       Logger.error(`Master password verification failed: ${error}`);
-      this.errorMessage = new AppText(AppTextKey.VERIFICATION_FAILED);
+      this.errorMessage = new AppText((error as Error).message === 'argon2_resources_unavailable' ?
+        AppTextKey.KDF_RESOURCES_UNAVAILABLE : AppTextKey.VERIFICATION_FAILED);
       return false;
     }
   }
