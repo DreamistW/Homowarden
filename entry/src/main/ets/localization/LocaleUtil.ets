@@ -1,10 +1,11 @@
 import { i18n } from '@kit.LocalizationKit';
 import { PRIVACY_POLICY_URL_EN, PRIVACY_POLICY_URL_ZH } from '../utils/Constants';
 
-/** 提供与当前系统语言相关的请求头、日期和姓名格式化能力 */
+/** 请求头、日期和姓名格式跟随应用的实际语言。 */
 export class LocaleUtil {
   static getLanguage(): string {
-    const language: string = i18n.System.getSystemLanguage();
+    const preferred: string = i18n.System.getAppPreferredLanguage();
+    const language: string = preferred && preferred !== 'default' ? preferred : i18n.System.getSystemLanguage();
     return language.length > 0 ? language : 'en';
   }
 

@@ -30,6 +30,8 @@ import { FormFactorUtil } from '../utils/FormFactorUtil';
 import { LogExportDialog } from '../component/LogExportDialog';
 import { VaultTransferDialog } from '../component/VaultTransferDialog';
 import { LocaleUtil } from '../localization/LocaleUtil';
+import { LocaleState } from '../localization/LocaleState';
+import { AppearanceUtil, InterfaceColor, InterfaceLanguage } from '../utils/AppearanceUtil';
 
 @Component
 export struct SettingsPage {
@@ -41,6 +43,9 @@ export struct SettingsPage {
   @State screenCaptureProtectionEnabled: boolean = true;
   @State antiPeepProtectionEnabled: boolean = false;
   @State syncEnabled: boolean = true;
+  @State interfaceLanguage: InterfaceLanguage = InterfaceLanguage.SYSTEM;
+  @State interfaceColor: InterfaceColor = InterfaceColor.SYSTEM;
+  @State appearanceChanging: boolean = false;
   onLockVault: () => void = () => {};
   onLogout: () => void = () => {};
   @State versionName: string = '1.0.0';
@@ -113,6 +118,8 @@ export struct SettingsPage {
   }
 
   private refreshSettings(): void {
+    this.interfaceLanguage = AppearanceUtil.getLanguage();
+    this.interfaceColor = AppearanceUtil.getColor();
     this.getVersionName();
     this.loadBiometricAuthStatus();
     this.loadAutoLockStatus();
@@ -148,6 +155,55 @@ export struct SettingsPage {
     Column() {
         Scroll() {
           Column() {
+            // 外观设置
+            Column() {
+              Text($r('app.string.settings_appearance'))
+                .fontSize(16)
+                .fontWeight(FontWeight.Medium)
+                .margin({ bottom: 12 })
+
+              Row() {
+                Text($r('app.string.settings_interface_language'))
+                  .fontSize(16)
+                Blank()
+                Column() {
+                  AppDropdown({
+                    options: AppOptionFactory.interfaceLanguages(),
+                    value: this.interfaceLanguage,
+                    disabled: this.appearanceChanging,
+                    accessibilityLabel: $r('app.string.settings_interface_language'),
+                    onChange: (value: number) => { void this.changeInterfaceLanguage(value); }
+                  })
+                }
+                .id('settings_interface_language')
+                .width(160)
+              }
+              .width('100%')
+              .padding({ top: 12, bottom: 12 })
+
+              Row() {
+                Text($r('app.string.settings_interface_color'))
+                  .fontSize(16)
+                Blank()
+                Column() {
+                  AppDropdown({
+                    options: AppOptionFactory.interfaceColors(),
+                    value: this.interfaceColor,
+                    disabled: this.appearanceChanging,
+                    accessibilityLabel: $r('app.string.settings_interface_color'),
+                    onChange: (value: number) => { void this.changeInterfaceColor(value); }
+                  })
+                }
+                .id('settings_interface_color')
+                .width(160)
+              }
+              .width('100%')
+              .padding({ top: 12, bottom: 12 })
+            }
+            .width('100%')
+            .padding(16)
+            .margin({ bottom: 8 })
+
             // 安全设置
             Column() {
               Text($r('app.string.settings_security'))
@@ -603,6 +659,44 @@ export struct SettingsPage {
 
   private handleLocaleRevision(): void {
     this.loadServerAddress();
+  }
+
+  private async changeInterfaceLanguage(value: InterfaceLanguage): Promise<void> {
+    if (value === this.interfaceLanguage || this.appearanceChanging) {
+      return;
+    }
+    try {
+      this.appearanceChanging = true;
+      await AppearanceUtil.setLanguage(value);
+      this.interfaceLanguage = value;
+      // 通知已挂载的下拉框重新提交资源选项。
+      LocaleState.notifyChanged();
+      if (value === InterfaceLanguage.SYSTEM) {
+        AppToast.show(this.getUIContext(), $r('app.string.settings_language_system_restart'));
+      }
+    } catch (error) {
+      Logger.error(`Failed to change interface language: ${JSON.stringify(error)}`);
+      AppToast.show(this.getUIContext(), $r('app.string.error_save_failed'));
+    } finally {
+      this.appearanceChanging = false;
+    }
+  }
+
+  private async changeInterfaceColor(value: InterfaceColor): Promise<void> {
+    if (value === this.interfaceColor || this.appearanceChanging) {
+      return;
+    }
+    try {
+      this.appearanceChanging = true;
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      await AppearanceUtil.setColor(context, value);
+      this.interfaceColor = value;
+    } catch (error) {
+      Logger.error(`Failed to change interface color: ${JSON.stringify(error)}`);
+      AppToast.show(this.getUIContext(), $r('app.string.error_save_failed'));
+    } finally {
+      this.appearanceChanging = false;
+    }
   }
 
   private getServerAddressText(serverType: ServerType, serverAddress: string): string {

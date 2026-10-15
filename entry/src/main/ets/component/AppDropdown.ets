@@ -1,8 +1,26 @@
 import { AppDropdownOption } from '../model/AppUiModels';
 
+/** 对两个无障碍文本重载分别收窄类型，同时保留语言资源引用。 */
+class DropdownAccessibilityModifier implements AttributeModifier<SelectAttribute> {
+  private label: ResourceStr;
+
+  constructor(label: ResourceStr) {
+    this.label = label;
+  }
+
+  applyNormalAttribute(attribute: SelectAttribute): void {
+    if (typeof this.label === 'string') {
+      attribute.accessibilityText(this.label);
+    } else {
+      attribute.accessibilityText(this.label);
+    }
+  }
+}
+
 /** 将业务选项适配为 ArkUI Select，并统一处理资源文本和无障碍文本 */
 @Component
 export struct AppDropdown {
+  @StorageLink('localeRevision') localeRevision: number = 0;
   @Prop options: AppDropdownOption[] = [];
   @Prop value: number = 0;
   @Prop disabled: boolean = false;
@@ -16,47 +34,29 @@ export struct AppDropdown {
     return index < 0 ? 0 : index;
   }
 
-  private selectOptions(): SelectOption[] {
+  private selectOptions(_revision: number): SelectOption[] {
     const result: SelectOption[] = [];
     for (const option of this.options) {
-      const selectOption: SelectOption = { value: this.resolveOptionText(option) };
+      // 保留资源引用，让 ArkUI 跟随应用语言解析，包含资源自身的格式化参数。
+      const selectOption: SelectOption = { value: option.text };
       result.push(selectOption);
     }
     return result;
   }
 
-  private resolveOptionText(option: AppDropdownOption): string {
-    if (typeof option.text === 'string') {
-      return option.text;
-    }
-    if (option.formatValue !== undefined) {
-      // 带数量的资源必须传入格式化参数，不能只按资源 ID 读取模板
-      return this.getUIContext().getHostContext()?.resourceManager.getStringSync(option.text.id,
-        option.formatValue) ?? '';
-    }
-    return this.getUIContext().getHostContext()?.resourceManager.getStringSync(option.text) ?? '';
-  }
-
-  private selectedText(): string {
+  private selectedText(_revision: number): ResourceStr {
     const index = this.selectedIndex();
     const option = this.options[index];
     if (option === undefined) {
       return '';
     }
-    return this.resolveOptionText(option);
-  }
-
-  private resolvedAccessibilityLabel(): string {
-    if (typeof this.accessibilityLabel === 'string') {
-      return this.accessibilityLabel;
-    }
-    return this.getUIContext().getHostContext()?.resourceManager.getStringSync(this.accessibilityLabel) ?? '';
+    return option.text;
   }
 
   build() {
-    Select(this.selectOptions())
+    Select(this.selectOptions(this.localeRevision))
       .selected(this.selectedIndex())
-      .value(this.selectedText())
+      .value(this.selectedText(this.localeRevision))
       .font({ size: 14, weight: FontWeight.Regular })
       .selectedOptionFont({ size: this.optionFontSize, weight: FontWeight.Regular })
       .selectedOptionFontColor($r('app.color.brand_accent_color'))
@@ -66,7 +66,7 @@ export struct AppDropdown {
       .enabled(!this.disabled)
       .width('100%')
       .height(40)
-      .accessibilityText(this.resolvedAccessibilityLabel())
+      .attributeModifier(new DropdownAccessibilityModifier(this.accessibilityLabel))
       .onSelect((index: number) => {
         // 对外回传稳定业务值，调用方不依赖选项顺序
         const option = this.options[index];
