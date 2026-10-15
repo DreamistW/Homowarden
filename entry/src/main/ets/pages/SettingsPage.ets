@@ -28,6 +28,7 @@ import { AppOptionFactory } from '../localization/AppOptionFactory';
 import { AutoLockUtil } from '../utils/AutoLockUtil';
 import { FormFactorUtil } from '../utils/FormFactorUtil';
 import { LogExportDialog } from '../component/LogExportDialog';
+import { VaultTransferDialog } from '../component/VaultTransferDialog';
 import { LocaleUtil } from '../localization/LocaleUtil';
 
 @Component
@@ -69,6 +70,23 @@ export struct SettingsPage {
     alignment: DialogAlignment.Center,
     customStyle: false
   });
+  private importDialogController: CustomDialogController = new CustomDialogController({
+    builder: VaultTransferDialog({ importing: true }),
+    autoCancel: false,
+    alignment: DialogAlignment.Center,
+    customStyle: false
+  });
+  private exportDialogController: CustomDialogController = new CustomDialogController({
+    builder: VaultTransferDialog({ importing: false }),
+    autoCancel: false,
+    alignment: DialogAlignment.Center,
+    customStyle: false
+  });
+
+  aboutToDisappear(): void {
+    this.importDialogController.close();
+    this.exportDialogController.close();
+  }
 
   private showConfirm(title: ResourceStr, message: ResourceStr, action: () => void): void {
     this.confirmTitle = title;
@@ -88,6 +106,9 @@ export struct SettingsPage {
     if (this.isActive) {
       // Tabs 页面重新激活时不会重建组件，需要主动同步可能由其他页面修改的设置
       this.refreshSettings();
+    } else {
+      this.importDialogController.close();
+      this.exportDialogController.close();
     }
   }
 
@@ -392,6 +413,34 @@ export struct SettingsPage {
               }
               .width('100%')
               .padding({ top: 12, bottom: 12 })
+
+              Row() {
+                Text($r('app.string.transfer_import_title'))
+                  .fontSize(16)
+                Blank()
+                Text('›')
+                  .fontSize(22)
+                  .fontColor($r('app.color.brand_accent_color'))
+              }
+              .id('settings_import_data')
+              .width('100%')
+              .padding({ top: 12, bottom: 12 })
+              .accessibilityText($r('app.string.transfer_import_title'))
+              .onClick(() => { this.importDialogController.open(); })
+
+              Row() {
+                Text($r('app.string.transfer_export_title'))
+                  .fontSize(16)
+                Blank()
+                Text('›')
+                  .fontSize(22)
+                  .fontColor($r('app.color.brand_accent_color'))
+              }
+              .id('settings_export_data')
+              .width('100%')
+              .padding({ top: 12, bottom: 12 })
+              .accessibilityText($r('app.string.transfer_export_title'))
+              .onClick(() => { this.exportDialogController.open(); })
 
               Row() {
                 Text($r('app.string.log_export_action'))

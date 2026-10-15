@@ -36,6 +36,7 @@ export class VaultViewModel {
   private static syncGeneration: number = 0;
   private static syncBlocked: boolean = false;
   private static sessionActive: boolean = false;
+  private static sessionRevision: number = 0;
   // 所有密码项
   allCiphers: Cipher[] = [];
   // 筛选后的密码项
@@ -127,6 +128,7 @@ export class VaultViewModel {
   }
 
   static async prepareForLogout(): Promise<void> {
+    VaultViewModel.sessionRevision++;
     VaultViewModel.sessionActive = false;
     VaultViewModel.syncBlocked = true;
     VaultViewModel.syncGeneration++;
@@ -141,6 +143,7 @@ export class VaultViewModel {
   }
 
   static beginSession(): void {
+    VaultViewModel.sessionRevision++;
     VaultViewModel.sessionActive = true;
     VaultViewModel.syncBlocked = false;
     VaultViewModel.syncGeneration++;
@@ -148,7 +151,12 @@ export class VaultViewModel {
   }
 
   static lockSession(): void {
+    VaultViewModel.sessionRevision++;
     VaultViewModel.sessionActive = false;
+  }
+
+  static getSessionRevision(): number {
+    return VaultViewModel.sessionRevision;
   }
 
   static isSessionActive(): boolean {
