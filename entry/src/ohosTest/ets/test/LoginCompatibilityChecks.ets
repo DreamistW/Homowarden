@@ -71,6 +71,17 @@ export async function runLoginCompatibilityChecks(): Promise<void> {
   const pbkdf2Key = await CryptoUtil.deriveMasterKey('asdfasdf', legacy);
   const pbkdf2Hash = await CryptoUtil.deriveKeyPBKDF2SingleIteration(base64.decodeSync(pbkdf2Key), 'asdfasdf');
   check(pbkdf2Hash === 'wmyadRMyBZOH7P/a/ucTCbSghKgdzDpPqUnu/DAVtSw=', 'official PBKDF2 vector');
+  // 请求远超真实设备可用内存，但在原生分配前拒绝；失败不能堵塞后续派生队列。
+  let resourceRejected = false;
+  try {
+    await CryptoUtil.deriveKeyArgon2id('public-test', 'test_salt', 1, 4194303, 1);
+  } catch (error) {
+    resourceRejected = (error as Error).message === 'argon2_resources_unavailable';
+    if (!resourceRejected) {
+      throw new Error(`Argon2 public-input resource check: ${(error as Error).message}`);
+    }
+  }
+  check(resourceRejected, 'Argon2 memory preflight');
   const argonKey = await CryptoUtil.deriveMasterKey('asdfasdf', modern);
   const argonHash = await CryptoUtil.deriveKeyPBKDF2SingleIteration(base64.decodeSync(argonKey), 'asdfasdf');
   check(argonHash === 'PR6UjYmjmppTYcdyTiNbAhPJuQQOmynKbdEl1oyi/iQ=', 'official Argon2id vector');

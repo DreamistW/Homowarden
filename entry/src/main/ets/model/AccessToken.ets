@@ -27,33 +27,51 @@ export interface AccessTokenResponse {
   UserDecryptionOptions?: UserDecryptionOptions | null;
   AccountKeys?: AccountKeys | null;
   ForcePasswordReset?: boolean;
+  forcePasswordReset?: boolean;
+  userDecryptionOptions?: UserDecryptionOptions | null;
+  accountKeys?: AccountKeys | null;
+  key?: string;
+  privateKey?: string;
 }
 
 export interface MasterPasswordUnlockKdf {
-  KdfType: number;
-  Iterations: number;
+  KdfType?: number;
+  Iterations?: number;
   Memory?: number | null;
   Parallelism?: number | null;
+  kdfType?: number;
+  iterations?: number;
+  memory?: number | null;
+  parallelism?: number | null;
 }
 
 export interface MasterPasswordUnlock {
-  Kdf: MasterPasswordUnlockKdf;
-  MasterKeyEncryptedUserKey: string;
+  Kdf?: MasterPasswordUnlockKdf;
+  kdf?: MasterPasswordUnlockKdf;
+  MasterKeyEncryptedUserKey?: string;
+  masterKeyEncryptedUserKey?: string;
+  MasterKeyWrappedUserKey?: string;
+  masterKeyWrappedUserKey?: string;
   Salt?: string | null;
+  salt?: string | null;
   ContainedKeyId?: string | null;
 }
 
 export interface UserDecryptionOptions {
   HasMasterPassword?: boolean;
   MasterPasswordUnlock?: MasterPasswordUnlock | null;
+  hasMasterPassword?: boolean;
+  masterPasswordUnlock?: MasterPasswordUnlock | null;
 }
 
 export interface AccountKeys {
   publicKeyEncryptionKeyPair?: PublicKeyEncryptionKeyPair | null;
+  PublicKeyEncryptionKeyPair?: PublicKeyEncryptionKeyPair | null;
 }
 
 export interface PublicKeyEncryptionKeyPair {
   wrappedPrivateKey?: string | null;
+  WrappedPrivateKey?: string | null;
   publicKey?: string | null;
 }
 

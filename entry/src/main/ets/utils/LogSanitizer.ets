@@ -6,6 +6,9 @@
 export class LogSanitizer {
   static sanitize(content: string): string {
     let sanitized = content;
+    sanitized = sanitized.replace(/"(masterKeyWrappedUserKey)"\s*:\s*"[^"]*"/gi, '"$1":"[REDACTED]"');
+    sanitized = sanitized.replace(/(masterKeyWrappedUserKey)(\s*[:=]\s*)(["']?)[^\s,&}"']+/gi,
+      '$1$2$3[REDACTED]');
 
     // 先处理带语义的敏感值，避免后续通用 URL/长字符串规则只遮盖其中一部分。
     sanitized = sanitized.replace(/otpauth:\/\/[^\s"']+/gi, '[REDACTED_OTP_URI]');

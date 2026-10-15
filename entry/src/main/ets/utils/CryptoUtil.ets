@@ -1,5 +1,5 @@
-import { argon2Hash, HashOption } from '@huozhiniao/argon2';
-import { util } from '@kit.ArkTS';
+import { taskpool, util } from '@kit.ArkTS';
+import { deriveArgon2 } from './Argon2Task';
 import { cryptoFramework } from '@kit.CryptoArchitectureKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { Logger } from '@nzy/logger';
@@ -9,6 +9,7 @@ import { KdfParameters } from '../model/Prelogin';
  * 加密工具类
  */
 export class CryptoUtil {
+  private static argonQueue: Promise<void> = Promise.resolve();
   static async deriveMasterKey(password: string, params: KdfParameters): Promise<string> {
     if (params.salt === undefined) {
       throw new Error('Missing normalized KDF salt');
@@ -110,25 +111,42 @@ export class CryptoUtil {
    */
   static async deriveKeyArgon2id(password: string, salt: string, iterations: number, memory: number,
     parallelism: number, keyLen: number = 32): Promise<string> {
-    const passwordBuffer = new util.TextEncoder().encodeInto(password);
+    const encodedPassword = new util.TextEncoder().encodeInto(password);
+    // 原生 API 可能返回外部缓冲区，TaskPool 无法复制；先复制到 VM 管理的数组。
+    const passwordBuffer = new Uint8Array(encodedPassword.length);
+    passwordBuffer.set(encodedPassword);
+    encodedPassword.fill(0);
     const saltBuffer = new util.TextEncoder().encodeInto(salt.trim().toLowerCase());
     // Bitwarden 使用邮箱的 SHA-256 摘要作为 Argon2id 的盐，而不是邮箱原始字节
     const saltDigest = cryptoFramework.createMd('SHA256');
     await saltDigest.update({ data: saltBuffer });
     const saltHash = await saltDigest.digest();
+    const taskSalt = new Uint8Array(saltHash.data.length);
+    taskSalt.set(saltHash.data);
+    saltHash.data.fill(0);
 
-    const option: HashOption = new HashOption();
-    option.timeCost = iterations;
-    option.memoryCost = memory * 1024;
-    option.parallelism = parallelism;
-    option.hashLength = keyLen;
-    option.argon2Type = 2;
-    option.argon2Version = 19;
-    const result = argon2Hash(passwordBuffer.buffer, saltHash.data.buffer, option);
-    if (result.result !== 'ARGON2_OK') {
-      throw new Error(`Argon2 failed: ${result.result}`);
+    try {
+      // 进程内串行派生，避免多个大内存 KDF 同时运行；绝不降低服务端参数。
+      const previous = CryptoUtil.argonQueue;
+      const computation = previous.then(async (): Promise<string> => {
+        const task = new taskpool.Task(deriveArgon2, passwordBuffer, taskSalt,
+          iterations, memory, parallelism, keyLen);
+        // 默认会转移 ArrayBuffer；显式复制才能在两端分别清零。
+        task.setTransferList([]);
+        return await taskpool.execute(task) as string;
+      });
+      CryptoUtil.argonQueue = computation.then(() => {}, () => {});
+      return await computation;
+    } catch (error) {
+      // TaskPool 序列化异常时会添加 Error 前缀，在边界恢复稳定的业务错误码。
+      if ((error as Error).message?.includes('argon2_resources_unavailable')) {
+        throw new Error('argon2_resources_unavailable');
+      }
+      throw new Error('Argon2 computation failed');
+    } finally {
+      passwordBuffer.fill(0);
+      taskSalt.fill(0);
     }
-    return new util.Base64Helper().encodeToStringSync(new Uint8Array(result.hash));
   }
 
   /**

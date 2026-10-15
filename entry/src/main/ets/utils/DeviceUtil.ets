@@ -8,6 +8,7 @@ import { DeviceInfo } from '../model/DeviceInfo';
  * 用于获取和管理设备相关信息
  */
 export class DeviceUtil {
+  private static pendingIdentifier: Promise<string> | null = null;
   /**
    * 获取设备类型
    * @returns 设备类型数字
@@ -51,21 +52,41 @@ export class DeviceUtil {
    * @returns Promise<string> 设备标识符
    */
   static async getOrGenerateDeviceIdentifier(): Promise<string> {
+    if (!DeviceUtil.pendingIdentifier) {
+      DeviceUtil.pendingIdentifier = DeviceUtil.loadDeviceIdentifier();
+    }
+    const request = DeviceUtil.pendingIdentifier;
+    try {
+      return await request;
+    } finally {
+      if (DeviceUtil.pendingIdentifier === request) {
+        DeviceUtil.pendingIdentifier = null;
+      }
+    }
+  }
+
+  private static async loadDeviceIdentifier(): Promise<string> {
     let deviceId = '';
     await DataPreferences.getInstance().getPromise(DEVICE_ID_KEY, '').then((data: string) => {
       deviceId = data;
     })
     if (!deviceId) {
       deviceId = DeviceUtil.generateUUID();
-      DataPreferences.getInstance().put(DEVICE_ID_KEY, deviceId, (isSuccess: boolean, error) => {
-        if (!isSuccess) {
-          Logger.error("Save device id failed, error message: " + error?.message);
-        }
-      })
+      await new Promise<void>((resolve, reject) => {
+        DataPreferences.getInstance().put(DEVICE_ID_KEY, deviceId, (isSuccess: boolean) => {
+          if (isSuccess) {
+            resolve();
+          } else {
+            reject(new Error('Device identifier persistence failed'));
+          }
+        });
+      });
       Logger.info('Generated new device identifier');
     } else {
       Logger.info('Retrieved existing device identifier');
     }
+    // 即使上次 flush 失败后缓存已有值，也必须确认落盘才返回身份。
+    await DataPreferences.getInstance().flushPromise();
     return deviceId;
   }
 

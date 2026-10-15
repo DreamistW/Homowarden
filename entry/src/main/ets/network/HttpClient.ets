@@ -13,6 +13,21 @@ import { util } from '@kit.ArkTS';
 import { ServerConfig } from '../model/ServerConfig';
 import { LocaleUtil } from '../localization/LocaleUtil';
 import { LogSanitizer } from '../utils/LogSanitizer';
+import { bundleManager } from '@kit.AbilityKit';
+
+let applicationUserAgent = '';
+
+function getApplicationUserAgent(): string {
+  if (!applicationUserAgent) {
+    try {
+      const info = bundleManager.getBundleInfoForSelfSync(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT);
+      applicationUserAgent = `Homowarden/${info.versionName} (HarmonyOS)`;
+    } catch (_) {
+      return 'Homowarden (HarmonyOS)';
+    }
+  }
+  return applicationUserAgent;
+}
 
 const DIAGNOSTIC_AUTH_PATHS: Array<string> = [
   '/accounts/prelogin',
@@ -26,13 +41,9 @@ const MAX_DIAGNOSTIC_BODY_LENGTH = 8 * 1024;
  * 创建带客户端标识、语言协商和统一错误日志的 HTTP 客户端
  */
 export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
-  const instance = axios.create({
-    baseURL,
-    timeout: 10000,
-    headers: {
-      "Content-Type": "application/json"
-    }
-  });
+  const instance = axios.create(config ?? { headers: { 'Content-Type': 'application/json' } });
+  instance.defaults.baseURL = baseURL;
+  instance.defaults.timeout = config?.timeout ?? 10000;
 
   // 请求拦截器
   instance.interceptors.request.use(
@@ -41,6 +52,7 @@ export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
       config.headers['bitwarden-client-version'] = Header_Client_Version;
       config.headers['device-type'] = DeviceUtil.getDeviceType();
       config.headers['Accept-Language'] = LocaleUtil.getAcceptLanguage();
+      config.headers['User-Agent'] = getApplicationUserAgent();
       // 正常请求日志不记录可能包含凭据的请求头和请求体
       const requestPath = (config.url ?? '').split('?')[0];
       const diagnosticBody = formatDiagnosticBody(requestPath, config.data);

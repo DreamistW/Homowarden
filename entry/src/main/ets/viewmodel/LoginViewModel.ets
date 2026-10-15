@@ -76,6 +76,7 @@ export class LoginViewModel {
   deviceName: string = '';
   // 设备信息初始化状态
   private deviceInfoInitialized: boolean = false;
+  private passkeyChallengeNeedsRefresh: boolean = false;
 
   constructor() {
     // 初始化同步的设备信息
@@ -98,9 +99,8 @@ export class LoginViewModel {
         Logger.info(`Device info initialized: type=${this.deviceType}`);
       } catch (error) {
         Logger.error(`Failed to initialize device info: ${error}`);
-        // 设备标识获取失败时固定本次实例的 UUID，避免同一次登录重试使用不同设备身份
-        this.deviceIdentifier = DeviceUtil.generateUUID();
-        this.deviceInfoInitialized = true;
+        // 未可靠持久化设备身份时停止登录，不能退回临时 UUID。
+        throw new Error('Device identifier persistence failed');
       }
     }
   }
@@ -146,7 +146,9 @@ export class LoginViewModel {
       return true;
     } catch (error) {
       Logger.error(`Prelogin failed: ${error}`);
-      this.errorMessage = new AppText(AppTextKey.PRELOGIN_FAILED);
+      this.errorMessage = new AppText((error as Error).message?.includes('KDF') ||
+        (error as Error).message?.includes('Argon2') ? AppTextKey.KDF_UNSUPPORTED :
+        LoginErrorUtil.classify(error as LoginRequestError));
       return false;
     }
   }
@@ -162,7 +164,8 @@ export class LoginViewModel {
       return true;
     } catch (error) {
       Logger.error(`Master key derivation failed: ${error}`);
-      this.errorMessage = new AppText(AppTextKey.MASTER_KEY_FAILED);
+      this.errorMessage = new AppText((error as Error).message === 'argon2_resources_unavailable' ?
+        AppTextKey.KDF_RESOURCES_UNAVAILABLE : AppTextKey.MASTER_KEY_FAILED);
       return false;
     }
   }
@@ -228,7 +231,7 @@ export class LoginViewModel {
       }
       const errorMessage = this.extractLoginErrorMessage(loginError);
       Logger.error(`Login failed: ${errorMessage}`);
-      this.errorMessage = this.getContinuationError(loginError);
+      this.handleContinuationFailure(loginError);
       return false;
     }
   }
@@ -258,7 +261,7 @@ export class LoginViewModel {
       const loginError = error as LoginRequestError;
       const errorMessage = this.extractLoginErrorMessage(loginError);
       Logger.error(`Login with 2FA failed: ${errorMessage}`);
-      this.errorMessage = this.getContinuationError(loginError);
+      this.handleContinuationFailure(loginError);
       return false;
     }
   }
@@ -286,7 +289,7 @@ export class LoginViewModel {
       const loginError = error as LoginRequestError;
       const errorMessage = this.extractLoginErrorMessage(loginError);
       Logger.error(`Login with new device failed: ${errorMessage}`);
-      this.errorMessage = this.getContinuationError(loginError);
+      this.handleContinuationFailure(loginError);
       return false;
     }
   }
@@ -305,12 +308,7 @@ export class LoginViewModel {
   }
 
   private isTwoFactorRequired(errorData?: LoginErrorResponseData): boolean {
-    if (errorData?.TwoFactorProviders2) {
-      return true;
-    }
-
-    return errorData?.error === 'invalid_grant' &&
-      errorData?.error_description === 'Two factor required.';
+    return LoginErrorUtil.isTwoFactorRequired(errorData);
   }
 
   private isNewDeviceVerificationRequired(errorData?: LoginErrorResponseData): boolean {
@@ -374,28 +372,7 @@ export class LoginViewModel {
   }
 
   private parseRawTwoFactorProviders(errorData?: LoginErrorResponseData): number[] {
-    // 兼容新接口的字典、旧接口的数组及部分自托管服务返回的字符串格式
-    if (errorData?.TwoFactorProviders2) {
-      return Object.keys(errorData.TwoFactorProviders2)
-        .map((provider: string) => Number(provider))
-        .filter((provider: number) => !Number.isNaN(provider));
-    }
-
-    const providers = errorData?.TwoFactorProviders;
-    if (Array.isArray(providers)) {
-      return providers
-        .map((provider: string) => Number(provider))
-        .filter((provider: number) => !Number.isNaN(provider));
-    }
-
-    if (typeof providers === 'string') {
-      const matches = providers.match(/-?\d+/g) ?? [];
-      return matches
-        .map((provider: string) => Number(provider))
-        .filter((provider: number) => !Number.isNaN(provider));
-    }
-
-    return [];
+    return LoginErrorUtil.providers(errorData);
   }
 
   private getTwoFactorProviderData(
@@ -435,12 +412,28 @@ export class LoginViewModel {
       return false;
     }
 
+    if (this.passkeyChallengeNeedsRefresh) {
+      const selectedProvider = this.twoFactorProvider;
+      this.needTwoFactor = false;
+      this.availableTwoFactorProviders = [];
+      this.twoFactorProviderData = null;
+      // 上次响应可能已消耗服务端挑战。重新获取后再调系统凭据接口。
+      await this.performLogin();
+      if (!this.needTwoFactor || !this.availableTwoFactorProviders.includes(selectedProvider)) {
+        this.errorMessage = this.errorMessage ?? new AppText(AppTextKey.PASSKEY_FAILED);
+        return false;
+      }
+      this.setTwoFactorProvider(selectedProvider);
+      this.passkeyChallengeNeedsRefresh = false;
+    }
     if (!this.twoFactorProviderData) {
       this.errorMessage = new AppText(AppTextKey.PASSKEY_FAILED);
       return false;
     }
 
     try {
+      // 无论本地认证或后续服务端验证在哪一步失败，下次均获取新挑战。
+      this.passkeyChallengeNeedsRefresh = true;
       this.twoFactorToken = await PasskeyTwoFactorUtil.authenticate(
         context,
         this.twoFactorProviderData,
@@ -562,6 +555,8 @@ export class LoginViewModel {
       Logger.error(`Login credential initialization failed: ${message}`);
       if (message === PASSWORD_RESET_REQUIRED) {
         this.errorMessage = new AppText(AppTextKey.PASSWORD_RESET_REQUIRED);
+      } else if (message === 'argon2_resources_unavailable') {
+        this.errorMessage = new AppText(AppTextKey.KDF_RESOURCES_UNAVAILABLE);
       } else if (message === DECRYPTION_UNSUPPORTED || message === 'Unsupported user key length') {
         this.errorMessage = new AppText(AppTextKey.DECRYPTION_UNSUPPORTED);
       } else {
@@ -611,29 +606,28 @@ export class LoginViewModel {
     return 'login_failed';
   }
 
-  private getContinuationError(error: LoginRequestError): AppText {
-    const message: string = error.message?.toLowerCase() ?? '';
-    if (message.includes('timeout')) {
-      return new AppText(AppTextKey.TIMEOUT_ERROR);
+  private handleContinuationFailure(error: LoginRequestError): void {
+    const data = error.response?.data;
+    if (this.isTwoFactorRequired(data)) {
+      const selectedProvider = this.twoFactorProvider;
+      this.needNewDevice = false;
+      this.handleTwoFactorRequired(data);
+      if (!this.needTwoFactor) {
+        return;
+      }
+      if (this.availableTwoFactorProviders.includes(selectedProvider)) {
+        this.setTwoFactorProvider(selectedProvider);
+      }
+    } else if (this.isNewDeviceVerificationRequired(data)) {
+      this.needTwoFactor = false;
+      this.needNewDevice = true;
+      this.twoFactorToken = '';
     }
-    if (error.response === undefined) {
-      return new AppText(AppTextKey.NETWORK_ERROR);
-    }
-    const errorData: LoginErrorResponseData | undefined = error.response.data;
-    if (LoginErrorUtil.isInvalidCredentials(errorData)) {
-      return new AppText(AppTextKey.INVALID_CREDENTIALS);
-    }
-    if (this.isInvalidVerificationCodeError(errorData)) {
-      return new AppText(AppTextKey.CODE_INVALID);
-    }
-    if (errorData?.error === 'device_error') {
-      return new AppText(AppTextKey.DEVICE_VERIFICATION_FAILED);
-    }
-    return new AppText(AppTextKey.LOGIN_FAILED);
+    this.errorMessage = this.getContinuationError(error);
   }
 
-  private isInvalidVerificationCodeError(errorData: LoginErrorResponseData | undefined): boolean {
-    return LoginErrorUtil.isInvalidVerificationCode(errorData);
+  private getContinuationError(error: LoginRequestError): AppText {
+    return new AppText(LoginErrorUtil.classify(error));
   }
 
   private getErrorModelMessage(errorData?: LoginErrorResponseData): string {
@@ -670,6 +664,7 @@ export class LoginViewModel {
     newViewModel.deviceIdentifier = this.deviceIdentifier;
     newViewModel.deviceName = this.deviceName;
     newViewModel.deviceInfoInitialized = this.deviceInfoInitialized;
+    newViewModel.passkeyChallengeNeedsRefresh = this.passkeyChallengeNeedsRefresh;
     newViewModel.needTwoFactor = this.needTwoFactor;
     newViewModel.needNewDevice = this.needNewDevice;
     newViewModel.needSaveEmail = this.needSaveEmail;
@@ -708,6 +703,7 @@ export class LoginViewModel {
     this.twoFactorProviderData = null;
     this.twoFactorProvidersData = null;
     this.ssoEmail2FaSessionToken = '';
+    this.passkeyChallengeNeedsRefresh = false;
   }
 
   // 清理敏感数据
@@ -765,22 +761,25 @@ export class LoginViewModel {
     } catch (error) {
       const errorMessage = ErrorMessageUtil.getMessage(error as Object);
       Logger.error(`Send email login failed: ${errorMessage}`);
-      this.errorMessage = new AppText(AppTextKey.CODE_SEND_FAILED);
+      const key = LoginErrorUtil.classify(error as LoginRequestError);
+      this.errorMessage = new AppText(key === AppTextKey.LOGIN_FAILED ? AppTextKey.CODE_SEND_FAILED : key);
       return false;
     }
   }
 
   async doResendNewDeviceOtp(): Promise<boolean> {
     try {
+      await this.initializeAsyncDeviceInfo();
       const request: ResendNewDeviceOtpRequest = {
         Email: this.email.trim().toLowerCase(),
         MasterPasswordHash: this.loginPassword
       }
-      return await resendNewDeviceOtp(request);
+      return await resendNewDeviceOtp(request, this.deviceIdentifier);
     } catch (error) {
       const errorMessage = ErrorMessageUtil.getMessage(error as Object);
       Logger.error(`Resend new device OTP failed: ${errorMessage}`);
-      this.errorMessage = new AppText(AppTextKey.CODE_SEND_FAILED);
+      const key = LoginErrorUtil.classify(error as LoginRequestError);
+      this.errorMessage = new AppText(key === AppTextKey.LOGIN_FAILED ? AppTextKey.CODE_SEND_FAILED : key);
       return false;
     }
   }
