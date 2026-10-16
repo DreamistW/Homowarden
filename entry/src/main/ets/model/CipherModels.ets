@@ -1,5 +1,11 @@
 import { CipherFieldType, CipherItemType } from '../utils/Constants';
 
+/** 新建密码项时由密码库传入的密钥和已选类型。 */
+export interface AddCipherParams {
+  symmetricKey: string;
+  type: CipherItemType;
+}
+
 /** 密码项名称的显示来源，用于区分用户数据与本地状态文案 */
 export enum CipherDisplayNameKind {
   USER_VALUE = 0,

@@ -1,12 +1,13 @@
 import { CredentialStore } from '../utils/CredentialStore';
 import { EntryRouter } from '../../../../EntryRouter';
-import { Cipher, CipherDetailMode, CipherDetailParams, CipherIdentity } from '../model/CipherModels';
+import { AddCipherParams, Cipher, CipherDetailMode, CipherDetailParams, CipherIdentity } from '../model/CipherModels';
 import { VaultViewModel } from '../viewmodel/VaultViewModel';
 import { common, Want } from '@kit.AbilityKit';
 import { AppToast } from '../utils/AppToast';
 import { AppDropdown } from '../component/AppDropdown';
 import { FormDialog } from '../component/FormDialog';
 import { ConfirmDialog } from '../component/ConfirmDialog';
+import { CipherTypeDialog } from '../component/CipherTypeDialog';
 import { DataPreferences } from '@abner/datastore';
 import {
   CipherItemType, FilterType, NEED_RELOAD_CIPHERS
@@ -745,6 +746,14 @@ export struct VaultPage {
   private exitTime: number = 0;
   @State pathInfos: NavPathStack = new NavPathStack();
   @State detailStack: NavPathStack = new NavPathStack();
+  private cipherTypeDialogController: CustomDialogController = new CustomDialogController({
+    builder: CipherTypeDialog({
+      onSelect: (type: CipherItemType): void => this.openAddCipher(type)
+    }),
+    autoCancel: true,
+    alignment: DialogAlignment.Center,
+    customStyle: false
+  });
   private closeDetailHandler: () => void = (): void => {
     this.applyPendingSplitViewChange();
     if (this.activeSplitView) {
@@ -788,6 +797,7 @@ export struct VaultPage {
   };
 
   aboutToDisappear(): void {
+    this.cipherTypeDialogController.close();
     DetailRouter.unregisterCloseHandler(this.closeDetailHandler);
     QuickEntryManager.unregisterNavigationHandler(this.quickEntryHandler);
   }
@@ -876,7 +886,12 @@ export struct VaultPage {
       this.getUIContext().getPromptAction().showToast({ message: $r('app.string.common_loading') });
       return;
     }
-    this.openDetail(EntryRouter.AddCipherPage, this.sharedSymmetricKey);
+    this.cipherTypeDialogController.open();
+  }
+
+  private openAddCipher(type: CipherItemType): void {
+    const params: AddCipherParams = { symmetricKey: this.sharedSymmetricKey, type: type };
+    this.openDetail(EntryRouter.AddCipherPage, params);
   }
 
   private refreshVault(): void {
