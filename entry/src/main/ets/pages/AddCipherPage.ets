@@ -5,7 +5,7 @@ import { TotpEditItem } from '../component/TotpEditItem';
 import { CustomFieldEditItem } from '../component/CustomFieldEditItem';
 import { AdaptiveIconButton, AdaptiveTextButton } from '../component/AdaptiveButton';
 import { GeneratorPanel, GeneratorPanelMode } from '../component/GeneratorPanel';
-import { CipherField } from '../model/CipherModels';
+import { AddCipherParams, CipherField } from '../model/CipherModels';
 import {
   CardBrandType,
   CipherFieldType,
@@ -104,7 +104,6 @@ export struct AddCipherPage {
       }
     }
   }
-  itemTypeGroup: string = 'itemTypeSelector';
 
   private identityTitleFromValue(value: number): IdentityTitleType {
     switch (value) {
@@ -161,29 +160,6 @@ export struct AddCipherPage {
     }
   }
 
-  @Builder
-  private cipherTypeOption(type: CipherItemType, label: Resource) {
-    Row({ space: 8 }) {
-      Radio({ value: `${type}`, group: this.itemTypeGroup })
-        .checked(this.cipherType === type)
-        .radioStyle({
-          checkedBackgroundColor: $r('app.color.brand_accent_color')
-        })
-        .accessibilityText(label)
-        .onChange((isChecked: boolean) => {
-          if (isChecked) {
-            this.cipherType = type;
-            this.viewModel.type = type;
-          }
-        })
-      Text(label)
-        .fontSize(14)
-        .accessibilityLevel('no')
-    }
-    .width(120)
-    .alignItems(VerticalAlign.Center)
-  }
-
   // 生成器底部面板内容：按当前模式渲染，"使用"回填到对应输入框
   @Builder
   generatorSheet() {
@@ -206,30 +182,6 @@ export struct AddCipherPage {
     HdsNavDestination() {
       Scroll() {
         Column() {
-          Column() {
-            Text($r('app.string.cipher_type'))
-              .fontSize(14)
-              .margin(8)
-
-            Row({ space: 16 }) {
-              this.cipherTypeOption(CipherItemType.LOGIN, $r('app.string.vault_type_login'))
-              this.cipherTypeOption(CipherItemType.NOTE, $r('app.string.vault_type_note'))
-            }
-            .width('100%')
-            .padding({ left: 16, right: 16 })
-            .justifyContent(FlexAlign.Center)
-
-            Text().margin(8)
-
-            Row({ space: 16 }) {
-              this.cipherTypeOption(CipherItemType.CARD, $r('app.string.vault_type_card'))
-              this.cipherTypeOption(CipherItemType.IDENTITY, $r('app.string.vault_type_identity'))
-            }
-            .width('100%')
-            .padding({ left: 16, right: 16 })
-            .justifyContent(FlexAlign.Center)
-          }
-
           // 名称
           Text($r('app.string.cipher_item_name'))
             .fontSize(14)
@@ -865,9 +817,11 @@ export struct AddCipherPage {
     .hideBackButton(this.isSplitView)
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
-      const param = ctx.pathInfo.param as string;
+      const param = ctx.pathInfo.param as AddCipherParams;
       if (param) {
-        this.viewModel.symmetricKey = param;
+        this.viewModel.symmetricKey = param.symmetricKey;
+        this.cipherType = param.type;
+        this.viewModel.type = param.type;
       }
       this.initialViewModelSnapshot = JSON.stringify(this.viewModel);
       DetailLeaveGuard.register(this.leaveHandler);
