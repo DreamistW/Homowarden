@@ -73,7 +73,7 @@ export async function createCipher(cipher: Cipher): Promise<Cipher> {
   const baseURL = await getApiBaseUrl();
   const client = createHttpClient(baseURL);
   const token = await SessionTokenUtil.getAccessToken();
-  const request = buildCipherJsonRequest(cipher, false);
+  const request = buildCipherJsonRequest(cipher, false, getCipherUserId(token));
   const endpoint = cipher.organizationId ? '/ciphers/create' : '/ciphers';
   const body: CipherJsonRequest | CreateCipherInOrganizationRequest = cipher.organizationId ? {
     Cipher: request,
@@ -99,13 +99,10 @@ export async function importCiphers(ciphers: Cipher[], shouldContinue: () => boo
   if (!shouldContinue()) {
     throw new Error('transfer_session_expired');
   }
-  const userId = getImportUserId(token);
+  const userId = getCipherUserId(token);
   const body: CipherImportRequest = {
     ciphers: ciphers.map((cipher: Cipher): CipherJsonRequest => {
-      const request = buildCipherJsonRequest(cipher, false);
-      // 新版服务端要求明确声明密文对应的用户，必须来自当前令牌而非导入文件。
-      request.encryptedFor = userId;
-      return request;
+      return buildCipherJsonRequest(cipher, false, userId);
     }),
     folders: [],
     folderRelationships: []
@@ -113,18 +110,18 @@ export async function importCiphers(ciphers: Cipher[], shouldContinue: () => boo
   await client.post('/ciphers/import', body, { headers: { 'Authorization': `Bearer ${token}` } });
 }
 
-interface ImportTokenClaims {
+interface CipherTokenClaims {
   sub?: string;
 }
 
-function getImportUserId(token: string): string {
+function getCipherUserId(token: string): string {
   const payload = token.split('.')[1];
   if (!payload) {
     throw new Error('transfer_session_expired');
   }
   const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
   const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
-  const claims: ImportTokenClaims = JSON.parse(new util.TextDecoder().decodeToString(
+  const claims: CipherTokenClaims = JSON.parse(new util.TextDecoder().decodeToString(
     new util.Base64Helper().decodeSync(padded)));
   if (!claims || typeof claims.sub !== 'string' || !claims.sub) {
     throw new Error('transfer_session_expired');
@@ -148,7 +145,7 @@ export async function updateCipher(id: string, cipher: Cipher): Promise<Cipher> 
   const baseURL = await getApiBaseUrl();
   const client = createHttpClient(baseURL);
   const token = await SessionTokenUtil.getAccessToken();
-  const request = buildCipherJsonRequest(cipher, true);
+  const request = buildCipherJsonRequest(cipher, true, getCipherUserId(token));
   return client.put(`/ciphers/${id}`, request, {
     headers: {
       'Authorization': `Bearer ${token}`
@@ -241,7 +238,8 @@ export async function restoreCipher(id: string): Promise<Cipher> {
   });
 }
 
-function buildCipherJsonRequest(cipher: Cipher, includeLastKnownRevisionDate: boolean): CipherJsonRequest {
+function buildCipherJsonRequest(cipher: Cipher, includeLastKnownRevisionDate: boolean,
+  userId: string): CipherJsonRequest {
   return {
     notes: cipher.notes || null,
     attachments2: cipher.attachments2 || null,
@@ -286,6 +284,7 @@ function buildCipherJsonRequest(cipher: Cipher, includeLastKnownRevisionDate: bo
     } : null,
     key: cipher.key || null,
     archivedDate: cipher.archivedDate || null,
-    encryptedFor: cipher.encryptedFor || null
+    // 新建、编辑和导入均声明当前令牌用户，不能沿用响应或文件中缺失、过期的归属。
+    encryptedFor: userId
   };
 }
