@@ -4,6 +4,7 @@ import { ResolvedServerEndpoints, ServerConfigResponse, ServerEnvironmentUrls } 
 import { ServerConfig } from '../model/ServerConfig';
 import { SERVER_BASE_URL_EU, SERVER_BASE_URL_US, ServerType } from '../utils/Constants';
 import { createHttpClient, getServerConfig } from './HttpClient';
+import { LogSanitizer } from '../utils/LogSanitizer';
 
 interface ParsedHttpUrl {
   scheme: string;
@@ -85,7 +86,7 @@ async function resolveSelfHostedEndpoints(fallback: ResolvedServerEndpoints): Pr
     };
   } catch (err) {
     const error = err as Error;
-    Logger.info(`Failed to fetch server config, use fallback endpoints. Error: ${error.message}`);
+    Logger.info(LogSanitizer.sanitize(`Failed to fetch server config, use fallback endpoints. Error: ${error.message}`));
     return fallback;
   }
 }
