@@ -1,5 +1,6 @@
 {
   "string": [
+    {"name":"log_export_ready","value":"日志已生成，请在分享面板中保存或分享。"},
     {"name":"settings_appearance","value":"外观设置"},
     {"name":"settings_interface_language","value":"界面语言"},
     {"name":"settings_interface_color","value":"界面颜色"},
