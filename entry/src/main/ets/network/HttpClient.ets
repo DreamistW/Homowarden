@@ -60,7 +60,7 @@ export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
       return config;
     },
     (error: AxiosError) => {
-      Logger.error(`[HTTP] Request Error: ${error.message}`);
+      Logger.error(LogSanitizer.sanitize(`[HTTP] Request Error: ${error.message}`));
       return Promise.reject(error);
     }
   );
@@ -77,8 +77,8 @@ export function createHttpClient(baseURL: string, config?: AxiosRequestConfig) {
       const responsePath = (error.config?.url ?? '').split('?')[0];
       const responseData = error.response?.data as Object | string | undefined;
       const diagnosticBody = formatDiagnosticBody(responsePath, responseData);
-      Logger.error(`[HTTP] Response Error: status=${error.response?.status ?? 0}, path=${responsePath}, ` +
-        `message=${error.message}${diagnosticBody}`);
+      Logger.error(LogSanitizer.sanitize(`[HTTP] Response Error: status=${error.response?.status ?? 0}, ` +
+        `path=${responsePath}, message=${error.message}${diagnosticBody}`));
       return Promise.reject(error);
     }
   );

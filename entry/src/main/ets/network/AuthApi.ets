@@ -8,11 +8,14 @@ import { RefreshTokenRequest, RefreshTokenResponse } from '../model/RefreshToken
 import { ResendNewDeviceOtpRequest, SendEmailLoginRequest } from '../model/SendEmailLogin';
 import { getServerEndpoints } from './ServerEndpointResolver';
 import { AUTH_TIMEOUT_MS, AuthProtocolUtil } from '../utils/AuthProtocolUtil';
+import { logLoginEnvironment } from './LoginDiagnostics';
 
 
 // 预登录接口
 export async function prelogin(request: PreloginRequest): Promise<PreloginResponse> {
   const endpoints = await getServerEndpoints();
+  // 并行收集版本信息；诊断接口超时或不受支持不能延迟、阻断认证。
+  void logLoginEnvironment(endpoints);
   const baseURL = endpoints.identityBaseUrl;
   const client = createHttpClient(baseURL, { timeout: AUTH_TIMEOUT_MS });
   return client.post(
