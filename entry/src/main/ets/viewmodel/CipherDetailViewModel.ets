@@ -432,8 +432,8 @@ export class CipherDetailViewModel {
       return {} as CipherLogin;
     }
 
-    const encUsername = login.username ? await CryptoUtil.encryptField(login.username, this.cipherKey) : '';
-    const encPassword = login.password ? await CryptoUtil.encryptField(login.password, this.cipherKey) : '';
+    const encUsername = login.username ? await CryptoUtil.encryptField(login.username, this.cipherKey) : null;
+    const encPassword = login.password ? await CryptoUtil.encryptField(login.password, this.cipherKey) : null;
     const encTotp = login.totp ? await CryptoUtil.encryptField(login.totp, this.cipherKey) : null;
 
     let encUris: CipherUri[] = [];
@@ -473,12 +473,12 @@ export class CipherDetailViewModel {
     }
 
     const encCardholderName =
-      card.cardholderName ? await CryptoUtil.encryptField(card.cardholderName, this.cipherKey) : '';
-    const encBrand = card.brand ? await CryptoUtil.encryptField(card.brand, this.cipherKey) : '';
-    const encNumber = card.number ? await CryptoUtil.encryptField(card.number, this.cipherKey) : '';
-    const encExpMonth = card.expMonth ? await CryptoUtil.encryptField(card.expMonth, this.cipherKey) : '';
-    const encExpYear = card.expYear ? await CryptoUtil.encryptField(card.expYear, this.cipherKey) : '';
-    const encCode = card.code ? await CryptoUtil.encryptField(card.code, this.cipherKey) : '';
+      card.cardholderName ? await CryptoUtil.encryptField(card.cardholderName, this.cipherKey) : null;
+    const encBrand = card.brand ? await CryptoUtil.encryptField(card.brand, this.cipherKey) : null;
+    const encNumber = card.number ? await CryptoUtil.encryptField(card.number, this.cipherKey) : null;
+    const encExpMonth = card.expMonth ? await CryptoUtil.encryptField(card.expMonth, this.cipherKey) : null;
+    const encExpYear = card.expYear ? await CryptoUtil.encryptField(card.expYear, this.cipherKey) : null;
+    const encCode = card.code ? await CryptoUtil.encryptField(card.code, this.cipherKey) : null;
 
     return {
       cardholderName: encCardholderName,
@@ -498,28 +498,28 @@ export class CipherDetailViewModel {
       return {} as CipherIdentity;
     }
 
-    const encTitle = identity.title ? await CryptoUtil.encryptField(identity.title, this.cipherKey) : '';
-    const encFirstName = identity.firstName ? await CryptoUtil.encryptField(identity.firstName, this.cipherKey) : '';
+    const encTitle = identity.title ? await CryptoUtil.encryptField(identity.title, this.cipherKey) : null;
+    const encFirstName = identity.firstName ? await CryptoUtil.encryptField(identity.firstName, this.cipherKey) : null;
     const encMiddleName =
-      identity.middleName ? await CryptoUtil.encryptField(identity.middleName, this.cipherKey) : '';
-    const encLastName = identity.lastName ? await CryptoUtil.encryptField(identity.lastName, this.cipherKey) : '';
-    const encAddress1 = identity.address1 ? await CryptoUtil.encryptField(identity.address1, this.cipherKey) : '';
-    const encAddress2 = identity.address2 ? await CryptoUtil.encryptField(identity.address2, this.cipherKey) : '';
-    const encAddress3 = identity.address3 ? await CryptoUtil.encryptField(identity.address3, this.cipherKey) : '';
-    const encCity = identity.city ? await CryptoUtil.encryptField(identity.city, this.cipherKey) : '';
-    const encState = identity.state ? await CryptoUtil.encryptField(identity.state, this.cipherKey) : '';
+      identity.middleName ? await CryptoUtil.encryptField(identity.middleName, this.cipherKey) : null;
+    const encLastName = identity.lastName ? await CryptoUtil.encryptField(identity.lastName, this.cipherKey) : null;
+    const encAddress1 = identity.address1 ? await CryptoUtil.encryptField(identity.address1, this.cipherKey) : null;
+    const encAddress2 = identity.address2 ? await CryptoUtil.encryptField(identity.address2, this.cipherKey) : null;
+    const encAddress3 = identity.address3 ? await CryptoUtil.encryptField(identity.address3, this.cipherKey) : null;
+    const encCity = identity.city ? await CryptoUtil.encryptField(identity.city, this.cipherKey) : null;
+    const encState = identity.state ? await CryptoUtil.encryptField(identity.state, this.cipherKey) : null;
     const encPostalCode =
-      identity.postalCode ? await CryptoUtil.encryptField(identity.postalCode, this.cipherKey) : '';
-    const encCountry = identity.country ? await CryptoUtil.encryptField(identity.country, this.cipherKey) : '';
-    const encCompany = identity.company ? await CryptoUtil.encryptField(identity.company, this.cipherKey) : '';
-    const encEmail = identity.email ? await CryptoUtil.encryptField(identity.email, this.cipherKey) : '';
-    const encPhone = identity.phone ? await CryptoUtil.encryptField(identity.phone, this.cipherKey) : '';
-    const encSSN = identity.ssn ? await CryptoUtil.encryptField(identity.ssn, this.cipherKey) : '';
+      identity.postalCode ? await CryptoUtil.encryptField(identity.postalCode, this.cipherKey) : null;
+    const encCountry = identity.country ? await CryptoUtil.encryptField(identity.country, this.cipherKey) : null;
+    const encCompany = identity.company ? await CryptoUtil.encryptField(identity.company, this.cipherKey) : null;
+    const encEmail = identity.email ? await CryptoUtil.encryptField(identity.email, this.cipherKey) : null;
+    const encPhone = identity.phone ? await CryptoUtil.encryptField(identity.phone, this.cipherKey) : null;
+    const encSSN = identity.ssn ? await CryptoUtil.encryptField(identity.ssn, this.cipherKey) : null;
     const encLicenseNumber =
-      identity.licenseNumber ? await CryptoUtil.encryptField(identity.licenseNumber, this.cipherKey) : '';
+      identity.licenseNumber ? await CryptoUtil.encryptField(identity.licenseNumber, this.cipherKey) : null;
     const encPassportNumber =
-      identity.passportNumber ? await CryptoUtil.encryptField(identity.passportNumber, this.cipherKey) : '';
-    const encUsername = identity.username ? await CryptoUtil.encryptField(identity.username, this.cipherKey) : '';
+      identity.passportNumber ? await CryptoUtil.encryptField(identity.passportNumber, this.cipherKey) : null;
+    const encUsername = identity.username ? await CryptoUtil.encryptField(identity.username, this.cipherKey) : null;
 
     return {
       title: encTitle,
