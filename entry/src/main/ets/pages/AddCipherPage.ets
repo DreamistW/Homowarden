@@ -5,7 +5,8 @@ import { TotpEditItem } from '../component/TotpEditItem';
 import { CustomFieldEditItem } from '../component/CustomFieldEditItem';
 import { AdaptiveIconButton, AdaptiveTextButton } from '../component/AdaptiveButton';
 import { GeneratorPanel, GeneratorPanelMode } from '../component/GeneratorPanel';
-import { AddCipherParams, CipherField } from '../model/CipherModels';
+import { AddCipherParams, CipherDetailMode, CipherDetailParams, CipherField } from '../model/CipherModels';
+import { EntryRouter } from '../../../../EntryRouter';
 import {
   CardBrandType,
   CipherFieldType,
@@ -877,7 +878,13 @@ export struct AddCipherPage {
       AppToast.show(this.getUIContext(), $r('app.string.cipher_create_success'));
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
       VaultChangeNotifier.setUpdatedCipher(createdCipher);
-      DetailRouter.closeDetail();
+      const params: CipherDetailParams = {
+        cipher: createdCipher,
+        symmetricKey: this.viewModel.symmetricKey,
+        initialMode: CipherDetailMode.VIEW
+      };
+      // 替换当前栈的新建页，单栏和分栏均停留在查看页，返回时不会重新打开已提交的表单。
+      this.pathInfos.replacePath({ name: EntryRouter.CipherDetailPage, param: params });
     } else if (this.viewModel.errorMessage && this.viewModel.errorMessage.length > 0) {
       AppToast.show(this.getUIContext(), this.viewModel.errorMessage === 'cipher_name_required' ?
         $r('app.string.cipher_name_required') : $r('app.string.error_save_failed'));
