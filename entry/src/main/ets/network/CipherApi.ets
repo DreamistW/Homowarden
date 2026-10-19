@@ -1,6 +1,13 @@
 import { createHttpClient } from './HttpClient';
 import {
   Cipher,
+  CipherAttachmentRequest,
+  CipherFido2Credential,
+  CipherFido2CredentialJsonRequest,
+  CipherUri,
+  CipherUriJsonRequest,
+  CipherPasswordHistory,
+  CipherPasswordHistoryJsonRequest,
   CipherField,
   CipherFieldJsonRequest,
   CipherJsonRequest,
@@ -238,13 +245,19 @@ export async function restoreCipher(id: string): Promise<Cipher> {
   });
 }
 
+// 所有完整写入共用此边界。加密文本只能是有效密文或 null，不能原样发送空串。
+// 按协议字段显式映射，避免误处理 type、match、linkedId、布尔值和日期等元数据。
 function buildCipherJsonRequest(cipher: Cipher, includeLastKnownRevisionDate: boolean,
   userId: string): CipherJsonRequest {
   return {
     notes: cipher.notes || null,
-    attachments2: cipher.attachments2 || null,
+    attachments2: buildAttachmentRequests(cipher.attachments2),
     reprompt: cipher.reprompt,
-    passwordHistory: cipher.passwordHistory || null,
+    passwordHistory: cipher.passwordHistory ? cipher.passwordHistory.map(
+      (entry: CipherPasswordHistory): CipherPasswordHistoryJsonRequest => ({
+        password: entry.password || null,
+        lastUsedDate: entry.lastUsedDate
+      })) : null,
     lastKnownRevisionDate: includeLastKnownRevisionDate ? (cipher.lastKnownRevisionDate || cipher.revisionDate) : null,
     type: cipher.type,
     login: cipher.login ? {
@@ -252,20 +265,101 @@ function buildCipherJsonRequest(cipher: Cipher, includeLastKnownRevisionDate: bo
       password: cipher.login.password || null,
       totp: cipher.login.totp || null,
       passwordRevisionDate: cipher.login.passwordRevisionDate,
-      uris: cipher.login.uris,
+      uris: (cipher.login.uris || []).map((uri: CipherUri): CipherUriJsonRequest => ({
+        uri: uri.uri || null,
+        uriChecksum: uri.uriChecksum || null,
+        match: uri.match
+      })),
       uri: cipher.login.uri || null,
       autofillOnPageLoad: cipher.login.autofillOnPageLoad,
-      fido2Credentials: cipher.login.fido2Credentials
+      fido2Credentials: cipher.login.fido2Credentials ? cipher.login.fido2Credentials.map(
+        (credential: CipherFido2Credential): CipherFido2CredentialJsonRequest => ({
+          credentialId: credential.credentialId || null,
+          keyType: credential.keyType || null,
+          keyAlgorithm: credential.keyAlgorithm || null,
+          keyCurve: credential.keyCurve || null,
+          keyValue: credential.keyValue || null,
+          rpId: credential.rpId || null,
+          rpName: credential.rpName || null,
+          userHandle: credential.userHandle || null,
+          userName: credential.userName || null,
+          userDisplayName: credential.userDisplayName || null,
+          counter: credential.counter || null,
+          discoverable: credential.discoverable || null,
+          creationDate: credential.creationDate
+        })) : null
     } : null,
     secureNote: cipher.secureNote,
-    sshKey: cipher.sshKey || null,
-    bankAccount: cipher.bankAccount || null,
-    driversLicense: cipher.driversLicense || null,
-    passport: cipher.passport || null,
+    sshKey: cipher.sshKey ? {
+      publicKey: cipher.sshKey.publicKey || null,
+      privateKey: cipher.sshKey.privateKey || null,
+      keyFingerprint: cipher.sshKey.keyFingerprint || null
+    } : null,
+    bankAccount: cipher.bankAccount ? {
+      bankName: cipher.bankAccount.bankName || null,
+      nameOnAccount: cipher.bankAccount.nameOnAccount || null,
+      accountType: cipher.bankAccount.accountType || null,
+      accountNumber: cipher.bankAccount.accountNumber || null,
+      routingNumber: cipher.bankAccount.routingNumber || null,
+      branchNumber: cipher.bankAccount.branchNumber || null,
+      pin: cipher.bankAccount.pin || null,
+      swiftCode: cipher.bankAccount.swiftCode || null,
+      iban: cipher.bankAccount.iban || null,
+      bankContactPhone: cipher.bankAccount.bankContactPhone || null
+    } : null,
+    driversLicense: cipher.driversLicense ? {
+      firstName: cipher.driversLicense.firstName || null,
+      middleName: cipher.driversLicense.middleName || null,
+      lastName: cipher.driversLicense.lastName || null,
+      licenseNumber: cipher.driversLicense.licenseNumber || null,
+      dateOfBirth: cipher.driversLicense.dateOfBirth || null,
+      issuingCountry: cipher.driversLicense.issuingCountry || null,
+      issuingAuthority: cipher.driversLicense.issuingAuthority || null,
+      issuingState: cipher.driversLicense.issuingState || null,
+      issueDate: cipher.driversLicense.issueDate || null,
+      expirationDate: cipher.driversLicense.expirationDate || null,
+      licenseClass: cipher.driversLicense.licenseClass || null
+    } : null,
+    passport: cipher.passport ? {
+      surname: cipher.passport.surname || null,
+      givenName: cipher.passport.givenName || null,
+      dateOfBirth: cipher.passport.dateOfBirth || null,
+      birthPlace: cipher.passport.birthPlace || null,
+      sex: cipher.passport.sex || null,
+      nationality: cipher.passport.nationality || null,
+      passportNumber: cipher.passport.passportNumber || null,
+      passportType: cipher.passport.passportType || null,
+      issuingCountry: cipher.passport.issuingCountry || null,
+      issuingAuthority: cipher.passport.issuingAuthority || null,
+      issueDate: cipher.passport.issueDate || null,
+      expirationDate: cipher.passport.expirationDate || null,
+      nationalIdentificationNumber: cipher.passport.nationalIdentificationNumber || null
+    } : null,
     folderId: cipher.folderId,
     organizationId: cipher.organizationId,
-    identity: cipher.identity,
-    name: cipher.name,
+    // 身份信息也属于加密字段；原始空串会令网页版 EncString 解析失败。
+    // 在共用请求边界兜底，覆盖新建、编辑、导入和旧数据重新保存。
+    identity: cipher.identity ? {
+      title: cipher.identity.title || null,
+      firstName: cipher.identity.firstName || null,
+      middleName: cipher.identity.middleName || null,
+      lastName: cipher.identity.lastName || null,
+      username: cipher.identity.username || null,
+      company: cipher.identity.company || null,
+      ssn: cipher.identity.ssn || null,
+      passportNumber: cipher.identity.passportNumber || null,
+      licenseNumber: cipher.identity.licenseNumber || null,
+      email: cipher.identity.email || null,
+      phone: cipher.identity.phone || null,
+      address1: cipher.identity.address1 || null,
+      address2: cipher.identity.address2 || null,
+      address3: cipher.identity.address3 || null,
+      city: cipher.identity.city || null,
+      state: cipher.identity.state || null,
+      postalCode: cipher.identity.postalCode || null,
+      country: cipher.identity.country || null
+    } : null,
+    name: cipher.name || null,
     fields: cipher.fields ? cipher.fields.map((field: CipherField): CipherFieldJsonRequest => ({
       name: field.name || null,
       value: field.value || null,
@@ -287,4 +381,21 @@ function buildCipherJsonRequest(cipher: Cipher, includeLastKnownRevisionDate: bo
     // 新建、编辑和导入均声明当前令牌用户，不能沿用响应或文件中缺失、过期的归属。
     encryptedFor: userId
   };
+}
+
+function buildAttachmentRequests(source: Record<string, CipherAttachmentRequest> | null | undefined):
+  Record<string, CipherAttachmentRequest> | null {
+  if (!source) {
+    return null;
+  }
+  const attachments: Record<string, CipherAttachmentRequest> = {};
+  for (const id of Object.keys(source)) {
+    const attachment = source[id];
+    attachments[id] = {
+      id: attachment.id,
+      fileName: attachment.fileName || null,
+      key: attachment.key || null
+    };
+  }
+  return attachments;
 }

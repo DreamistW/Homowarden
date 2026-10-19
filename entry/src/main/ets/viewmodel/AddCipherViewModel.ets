@@ -89,16 +89,16 @@ export class AddCipherViewModel {
   // 构建加密卡片
   private async buildEncryptedCard(): Promise<CipherCard> {
     const encNumber =
-      this.cardItem.number ? await CryptoUtil.encryptField(this.cardItem.number, this.symmetricKey) : '';
+      this.cardItem.number ? await CryptoUtil.encryptField(this.cardItem.number, this.symmetricKey) : null;
     const encHolderName =
       this.cardItem.cardholderName ? await CryptoUtil.encryptField(this.cardItem.cardholderName, this.symmetricKey) :
-        '';
-    const encBrand = this.cardItem.brand ? await CryptoUtil.encryptField(this.cardItem.brand, this.symmetricKey) : '';
+        null;
+    const encBrand = this.cardItem.brand ? await CryptoUtil.encryptField(this.cardItem.brand, this.symmetricKey) : null;
     const encExpMonth =
-      this.cardItem.expMonth ? await CryptoUtil.encryptField(this.cardItem.expMonth, this.symmetricKey) : '';
+      this.cardItem.expMonth ? await CryptoUtil.encryptField(this.cardItem.expMonth, this.symmetricKey) : null;
     const encExpYear =
-      this.cardItem.expYear ? await CryptoUtil.encryptField(this.cardItem.expYear, this.symmetricKey) : '';
-    const encCode = this.cardItem.code ? await CryptoUtil.encryptField(this.cardItem.code, this.symmetricKey) : '';
+      this.cardItem.expYear ? await CryptoUtil.encryptField(this.cardItem.expYear, this.symmetricKey) : null;
+    const encCode = this.cardItem.code ? await CryptoUtil.encryptField(this.cardItem.code, this.symmetricKey) : null;
 
     const card: CipherCard = {
       cardholderName: encHolderName,
@@ -115,42 +115,42 @@ export class AddCipherViewModel {
   // 构建加密身份信息
   private async buildEncryptedIdentity(): Promise<CipherIdentity> {
     const encAddress1 =
-      this.identityItem.address1 ? await CryptoUtil.encryptField(this.identityItem.address1, this.symmetricKey) : '';
+      this.identityItem.address1 ? await CryptoUtil.encryptField(this.identityItem.address1, this.symmetricKey) : null;
     const encAddress2 =
-      this.identityItem.address2 ? await CryptoUtil.encryptField(this.identityItem.address2, this.symmetricKey) : '';
+      this.identityItem.address2 ? await CryptoUtil.encryptField(this.identityItem.address2, this.symmetricKey) : null;
     const encAddress3 =
-      this.identityItem.address3 ? await CryptoUtil.encryptField(this.identityItem.address3, this.symmetricKey) : '';
+      this.identityItem.address3 ? await CryptoUtil.encryptField(this.identityItem.address3, this.symmetricKey) : null;
     const encCity =
-      this.identityItem.city ? await CryptoUtil.encryptField(this.identityItem.city, this.symmetricKey) : '';
+      this.identityItem.city ? await CryptoUtil.encryptField(this.identityItem.city, this.symmetricKey) : null;
     const encCompany =
-      this.identityItem.company ? await CryptoUtil.encryptField(this.identityItem.company, this.symmetricKey) : '';
+      this.identityItem.company ? await CryptoUtil.encryptField(this.identityItem.company, this.symmetricKey) : null;
     const encCountry =
-      this.identityItem.country ? await CryptoUtil.encryptField(this.identityItem.country, this.symmetricKey) : '';
+      this.identityItem.country ? await CryptoUtil.encryptField(this.identityItem.country, this.symmetricKey) : null;
     const encEmail =
-      this.identityItem.email ? await CryptoUtil.encryptField(this.identityItem.email, this.symmetricKey) : '';
+      this.identityItem.email ? await CryptoUtil.encryptField(this.identityItem.email, this.symmetricKey) : null;
     const encFirstName =
-      this.identityItem.firstName ? await CryptoUtil.encryptField(this.identityItem.firstName, this.symmetricKey) : '';
+      this.identityItem.firstName ? await CryptoUtil.encryptField(this.identityItem.firstName, this.symmetricKey) : null;
     const encLastName =
-      this.identityItem.lastName ? await CryptoUtil.encryptField(this.identityItem.lastName, this.symmetricKey) : '';
+      this.identityItem.lastName ? await CryptoUtil.encryptField(this.identityItem.lastName, this.symmetricKey) : null;
     const encLicenseNumber = this.identityItem.licenseNumber ?
-      await CryptoUtil.encryptField(this.identityItem.licenseNumber, this.symmetricKey) : '';
+      await CryptoUtil.encryptField(this.identityItem.licenseNumber, this.symmetricKey) : null;
     const encMiddleName =
       this.identityItem.middleName ? await CryptoUtil.encryptField(this.identityItem.middleName, this.symmetricKey) :
-        '';
+        null;
     const encPassportNumber = this.identityItem.passportNumber ?
-      await CryptoUtil.encryptField(this.identityItem.passportNumber, this.symmetricKey) : '';
+      await CryptoUtil.encryptField(this.identityItem.passportNumber, this.symmetricKey) : null;
     const encPhone =
-      this.identityItem.phone ? await CryptoUtil.encryptField(this.identityItem.phone, this.symmetricKey) : '';
+      this.identityItem.phone ? await CryptoUtil.encryptField(this.identityItem.phone, this.symmetricKey) : null;
     const encPostalCode =
       this.identityItem.postalCode ? await CryptoUtil.encryptField(this.identityItem.postalCode, this.symmetricKey) :
-        '';
-    const encSSN = this.identityItem.ssn ? await CryptoUtil.encryptField(this.identityItem.ssn, this.symmetricKey) : '';
+        null;
+    const encSSN = this.identityItem.ssn ? await CryptoUtil.encryptField(this.identityItem.ssn, this.symmetricKey) : null;
     const encState =
-      this.identityItem.state ? await CryptoUtil.encryptField(this.identityItem.state, this.symmetricKey) : '';
+      this.identityItem.state ? await CryptoUtil.encryptField(this.identityItem.state, this.symmetricKey) : null;
     const encTitle =
-      this.identityItem.title ? await CryptoUtil.encryptField(this.identityItem.title, this.symmetricKey) : '';
+      this.identityItem.title ? await CryptoUtil.encryptField(this.identityItem.title, this.symmetricKey) : null;
     const encUsername =
-      this.identityItem.username ? await CryptoUtil.encryptField(this.identityItem.username, this.symmetricKey) : '';
+      this.identityItem.username ? await CryptoUtil.encryptField(this.identityItem.username, this.symmetricKey) : null;
 
     const identity: CipherIdentity = {
       address1: encAddress1,

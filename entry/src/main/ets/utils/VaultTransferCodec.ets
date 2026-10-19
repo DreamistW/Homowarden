@@ -127,10 +127,10 @@ export class VaultTransferCodec {
           throw new Error('transfer_invalid_file');
         }
         result.card = {
-          cardholderName: VaultTransferCodec.cardText(source.card.cardholderName),
-          brand: VaultTransferCodec.cardText(source.card.brand), number: VaultTransferCodec.cardText(source.card.number),
-          expMonth: VaultTransferCodec.cardText(source.card.expMonth),
-          expYear: VaultTransferCodec.cardText(source.card.expYear), code: VaultTransferCodec.cardText(source.card.code)
+          cardholderName: VaultTransferCodec.optionalText(source.card.cardholderName),
+          brand: VaultTransferCodec.optionalText(source.card.brand), number: VaultTransferCodec.optionalText(source.card.number),
+          expMonth: VaultTransferCodec.optionalText(source.card.expMonth),
+          expYear: VaultTransferCodec.optionalText(source.card.expYear), code: VaultTransferCodec.optionalText(source.card.code)
         };
         break;
       case CipherItemType.IDENTITY:
@@ -153,8 +153,8 @@ export class VaultTransferCodec {
     return value;
   }
 
-  private static cardText(value: string | null | undefined): string | null {
-    // 卡片可选字段的空值必须为 null，不能把空串作为加密字段提交给 Bitwarden。
+  private static optionalText(value: string | null | undefined): string | null {
+    // 可选字段的空值必须为 null，不能把空串作为加密字段提交给 Bitwarden。
     return VaultTransferCodec.text(value) || null;
   }
 
@@ -183,16 +183,16 @@ export class VaultTransferCodec {
 
   private static identity(identity: CipherIdentity): CipherIdentity {
     return {
-      title: VaultTransferCodec.text(identity.title), firstName: VaultTransferCodec.text(identity.firstName),
-      middleName: VaultTransferCodec.text(identity.middleName), lastName: VaultTransferCodec.text(identity.lastName),
-      address1: VaultTransferCodec.text(identity.address1), address2: VaultTransferCodec.text(identity.address2),
-      address3: VaultTransferCodec.text(identity.address3), city: VaultTransferCodec.text(identity.city),
-      state: VaultTransferCodec.text(identity.state), postalCode: VaultTransferCodec.text(identity.postalCode),
-      country: VaultTransferCodec.text(identity.country), company: VaultTransferCodec.text(identity.company),
-      email: VaultTransferCodec.text(identity.email), phone: VaultTransferCodec.text(identity.phone),
-      ssn: VaultTransferCodec.text(identity.ssn), username: VaultTransferCodec.text(identity.username),
-      passportNumber: VaultTransferCodec.text(identity.passportNumber),
-      licenseNumber: VaultTransferCodec.text(identity.licenseNumber)
+      title: VaultTransferCodec.optionalText(identity.title), firstName: VaultTransferCodec.optionalText(identity.firstName),
+      middleName: VaultTransferCodec.optionalText(identity.middleName), lastName: VaultTransferCodec.optionalText(identity.lastName),
+      address1: VaultTransferCodec.optionalText(identity.address1), address2: VaultTransferCodec.optionalText(identity.address2),
+      address3: VaultTransferCodec.optionalText(identity.address3), city: VaultTransferCodec.optionalText(identity.city),
+      state: VaultTransferCodec.optionalText(identity.state), postalCode: VaultTransferCodec.optionalText(identity.postalCode),
+      country: VaultTransferCodec.optionalText(identity.country), company: VaultTransferCodec.optionalText(identity.company),
+      email: VaultTransferCodec.optionalText(identity.email), phone: VaultTransferCodec.optionalText(identity.phone),
+      ssn: VaultTransferCodec.optionalText(identity.ssn), username: VaultTransferCodec.optionalText(identity.username),
+      passportNumber: VaultTransferCodec.optionalText(identity.passportNumber),
+      licenseNumber: VaultTransferCodec.optionalText(identity.licenseNumber)
     };
   }
 

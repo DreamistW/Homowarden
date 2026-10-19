@@ -207,14 +207,24 @@ export class CrudChecks {
 
   private async serverPlain(id: string): Promise<Cipher> {
     const cipher = await getCipherById(id);
+    // 在解密前验证线上格式；decryptField 会把 null 和空串都显示为空，不能据此判断协议兼容。
+    this.checkEncryptedText('server.raw.name', cipher.name);
+    this.checkEncryptedText('server.raw.notes', cipher.notes);
+    this.checkEncryptedText('server.raw.key', cipher.key);
     const key = await CryptoUtil.decryptCipherKey(cipher.key, this.key);
     cipher.name = await CryptoUtil.decryptField(cipher.name, key);
     cipher.notes = await CryptoUtil.decryptField(cipher.notes || '', key);
     if (cipher.login) {
+      this.checkEncryptedText('server.raw.login.username', cipher.login.username);
+      this.checkEncryptedText('server.raw.login.password', cipher.login.password);
+      this.checkEncryptedText('server.raw.login.totp', cipher.login.totp);
+      this.checkEncryptedText('server.raw.login.uri', cipher.login.uri);
       cipher.login.username = await CryptoUtil.decryptField(cipher.login.username || '', key);
       cipher.login.password = await CryptoUtil.decryptField(cipher.login.password || '', key);
       cipher.login.totp = await CryptoUtil.decryptField(cipher.login.totp || '', key);
       for (const uri of cipher.login.uris || []) {
+        this.checkEncryptedText('server.raw.uri', uri.uri);
+        this.checkEncryptedText('server.raw.uriChecksum', uri.uriChecksum);
         uri.uri = await CryptoUtil.decryptField(uri.uri, key);
         const checksum = await CryptoUtil.decryptField(uri.uriChecksum || '', key);
         this.check('server.uriChecksum', checksum, await CryptoUtil.doSha256(uri.uri));
@@ -224,6 +234,7 @@ export class CrudChecks {
       if (details) {
         const values: Record<string, string | null> = JSON.parse(JSON.stringify(details));
         for (const name of Object.keys(values)) {
+          this.checkEncryptedText(`server.raw.${cipher.type}.${name}`, values[name]);
           values[name] = await CryptoUtil.decryptField(values[name] || '', key);
         }
         if (cipher.type === CipherItemType.CARD) { cipher.card = JSON.parse(JSON.stringify(values)); }
@@ -231,10 +242,16 @@ export class CrudChecks {
       }
     }
     for (const field of cipher.fields || []) {
+      this.checkEncryptedText('server.raw.field.name', field.name);
+      this.checkEncryptedText('server.raw.field.value', field.value);
       field.name = await CryptoUtil.decryptField(field.name || '', key);
       field.value = await CryptoUtil.decryptField(field.value || '', key);
     }
     return cipher;
+  }
+
+  private checkEncryptedText(label: string, value: string | null | undefined): void {
+    this.check(label, value === null || value === undefined || /^2\.[^|]+\|[^|]+\|[^|]+$/.test(value), true);
   }
 
   private async local(id: string, sync: boolean): Promise<Cipher> {

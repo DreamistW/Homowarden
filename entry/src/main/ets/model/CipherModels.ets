@@ -231,14 +231,53 @@ export interface CipherFido2Credential {
   creationDate: string;
 }
 
+/** 请求模型区分未填写（null）和有效密文；不改变界面模型的空文本。 */
+export interface CipherUriJsonRequest {
+  uri: string | null;
+  uriChecksum: string | null;
+  match?: number | null;
+}
+
+export interface CipherPasswordHistoryJsonRequest {
+  password: string | null;
+  lastUsedDate: string;
+}
+
+export interface CipherLoginJsonRequest {
+  username: string | null;
+  password: string | null;
+  totp: string | null;
+  passwordRevisionDate: string | null;
+  uris: CipherUriJsonRequest[];
+  uri: string | null;
+  autofillOnPageLoad?: boolean | null;
+  fido2Credentials: CipherFido2CredentialJsonRequest[] | null;
+}
+
+export interface CipherFido2CredentialJsonRequest {
+  credentialId: string | null;
+  keyType: string | null;
+  keyAlgorithm: string | null;
+  keyCurve: string | null;
+  keyValue: string | null;
+  rpId: string | null;
+  rpName: string | null;
+  userHandle: string | null;
+  userName: string | null;
+  userDisplayName: string | null;
+  counter: string | null;
+  discoverable: string | null;
+  creationDate: string;
+}
+
 export interface CipherJsonRequest {
   notes: string | null;
   attachments2: Record<string, CipherAttachmentRequest> | null;
   reprompt: number;
-  passwordHistory: CipherPasswordHistory[] | null;
+  passwordHistory: CipherPasswordHistoryJsonRequest[] | null;
   lastKnownRevisionDate: string | null;
   type: CipherItemType;
-  login: CipherLogin | null;
+  login: CipherLoginJsonRequest | null;
   secureNote: CipherSecureNote | null;
   sshKey: CipherSshKey | null;
   bankAccount: CipherBankAccount | null;
