@@ -15,9 +15,11 @@ export struct LogExportDialog {
     }
     this.submitting = true;
     try {
-      const success = await LogExportService.exportAndShare(this.getUIContext());
+      const uiContext = this.getUIContext();
+      const success = await LogExportService.exportAndShare(uiContext);
       if (success) {
         this.controller.close();
+        AppToast.show(uiContext, $r('app.string.log_export_ready'));
       } else {
         AppToast.show(this.getUIContext(), $r('app.string.log_export_failed'));
       }

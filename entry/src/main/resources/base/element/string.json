@@ -1,5 +1,6 @@
 {
   "string": [
+    {"name":"log_export_ready","value":"Logs generated. Save or share them using the share panel."},
     {"name":"settings_appearance","value":"Appearance settings"},
     {"name":"settings_interface_language","value":"Interface language"},
     {"name":"settings_interface_color","value":"Interface color"},
