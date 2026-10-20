@@ -46,7 +46,18 @@ export class ErrorMessageUtil {
       return ErrorMessageUtil.limitMessage(responseMessage, fallback);
     }
     if (errorLike.message && errorLike.message.length > 0) {
-      return ErrorMessageUtil.limitMessage(errorLike.message, fallback);
+      // HarmonyOS 网络层可能把包含 extendInfo 的错误对象序列化进 message。
+      // Toast 只透传实际错误消息，完整诊断仍由 getMessage 保留。
+      let message = errorLike.message;
+      try {
+        const transportError = JSON.parse(message) as ErrorLike;
+        if (transportError && typeof transportError.message === 'string') {
+          message = transportError.message;
+        }
+      } catch (_) {
+        // 普通错误文本直接使用。
+      }
+      return ErrorMessageUtil.limitMessage(message, fallback);
     }
     return fallback;
   }

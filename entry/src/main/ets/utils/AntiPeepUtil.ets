@@ -5,10 +5,11 @@ import { dlpAntiPeep } from '@kit.DeviceSecurityKit';
 import { DataPreferences } from '@abner/datastore';
 import { Logger } from '@nzy/logger';
 import { ANTI_PEEP_GUIDE_SHOWN, ANTI_PEEP_PROTECTION } from './Constants';
-import { FormFactorUtil } from './FormFactorUtil';
 
-/** 协调应用偏好、系统防窥开关和遮罩订阅，PC 端不启用该能力 */
+/** 按设备实际能力协调应用偏好、系统防窥开关和遮罩订阅。 */
 export class AntiPeepUtil {
+  private static capabilitySupported: boolean | undefined = undefined;
+  private static switchStatusPromise: Promise<boolean> | undefined = undefined;
   private static subscribed: boolean = false;
   private static hasShownMask: boolean = false;
   private static readonly statusChangeCallback: (status: dlpAntiPeep.DlpAntiPeepStatus) => void =
@@ -43,6 +44,9 @@ export class AntiPeepUtil {
     }
 
     const isOpen = await AntiPeepUtil.isSystemSwitchOn();
+    if (!AntiPeepUtil.isSupported()) {
+      return;
+    }
     if (isOpen) {
       AntiPeepUtil.subscribe();
       return;
@@ -77,6 +81,11 @@ export class AntiPeepUtil {
       return true;
     }
 
+    // 系统能力声明存在时，具体硬件仍可能返回 801，不能再请求开启。
+    if (!AntiPeepUtil.isSupported()) {
+      return false;
+    }
+
     if (!context) {
       AntiPeepUtil.saveLocalProtectionEnabled(false);
       AntiPeepUtil.unsubscribe();
@@ -99,10 +108,9 @@ export class AntiPeepUtil {
     }
 
     AntiPeepUtil.ensureDefaults();
-    if (!AntiPeepUtil.isLocalProtectionEnabled()) {
-      return false;
-    }
-    return await AntiPeepUtil.isSystemSwitchOn();
+    // 即使本地开关已关闭，也探测实际硬件能力，供设置页正确置灰。
+    const isOpen = await AntiPeepUtil.isSystemSwitchOn();
+    return isOpen && AntiPeepUtil.isLocalProtectionEnabled();
   }
 
   static resetMaskState(): void {
@@ -113,8 +121,23 @@ export class AntiPeepUtil {
     AntiPeepUtil.unsubscribe();
   }
 
-  private static isSupported(): boolean {
-    return !FormFactorUtil.isPc();
+  static isSupported(): boolean {
+    if (AntiPeepUtil.capabilitySupported === undefined) {
+      AntiPeepUtil.capabilitySupported = canIUse('SystemCapability.Security.DlpAntiPeep');
+      Logger.info(`[AntiPeep] canIUse(SystemCapability.Security.DlpAntiPeep)=${AntiPeepUtil.capabilitySupported}`);
+    }
+    return AntiPeepUtil.capabilitySupported;
+  }
+
+  private static logApiError(operation: string, error: BusinessError): void {
+    if (error.code === 801) {
+      if (AntiPeepUtil.capabilitySupported !== false) {
+        Logger.info(`[AntiPeep] ${operation}: capability unsupported (801); further calls disabled`);
+      }
+      AntiPeepUtil.capabilitySupported = false;
+      return;
+    }
+    Logger.error(`Failed to ${operation}. Code: ${error.code}, message: ${error.message}`);
   }
 
   private static isLocalProtectionEnabled(): boolean {
@@ -152,29 +175,48 @@ export class AntiPeepUtil {
   }
 
   private static async isSystemSwitchOn(): Promise<boolean> {
+    if (!AntiPeepUtil.isSupported()) {
+      return false;
+    }
+    if (AntiPeepUtil.switchStatusPromise) {
+      return await AntiPeepUtil.switchStatusPromise;
+    }
+    const request = AntiPeepUtil.readSystemSwitch();
+    AntiPeepUtil.switchStatusPromise = request;
+    try {
+      return await request;
+    } finally {
+      if (AntiPeepUtil.switchStatusPromise === request) {
+        AntiPeepUtil.switchStatusPromise = undefined;
+      }
+    }
+  }
+
+  private static async readSystemSwitch(): Promise<boolean> {
     try {
       return await dlpAntiPeep.isDlpAntiPeepSwitchOn();
     } catch (error) {
-      const businessError = error as BusinessError;
-      Logger.error(`Failed to get anti peep switch status. Code: ${businessError.code}, message: ${businessError.message}`);
+      AntiPeepUtil.logApiError('get anti peep switch status', error as BusinessError);
       return false;
     }
   }
 
   private static async requestSystemProtection(context: common.UIAbilityContext): Promise<boolean> {
+    if (!AntiPeepUtil.isSupported()) {
+      return false;
+    }
     try {
       const result = await dlpAntiPeep.requestAntiPeepOptions(context);
       return result === dlpAntiPeep.AntiPeepOptionsResult.SUCCESS ||
         result === dlpAntiPeep.AntiPeepOptionsResult.ALREADY_ON;
     } catch (error) {
-      const businessError = error as BusinessError;
-      Logger.error(`Failed to request anti peep options. Code: ${businessError.code}, message: ${businessError.message}`);
+      AntiPeepUtil.logApiError('request anti peep options', error as BusinessError);
       return false;
     }
   }
 
   private static subscribe(): void {
-    if (AntiPeepUtil.subscribed) {
+    if (!AntiPeepUtil.isSupported() || AntiPeepUtil.subscribed) {
       return;
     }
 
@@ -182,8 +224,7 @@ export class AntiPeepUtil {
       dlpAntiPeep.on('dlpAntiPeep', AntiPeepUtil.statusChangeCallback);
       AntiPeepUtil.subscribed = true;
     } catch (error) {
-      const businessError = error as BusinessError;
-      Logger.error(`Failed to subscribe DlpAntiPeep. Code: ${businessError.code}, message: ${businessError.message}`);
+      AntiPeepUtil.logApiError('subscribe DlpAntiPeep', error as BusinessError);
     }
   }
 
@@ -197,13 +238,12 @@ export class AntiPeepUtil {
       AntiPeepUtil.subscribed = false;
       AntiPeepUtil.hasShownMask = false;
     } catch (error) {
-      const businessError = error as BusinessError;
-      Logger.error(`Failed to unsubscribe DlpAntiPeep. Code: ${businessError.code}, message: ${businessError.message}`);
+      AntiPeepUtil.logApiError('unsubscribe DlpAntiPeep', error as BusinessError);
     }
   }
 
   private static async handleStatusChange(status: dlpAntiPeep.DlpAntiPeepStatus): Promise<void> {
-    if (!AntiPeepUtil.isLocalProtectionEnabled()) {
+    if (!AntiPeepUtil.isSupported() || !AntiPeepUtil.isLocalProtectionEnabled()) {
       return;
     }
 
@@ -223,6 +263,9 @@ export class AntiPeepUtil {
   }
 
   private static async setMaskLayer(): Promise<void> {
+    if (!AntiPeepUtil.isSupported()) {
+      return;
+    }
     try {
       const windowStage = AppStorage.get('windowStage') as window.WindowStage | undefined;
       if (!windowStage) {
@@ -235,8 +278,7 @@ export class AntiPeepUtil {
       await dlpAntiPeep.setAntiPeepMaskLayer(windowId);
       AntiPeepUtil.hasShownMask = true;
     } catch (error) {
-      const businessError = error as BusinessError;
-      Logger.error(`Failed to set AntiPeep MaskLayer. Code: ${businessError.code}, message: ${businessError.message}`);
+      AntiPeepUtil.logApiError('set AntiPeep MaskLayer', error as BusinessError);
     }
   }
 }

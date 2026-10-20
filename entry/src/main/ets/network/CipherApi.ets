@@ -23,6 +23,8 @@ import { getServerEndpoints } from './ServerEndpointResolver';
 import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
 import { util } from '@kit.ArkTS';
 
+const SYNC_TIMEOUT_MS = 60000;
+
 /**
  * 获取基础URL
  */
@@ -36,7 +38,7 @@ async function getApiBaseUrl(): Promise<string> {
  */
 export async function getAllCiphers(): Promise<VaultSyncResponse> {
   const baseURL = await getApiBaseUrl();
-  const client = createHttpClient(baseURL);
+  const client = createHttpClient(baseURL, { timeout: SYNC_TIMEOUT_MS });
   const token = await SessionTokenUtil.getAccessToken();
   return client.get('/sync', {
     headers: {

@@ -221,7 +221,7 @@ struct VaultContent {
     } else {
       // 后台同步失败时，不影响已显示的本地数据
       if (!this.needReLogin && this.viewModel.errorMessage) {
-        AppToast.show(this.getUIContext(), $r('app.string.vault_sync_failed_local'),
+        AppToast.show(this.getUIContext(), this.viewModel.errorDetail || $r('app.string.vault_sync_failed_local'),
           this.viewModel.errorIsRequestFailure);
       }
     }

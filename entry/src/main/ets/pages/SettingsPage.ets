@@ -26,7 +26,6 @@ import { VaultViewModel } from '../viewmodel/VaultViewModel';
 import { AppDropdown } from '../component/AppDropdown';
 import { AppOptionFactory } from '../localization/AppOptionFactory';
 import { AutoLockUtil } from '../utils/AutoLockUtil';
-import { FormFactorUtil } from '../utils/FormFactorUtil';
 import { LogExportDialog } from '../component/LogExportDialog';
 import { VaultTransferDialog } from '../component/VaultTransferDialog';
 import { LocaleUtil } from '../localization/LocaleUtil';
@@ -41,7 +40,10 @@ export struct SettingsPage {
   @State autoLockTimeoutSeconds: number = AutoLockTimeout.NEVER;
   @State biometricEnabled: boolean = false;
   @State screenCaptureProtectionEnabled: boolean = true;
+  @State screenCaptureProtectionBusy: boolean = false;
   @State antiPeepProtectionEnabled: boolean = false;
+  @State antiPeepSupported: boolean = true;
+  @State antiPeepBusy: boolean = true;
   @State syncEnabled: boolean = true;
   @State interfaceLanguage: InterfaceLanguage = InterfaceLanguage.SYSTEM;
   @State interfaceColor: InterfaceColor = InterfaceColor.SYSTEM;
@@ -55,7 +57,6 @@ export struct SettingsPage {
   @State confirmMessage: ResourceStr = '';
   @State confirmText: ResourceStr = $r('app.string.common_confirm');
   private confirmAction: () => Promise<boolean> = async () => true;
-  private isPc: boolean = FormFactorUtil.isPc();
   private confirmController: CustomDialogController = new CustomDialogController({
     builder: ConfirmDialog({
       title: $confirmTitle,
@@ -275,12 +276,20 @@ export struct SettingsPage {
                 Toggle({ type: ToggleType.Switch, isOn: this.screenCaptureProtectionEnabled })
                   .selectedColor($r('app.color.brand_accent_color'))
                   .accessibilityText($r('app.string.settings_block_capture'))
+                  .enabled(!this.screenCaptureProtectionBusy)
                   .onChange(async (isOn: boolean) => {
-                    this.screenCaptureProtectionEnabled = isOn;
-                    // 先保存用户选择并尝试应用窗口属性；系统调用失败时提示用户，开关状态不回滚
-                    const applied = await WindowPrivacyUtil.setScreenCaptureProtectionEnabled(isOn);
-                    if (!applied) {
-                      AppToast.show(this.getUIContext(), $r('app.string.error_save_failed'));
+                    if (this.screenCaptureProtectionBusy) {
+                      return;
+                    }
+                    this.screenCaptureProtectionBusy = true;
+                    try {
+                      const applied = await WindowPrivacyUtil.setScreenCaptureProtectionEnabled(isOn);
+                      this.screenCaptureProtectionEnabled = WindowPrivacyUtil.isScreenCaptureProtectionEnabled();
+                      if (!applied) {
+                        AppToast.show(this.getUIContext(), $r('app.string.error_save_failed'));
+                      }
+                    } finally {
+                      this.screenCaptureProtectionBusy = false;
                     }
                   })
               }
@@ -292,40 +301,42 @@ export struct SettingsPage {
                 .fontColor('#666666')
                 .alignSelf(ItemAlign.Start)
 
-              if (!this.isPc) {
-                Row() {
-                  Text($r('app.string.settings_anti_peep'))
-                    .fontSize(16)
+              Row() {
+                Text($r('app.string.settings_anti_peep'))
+                  .fontSize(16)
 
-                  Blank()
+                Blank()
 
-                  Toggle({ type: ToggleType.Switch, isOn: this.antiPeepProtectionEnabled })
-                    .selectedColor($r('app.color.brand_accent_color'))
-                    .accessibilityText($r('app.string.settings_anti_peep'))
-                    .onChange(async (isOn: boolean) => {
-                      this.antiPeepProtectionEnabled = isOn;
-                      if (!isOn) {
-                        await AntiPeepUtil.setProtectionEnabled(false);
-                        this.antiPeepProtectionEnabled = false;
-                        return;
-                      }
-
+                Toggle({ type: ToggleType.Switch, isOn: this.antiPeepProtectionEnabled })
+                  .selectedColor($r('app.color.brand_accent_color'))
+                  .accessibilityText($r('app.string.settings_anti_peep'))
+                  .enabled(this.antiPeepSupported && !this.antiPeepBusy)
+                  .onChange(async (isOn: boolean) => {
+                    if (this.antiPeepBusy || !this.antiPeepSupported) {
+                      return;
+                    }
+                    this.antiPeepBusy = true;
+                    try {
                       const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
-                      const enabled = await AntiPeepUtil.setProtectionEnabled(true, context);
-                      this.antiPeepProtectionEnabled = enabled;
-                      if (!enabled) {
+                      const enabled = await AntiPeepUtil.setProtectionEnabled(isOn, context);
+                      this.antiPeepSupported = AntiPeepUtil.isSupported();
+                      this.antiPeepProtectionEnabled = isOn && enabled && this.antiPeepSupported;
+                      if (!enabled && this.antiPeepSupported) {
                         AppToast.show(this.getUIContext(), $r('app.string.error_save_failed'));
                       }
-                    })
-                }
-                .width('100%')
-                .padding({ top: 20, bottom: 4 })
-
-                Text($r('app.string.settings_anti_peep_desc'))
-                  .fontSize(12)
-                  .fontColor('#666666')
-                  .alignSelf(ItemAlign.Start)
+                    } finally {
+                      this.antiPeepBusy = false;
+                    }
+                  })
               }
+              .width('100%')
+              .padding({ top: 20, bottom: 4 })
+
+              Text(this.antiPeepSupported ? $r('app.string.settings_anti_peep_desc') :
+                $r('app.string.settings_anti_peep_unsupported_desc'))
+                .fontSize(12)
+                .fontColor('#666666')
+                .alignSelf(ItemAlign.Start)
             }
             .width('100%')
             .padding(16)
@@ -643,7 +654,13 @@ export struct SettingsPage {
   }
 
   async loadAntiPeepProtectionStatus() {
-    this.antiPeepProtectionEnabled = await AntiPeepUtil.isProtectionActive();
+    this.antiPeepBusy = true;
+    try {
+      this.antiPeepProtectionEnabled = await AntiPeepUtil.isProtectionActive();
+      this.antiPeepSupported = AntiPeepUtil.isSupported();
+    } finally {
+      this.antiPeepBusy = false;
+    }
   }
 
   loadServerAddress() {

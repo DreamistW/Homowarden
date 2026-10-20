@@ -4,7 +4,6 @@ import {
   AutoLockTimeout,
   BIOMETRIC_AUTH,
   PRIVACY_AGREED_KEY,
-  SCREEN_CAPTURE_PROTECTION,
   SAVE_EMAIL
 } from '../utils/Constants';
 import { common, Want } from '@kit.AbilityKit';
@@ -188,9 +187,6 @@ struct Index {
     }
     if (!DataPreferences.getInstance().hasSync(AUTO_LOCK_TIMEOUT)) {
       DataPreferences.getInstance().putSync(AUTO_LOCK_TIMEOUT, AutoLockTimeout.NEVER);
-    }
-    if (!DataPreferences.getInstance().hasSync(SCREEN_CAPTURE_PROTECTION)) {
-      DataPreferences.getInstance().putSync(SCREEN_CAPTURE_PROTECTION, 1);
     }
     AntiPeepUtil.ensureDefaults();
     this.getLoginStatus();
