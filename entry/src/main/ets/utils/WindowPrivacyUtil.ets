@@ -1,47 +1,84 @@
 import { window } from '@kit.ArkUI';
-import { DataPreferences } from '@abner/datastore';
+import { common } from '@kit.AbilityKit';
+import { preferences } from '@kit.ArkData';
+import { BusinessError } from '@kit.BasicServicesKit';
 import { Logger } from '@nzy/logger';
 import { SCREEN_CAPTURE_PROTECTION } from './Constants';
 import { CredentialStore } from './CredentialStore';
 
 export class WindowPrivacyUtil {
-  static ensureScreenCaptureProtectionDefault(): void {
-    try {
-      if (!DataPreferences.getInstance().hasSync(SCREEN_CAPTURE_PROTECTION)) {
-        DataPreferences.getInstance().putSync(SCREEN_CAPTURE_PROTECTION, 1);
-      }
-    } catch (error) {
-      Logger.error(`Failed to init screen capture protection preference. Error: ${JSON.stringify(error)}`);
+  private static store: preferences.Preferences | undefined = undefined;
+  private static initialization: Promise<void> | undefined = undefined;
+  private static windowUpdate: Promise<boolean> = Promise.resolve(false);
+
+  static initialize(context: common.Context): Promise<void> {
+    if (!WindowPrivacyUtil.initialization) {
+      WindowPrivacyUtil.initialization = WindowPrivacyUtil.openPreferences(context).catch((error: Error) => {
+        WindowPrivacyUtil.initialization = undefined;
+        WindowPrivacyUtil.logError('init screen capture protection preference', error);
+        throw error;
+      });
     }
+    return WindowPrivacyUtil.initialization;
+  }
+
+  private static async openPreferences(context: common.Context): Promise<void> {
+    // 沿用原文件和键，保留已保存的开关；不依赖第三方 init() 的异步回调时序。
+    const store = await preferences.getPreferences(context, { name: 'harmonyPreferences' });
+    if (!store.hasSync(SCREEN_CAPTURE_PROTECTION)) {
+      store.putSync(SCREEN_CAPTURE_PROTECTION, 1);
+      await store.flush();
+    }
+    WindowPrivacyUtil.store = store;
+    Logger.info('Screen capture protection preferences ready');
   }
 
   static isScreenCaptureProtectionEnabled(): boolean {
-    WindowPrivacyUtil.ensureScreenCaptureProtectionDefault();
+    if (!WindowPrivacyUtil.store) {
+      return true;
+    }
     try {
-      return DataPreferences.getInstance().getSync<number>(SCREEN_CAPTURE_PROTECTION) !== 0;
+      return WindowPrivacyUtil.store.getSync(SCREEN_CAPTURE_PROTECTION, 1) !== 0;
     } catch (error) {
-      Logger.error(`Failed to read screen capture protection preference. Error: ${JSON.stringify(error)}`);
+      WindowPrivacyUtil.logError('read screen capture protection preference', error as Object);
       return true;
     }
   }
 
   static async setScreenCaptureProtectionEnabled(enabled: boolean): Promise<boolean> {
     try {
-      DataPreferences.getInstance().putSync(SCREEN_CAPTURE_PROTECTION, enabled ? 1 : 0);
+      await WindowPrivacyUtil.initialization;
     } catch (error) {
-      Logger.error(`Failed to save screen capture protection preference. Error: ${JSON.stringify(error)}`);
       return false;
     }
-    return await WindowPrivacyUtil.applyForCurrentState();
+    const store = WindowPrivacyUtil.store;
+    if (!store) {
+      Logger.error('Failed to save screen capture protection preference. Code: unavailable, message: Store is not ready');
+      return false;
+    }
+    let saved = false;
+    try {
+      store.putSync(SCREEN_CAPTURE_PROTECTION, enabled ? 1 : 0);
+      await store.flush();
+      saved = true;
+    } catch (error) {
+      WindowPrivacyUtil.logError('save screen capture protection preference', error as Object);
+    }
+    // 即使落盘失败，也应用内存中的选择，确保开启保护不会被持久化错误阻断。
+    const applied = await WindowPrivacyUtil.applyForCurrentState();
+    return saved && applied;
   }
 
-  static async applyForCurrentState(): Promise<boolean> {
-    const shouldProtect =
-      WindowPrivacyUtil.isLoggedIn() && WindowPrivacyUtil.isScreenCaptureProtectionEnabled();
-    return await WindowPrivacyUtil.setWindowPrivacyMode(shouldProtect);
+  static applyForCurrentState(): Promise<boolean> {
+    // 执行时再读取状态，避免较早的异步更新覆盖用户刚修改的设置。
+    const update = WindowPrivacyUtil.windowUpdate.then(() => {
+      return WindowPrivacyUtil.setWindowPrivacyMode(WindowPrivacyUtil.shouldProtectWindow());
+    });
+    WindowPrivacyUtil.windowUpdate = update;
+    return update;
   }
 
-  static async setWindowPrivacyMode(isPrivacyMode: boolean): Promise<boolean> {
+  private static async setWindowPrivacyMode(isPrivacyMode: boolean): Promise<boolean> {
     try {
       const windowStage = AppStorage.get('windowStage') as window.WindowStage | undefined;
       if (!windowStage) {
@@ -59,17 +96,25 @@ export class WindowPrivacyUtil {
       Logger.info(`Window privacy mode set to ${isPrivacyMode}.`);
       return true;
     } catch (error) {
-      Logger.error(`Failed to set window privacy mode. Error: ${JSON.stringify(error)}`);
+      WindowPrivacyUtil.logError('set window privacy mode', error as Object);
       return false;
     }
   }
 
-  private static isLoggedIn(): boolean {
+  private static shouldProtectWindow(): boolean {
+    if (!WindowPrivacyUtil.store) {
+      return true;
+    }
     try {
-      return CredentialStore.isLoggedInSync();
+      return CredentialStore.isLoggedInSync() && WindowPrivacyUtil.isScreenCaptureProtectionEnabled();
     } catch (error) {
       // 初始化期间也保护窗口，避免存储尚未就绪时关闭隐私保护。
       return true;
     }
+  }
+
+  private static logError(operation: string, error: Object): void {
+    const details = error as BusinessError;
+    Logger.error(`Failed to ${operation}. Code: ${details.code ?? 'unknown'}, message: ${details.message ?? 'Unknown error'}`);
   }
 }

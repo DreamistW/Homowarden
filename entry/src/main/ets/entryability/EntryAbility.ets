@@ -47,7 +47,14 @@ export default class EntryAbility extends UIAbility {
     VaultChangeNotifier.initialize();
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
     DataPreferences.getInstance().init(this.context);
-    void CredentialStore.initialize(this.context).catch(() => {
+    void WindowPrivacyUtil.initialize(this.context).then(() => {
+      return WindowPrivacyUtil.applyForCurrentState();
+    }).catch(() => {
+      // 初始化错误已由工具类记录；窗口继续使用默认保护。
+    });
+    void CredentialStore.initialize(this.context).then(() => {
+      return WindowPrivacyUtil.applyForCurrentState();
+    }).catch(() => {
       hilog.error(DOMAIN, 'credentials', 'Credential storage initialization failed; waiting for retry');
     });
     try {
@@ -85,10 +92,15 @@ export default class EntryAbility extends UIAbility {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageCreate');
 
     AppStorage.setOrCreate('windowStage', windowStage);
-    void WindowPrivacyUtil.applyForCurrentState();
     this.configureResponsiveOrientation(windowStage);
     void this.configurePcWindowLimits(windowStage);
 
+    void this.loadContentWithPrivacy(windowStage);
+  }
+
+  private async loadContentWithPrivacy(windowStage: window.WindowStage): Promise<void> {
+    // 首次内容加载前先应用保护；存储未就绪时使用默认开启状态。
+    await WindowPrivacyUtil.applyForCurrentState();
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {
         hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
