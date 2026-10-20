@@ -1,4 +1,4 @@
-import { createHttpClient, encodeStringToBase64, toFormUrlEncoded } from './HttpClient';
+import { createHttpClient, toFormUrlEncoded } from './HttpClient';
 import { AxiosResponse } from '@ohos/axios';
 import { Logger } from '@nzy/logger';
 import { BusinessError } from '@kit.BasicServicesKit';
@@ -71,8 +71,6 @@ export async function accessToken(request: AccessTokenRequest): Promise<AccessTo
     {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
-        // auth-email 仅做协议要求的 Base64 编码，不代表对邮箱进行了加密
-        'auth-email': encodeStringToBase64(request.username),
         'origin': AuthProtocolUtil.origin(endpoints.vaultBaseUrl)
       }
     })
