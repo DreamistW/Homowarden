@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <g transform="translate(128 128) scale(0.75)">
+  <circle cx="512" cy="512" r="512" fill="#EEEEEE"/>
+  <g transform="translate(206.979 206.979) scale(0.595745)">
   <defs>
     <mask id="share_cutout">
       <rect width="1024" height="1024" fill="#FFFFFF"/>
@@ -12,6 +13,6 @@
       </g>
     </mask>
   </defs>
-  <circle cx="512" cy="512" r="470" fill="#EAEAEA" mask="url(#share_cutout)"/>
+  <circle cx="512" cy="512" r="470" fill="#000000" mask="url(#share_cutout)"/>
   </g>
 </svg>
