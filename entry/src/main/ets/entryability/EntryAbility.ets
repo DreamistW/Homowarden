@@ -199,6 +199,12 @@ export default class EntryAbility extends UIAbility {
 
   onForeground(): void {
     AppearanceUtil.syncSystemLanguage();
+    // 等待凭据就绪后按实际登录状态刷新菜单，覆盖冷启动及后台返回的场景。
+    void CredentialStore.initialize(this.context).then(() => {
+      return QuickEntryManager.updateLoginState(CredentialStore.isLoggedInSync());
+    }).catch(() => {
+      hilog.error(DOMAIN, 'QuickEntry', 'Failed to synchronize menus on foreground');
+    });
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onForeground');
   }
 
