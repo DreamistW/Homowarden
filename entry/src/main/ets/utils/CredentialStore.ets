@@ -2,11 +2,11 @@ import { Context } from '@kit.AbilityKit';
 import { preferences } from '@kit.ArkData';
 import { DataPreferences } from '@abner/datastore';
 import { Logger } from '@nzy/logger';
-import { BusinessError } from '@kit.BasicServicesKit';
 import { CredentialDatabase, CredentialSnapshot } from './CredentialDatabase';
 import { LegacyAssetSource, LegacyCredentialMigration } from './LegacyCredentialMigration';
 import { RefreshTokenResponse } from '../model/RefreshToken';
 import { QuickEntryManager } from './QuickEntryManager';
+import { CredentialStorageError, CredentialStorageFailure } from './CredentialStorageError';
 import {
   AUTO_LOCK_TIMEOUT, BIOMETRIC_AUTH, EMAIL_KEY, LOGIN_STATUS_KEY,
   SERVER_ADDRESS_KEY, SERVER_TYPE_KEY, ServerType,
@@ -17,15 +17,19 @@ import {
 export class CredentialStore {
   private static database: CredentialDatabase | null = null;
   private static initialization: Promise<void> | null = null;
+  private static repairOperation: Promise<void> | null = null;
   private static context: Context | null = null;
 
   static initialize(context: Context): Promise<void> {
     CredentialStore.context = context;
     if (!CredentialStore.initialization) {
-      CredentialStore.initialization = CredentialStore.open(context).catch(() => {
-        CredentialStore.initialization = null;
-        throw new Error('Credential storage initialization failed');
+      const pending: Promise<void> = CredentialStore.open(context).catch((error: Error) => {
+        if (CredentialStore.initialization === pending) {
+          CredentialStore.initialization = null;
+        }
+        throw error;
       });
+      CredentialStore.initialization = pending;
     }
     return CredentialStore.initialization;
   }
@@ -39,10 +43,12 @@ export class CredentialStore {
 
   private static async open(context: Context): Promise<void> {
     let phase = 'preferences';
+    let fallback = CredentialStorageFailure.PREFERENCES;
     let database: CredentialDatabase | null = null;
     try {
       const oldPreferences = await preferences.getPreferences(context, { name: 'harmonyPreferences' });
       phase = 'database';
+      fallback = CredentialStorageFailure.DATABASE_INITIALIZE;
       database = await CredentialDatabase.open(context);
       phase = 'legacy-status';
       const existing = database.readSync();
@@ -56,6 +62,7 @@ export class CredentialStore {
           oldPreferences.getSync(SERVER_ADDRESS_KEY, '') as string, source.read(EMAIL_KEY));
       }
       phase = 'legacy-migration';
+      fallback = CredentialStorageFailure.LEGACY_MIGRATION;
       await LegacyCredentialMigration.run(database, new LegacyAssetSource(), loggedIn, owner);
       // 数据库中的状态为准，首选项只作为旧版状态的兼容镜像。
       try {
@@ -68,15 +75,54 @@ export class CredentialStore {
       await QuickEntryManager.updateLoginState(database.readSync()?.loggedIn ?? false);
       Logger.info('Encrypted credential database ready');
     } catch (error) {
-      // 只输出阶段、数值错误码；旧资产读取包装错误的内容也仅包含数值码。
-      const message = (error as Error).message;
-      const legacyCode = message?.startsWith('Legacy credential read failed: code=') ?
-        message.substring('Legacy credential read failed: code='.length) : '';
+      const failure = CredentialStorageError.wrap(error as Error, fallback);
       Logger.error(`Credential storage initialization failed: phase=${phase}, ` +
-        `code=${(error as BusinessError).code ?? 0}, legacyCode=${legacyCode}`);
+        `code=${failure.code}, reason=${failure.reason}`);
       database?.close();
-      throw new Error('Credential storage initialization failed');
+      throw failure;
     }
+  }
+
+  /** 调用方必须先取得清空本机凭据库的二次确认。 */
+  static repair(context: Context): Promise<void> {
+    if (CredentialStore.repairOperation) {
+      return CredentialStore.repairOperation;
+    }
+    const previous = CredentialStore.initialization;
+    CredentialStore.context = context;
+    const repair = (async (): Promise<void> => {
+      // 等待启动初始化结束，避免读库与删除交错。
+      await previous?.catch(() => {});
+      CredentialStore.database?.close();
+      CredentialStore.database = null;
+      // 即使清空过程被中断，也不能在下次启动恢复旧登录状态。
+      try {
+        const oldPreferences = await preferences.getPreferences(context, { name: 'harmonyPreferences' });
+        oldPreferences.putSync(LOGIN_STATUS_KEY, 0);
+        await oldPreferences.flush();
+      } catch (error) {
+        throw CredentialStorageError.wrap(error as Error, CredentialStorageFailure.PREFERENCES);
+      }
+      const database = await CredentialDatabase.recreate(context);
+      try {
+        await LegacyCredentialMigration.run(database, new LegacyAssetSource(), false, '');
+      } catch (error) {
+        database.close();
+        throw CredentialStorageError.wrap(error as Error, CredentialStorageFailure.LEGACY_MIGRATION);
+      }
+      CredentialStore.database = database;
+      CredentialStore.mirrorStatus(false);
+      await QuickEntryManager.updateLoginState(false);
+      Logger.info('Local credential storage repaired; login required');
+    })();
+    CredentialStore.repairOperation = repair.catch((error: Error) => {
+      CredentialStore.initialization = null;
+      throw CredentialStorageError.wrap(error, CredentialStorageFailure.DATABASE_INITIALIZE);
+    }).finally(() => {
+      CredentialStore.repairOperation = null;
+    });
+    CredentialStore.initialization = CredentialStore.repairOperation;
+    return CredentialStore.repairOperation;
   }
 
   static ownerKey(serverType: ServerType, address: string, email: string): string {

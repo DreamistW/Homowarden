@@ -14,6 +14,8 @@ import { BreakpointUtil } from '../utils/BreakpointUtil';
 import { AutoLockUtil } from '../utils/AutoLockUtil';
 import { VaultViewModel } from '../viewmodel/VaultViewModel';
 import { CredentialStore } from '../utils/CredentialStore';
+import { CredentialStorageError, CredentialStorageFailure } from '../utils/CredentialStorageError';
+import { ConfirmDialog } from '../component/ConfirmDialog';
 
 /** 统筹顶层导航、隐私遮罩与全局空闲锁定 */
 @Entry
@@ -23,14 +25,40 @@ struct Index {
   @State private showPrivacyMask: boolean = false;
   @State private hasInitializedRoute: boolean = false;
   @State private credentialInitializationFailed: boolean = false;
+  @State private credentialBusy: boolean = false;
+  @State private credentialFailureReason: ResourceStr = '';
+  @State private credentialFailureCode: number = 0;
+  @State private repairTitle: ResourceStr = $r('app.string.storage_repair_title');
+  @State private repairMessage: ResourceStr = $r('app.string.storage_repair_message');
+  @State private repairConfirmText: ResourceStr = $r('app.string.storage_repair_confirm');
   private isLogin: boolean = false;
   private autoLockTimer: number = -1;
+  private repairDialogController: CustomDialogController = new CustomDialogController({
+    builder: ConfirmDialog({
+      title: $repairTitle,
+      message: $repairMessage,
+      confirmText: $repairConfirmText,
+      onConfirm: async (): Promise<boolean> => {
+        await this.repairCredentialStorage();
+        return true;
+      }
+    }),
+    autoCancel: true,
+    onWillDismiss: (action: DismissDialogAction): void => {
+      if (!this.credentialBusy) {
+        action.dismiss();
+      }
+    },
+    alignment: DialogAlignment.Center,
+    customStyle: false
+  });
 
   async aboutToAppear() {
     this.startAutoLockWatcher();
   }
 
   aboutToDisappear(): void {
+    this.repairDialogController.close();
     BreakpointUtil.dispose();
     this.stopAutoLockWatcher();
   }
@@ -65,13 +93,19 @@ struct Index {
   }
 
   private async initAppEntry(): Promise<void> {
+    if (this.credentialBusy) {
+      return;
+    }
+    this.credentialBusy = true;
     this.credentialInitializationFailed = false;
     try {
       await CredentialStore.initialize(this.getUIContext().getHostContext() as common.UIAbilityContext);
-    } catch (_) {
-      this.credentialInitializationFailed = true;
+    } catch (error) {
+      this.showCredentialFailure(error as Error);
       Logger.error('Credential database initialization failed; original credentials retained');
       return;
+    } finally {
+      this.credentialBusy = false;
     }
     if (!DataPreferences.getInstance().hasSync(SAVE_EMAIL)) {
       DataPreferences.getInstance().putSync(SAVE_EMAIL, 0);
@@ -91,6 +125,35 @@ struct Index {
     } else {
       VaultViewModel.lockSession();
       this.pathInfos.pushPath({ name: EntryRouter.UnlockPage });
+    }
+  }
+
+  private showCredentialFailure(error: Error): void {
+    const failure = CredentialStorageError.wrap(error, CredentialStorageFailure.PREFERENCES);
+    this.credentialFailureReason = CredentialStorageError.description(failure.reason);
+    this.credentialFailureCode = failure.code;
+    this.credentialInitializationFailed = true;
+  }
+
+  private async repairCredentialStorage(): Promise<void> {
+    if (this.credentialBusy) {
+      return;
+    }
+    this.credentialBusy = true;
+    let repaired = false;
+    try {
+      VaultViewModel.lockSession();
+      await CredentialStore.repair(this.getUIContext().getHostContext() as common.UIAbilityContext);
+      repaired = true;
+    } catch (error) {
+      this.showCredentialFailure(error as Error);
+      Logger.error('Local credential storage repair failed');
+    } finally {
+      this.credentialBusy = false;
+    }
+    if (repaired) {
+      this.pathInfos.clear();
+      await this.initAppEntry();
     }
   }
 
@@ -160,10 +223,27 @@ struct Index {
       if (this.credentialInitializationFailed) {
         Column({ space: 16 }) {
           Text($r('app.string.error_storage'))
+            .fontSize(20)
+            .fontWeight(FontWeight.Medium)
+          Text(this.credentialFailureReason)
+            .textAlign(TextAlign.Center)
+          if (this.credentialFailureCode !== 0) {
+            Text($r('app.string.storage_error_code', this.credentialFailureCode))
+              .fontSize(14)
+              .fontColor($r('sys.color.ohos_id_color_text_secondary'))
+          }
           Button($r('app.string.common_retry'))
+            .enabled(!this.credentialBusy)
             .onClick(() => { void this.initAppEntry(); })
+          Button(this.credentialBusy ? $r('app.string.storage_repair_progress') :
+            $r('app.string.storage_repair_action'))
+            .id('storage_repair_button')
+            .enabled(!this.credentialBusy)
+            .buttonStyle(ButtonStyleMode.TEXTUAL)
+            .onClick(() => { this.repairDialogController.open(); })
         }
         .padding(24)
+        .constraintSize({ maxWidth: 480 })
       }
     }
     .width('100%')

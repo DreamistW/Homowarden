@@ -5,6 +5,7 @@ import { util } from '@kit.ArkTS';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { CryptoUtil } from './CryptoUtil';
 import { Logger } from '@nzy/logger';
+import { CredentialStorageError, CredentialStorageFailure } from './CredentialStorageError';
 
 /** 启动时创建并复用凭据库随机密钥；不保存登录令牌，不轮换密钥。 */
 export class CredentialDatabaseKey {
@@ -18,7 +19,11 @@ export class CredentialDatabaseKey {
   static databaseExists(context: Context, name: string): boolean {
     CredentialDatabaseKey.alias(name);
     const path = `${context.databaseDir}/rdb/${name}`;
-    return ['', '-wal', '-shm', '-journal'].some((suffix: string) => fileIo.accessSync(path + suffix));
+    try {
+      return ['', '-wal', '-shm', '-journal'].some((suffix: string) => fileIo.accessSync(path + suffix));
+    } catch (error) {
+      throw CredentialStorageError.wrap(error as Error, CredentialStorageFailure.DATABASE_CHECK);
+    }
   }
 
   static async getOrCreate(context: Context, name: string): Promise<Uint8Array> {
@@ -27,12 +32,17 @@ export class CredentialDatabaseKey {
       return existing;
     }
     if (CredentialDatabaseKey.databaseExists(context, name)) {
-      throw new Error('Credential database key is missing');
+      throw new CredentialStorageError(CredentialStorageFailure.KEY_MISSING);
     }
-    const key = await CryptoUtil.generateRandom(32);
+    let key: Uint8Array;
+    try {
+      key = await CryptoUtil.generateRandom(32);
+    } catch (error) {
+      throw CredentialStorageError.wrap(error as Error, CredentialStorageFailure.KEY_CREATE);
+    }
     try {
       if (key.length !== 32) {
-        throw new Error('Invalid credential database key length');
+        throw new CredentialStorageError(CredentialStorageFailure.KEY_CREATE);
       }
       const attributes: asset.AssetMap = new Map();
       attributes.set(asset.Tag.ALIAS, new util.TextEncoder().encodeInto(CredentialDatabaseKey.alias(name)));
@@ -49,13 +59,13 @@ export class CredentialDatabaseKey {
       } catch (error) {
         // 并发创建时复用胜出密钥；禁止覆盖已有密钥。
         if ((error as BusinessError).code !== 24000003) {
-          throw new Error(`Credential database key creation failed: code=${(error as BusinessError).code ?? 0}`);
+          throw CredentialStorageError.wrap(error as Error, CredentialStorageFailure.KEY_CREATE);
         }
       }
       const saved = CredentialDatabaseKey.read(name);
       if (!saved || (created && saved.some((value: number, index: number) => value !== key[index]))) {
         saved?.fill(0);
-        throw new Error('Credential database key verification failed');
+        throw new CredentialStorageError(CredentialStorageFailure.KEY_VERIFY);
       }
       if (created) {
         Logger.info('Credential database key created in Asset Store');
@@ -77,7 +87,7 @@ export class CredentialDatabaseKey {
       if ((error as BusinessError).code === 24000002) {
         return null;
       }
-      throw new Error('Credential database key read failed');
+      throw CredentialStorageError.wrap(error as Error, CredentialStorageFailure.KEY_READ);
     }
     if (rows.length === 0) {
       return null;
@@ -90,7 +100,7 @@ export class CredentialDatabaseKey {
         row.get(asset.Tag.WRAP_TYPE) !== asset.WrapType.NEVER ||
         row.get(asset.Tag.IS_PERSISTENT) !== false ||
         row.get(asset.Tag.ACCESSIBILITY) !== asset.Accessibility.DEVICE_UNLOCKED) {
-        throw new Error('Invalid credential database key or protection policy');
+        throw new CredentialStorageError(CredentialStorageFailure.KEY_INVALID);
       }
       return new Uint8Array(secret);
     } finally {
@@ -107,7 +117,7 @@ export class CredentialDatabaseKey {
       asset.removeSync(query);
     } catch (error) {
       if ((error as BusinessError).code !== 24000002) {
-        throw new Error('Credential database key cleanup failed');
+        throw CredentialStorageError.wrap(error as Error, CredentialStorageFailure.KEY_REMOVE);
       }
     }
   }
