@@ -306,137 +306,143 @@ export struct LoginPage {
 
   build() {
     NavDestination() {
-      Column() {
+      Scroll() {
         Column() {
-        // 邮箱输入框
-        TextInput({
-          placeholder: $r('app.string.login_email_placeholder'),
-          text: this.viewModel.email
-        })
-          .accessibilityText($r('app.string.login_email'))
-          .type(InputType.Email)
-          .onChange((value: string) => {
-            this.viewModel.email = value;
-            this.viewModel.clearError();
-            this.feedbackVisible = false;
-          })
-          .margin(12)
-
-        // 密码输入框
-        TextInput({
-          placeholder: $r('app.string.login_password_placeholder'),
-          text: this.viewModel.password
-        })
-          .accessibilityText($r('app.string.login_password'))
-          .type(InputType.Password)
-          .onChange((value: string) => {
-            this.viewModel.password = value;
-            this.viewModel.clearError();
-            this.feedbackVisible = false;
-          })
-          .onSubmit(async () => {
-            await this.handleLogin();
-          })
-          .margin(12)
-
-        // 记住邮箱的开关，关联viewModel的needSaveEmail
-        Row() {
-          Text($r('app.string.login_remember_email'))
-            .fontSize(16)
-            .margin(12)
-          Toggle({ type: ToggleType.Switch, isOn: this.needToSaveEmail })
-            .selectedColor($r('app.color.brand_accent_color'))
-            .onChange((isOn: boolean) => {
-              this.needToSaveEmail = isOn;
-              this.viewModel.needSaveEmail = isOn;
-              DataPreferences.getInstance().putSync(SAVE_EMAIL, isOn ? 1 : 0);
-            })
-            .accessibilityText($r('app.string.login_remember_email'))
-        }
-
-        Row() {
-          // 服务器选择
-          Text($r('app.string.login_select_server'))
-            .fontSize(16)
-            .margin({ right: 8 })
-          Button(this.getServerTypeButtonText())
-            .stateEffect(false)
-            .fontColor($r('app.color.brand_accent_color'))
-            .buttonStyle(ButtonStyleMode.TEXTUAL)
-            .onClick(() => {
-              this.serverTypeDialogController.open();
-            })
-        }
-
-        if (this.viewModel.serverType == ServerType.SELF_HOSTED) {
-          Row() {
-            Text('https://')
-              .fontSize(16)
-              .margin({ right: 8 })
+          Column() {
+            // 邮箱输入框
             TextInput({
-              placeholder: $r('app.string.login_domain_placeholder'),
-              text: this.viewModel.serverAddress
+              placeholder: $r('app.string.login_email_placeholder'),
+              text: this.viewModel.email
             })
-              .accessibilityText($r('app.string.login_select_server'))
-              .type(InputType.URL)
+              .accessibilityText($r('app.string.login_email'))
+              .type(InputType.Email)
               .onChange((value: string) => {
-                this.viewModel.serverAddress = value;
+                this.viewModel.email = value;
                 this.viewModel.clearError();
                 this.feedbackVisible = false;
               })
-              .layoutWeight(1)
-          }
-          .width('100%')
-          .margin(12)
-        }
+              .margin(12)
 
-        Column() {
-          // 登录和加载状态复用同一半透明按钮，避免提交期间出现样式跳变
-          AdaptiveTextButton({
-            text: this.isLoading ? $r('app.string.login_in_progress') : $r('app.string.login_action'),
-            barWidth: 150,
-            barHeight: 50,
-            fontSize: 18,
-            translucent: true,
-            buttonEnabled: !this.isLoading,
-            onButtonClick: () => {
-              this.handleLogin();
+            // 密码输入框
+            TextInput({
+              placeholder: $r('app.string.login_password_placeholder'),
+              text: this.viewModel.password
+            })
+              .accessibilityText($r('app.string.login_password'))
+              .type(InputType.Password)
+              .onChange((value: string) => {
+                this.viewModel.password = value;
+                this.viewModel.clearError();
+                this.feedbackVisible = false;
+              })
+              .onSubmit(async () => {
+                await this.handleLogin();
+              })
+              .margin(12)
+
+            // 记住邮箱的开关，关联viewModel的needSaveEmail
+            Row() {
+              Text($r('app.string.login_remember_email'))
+                .fontSize(16)
+                .margin(12)
+              Toggle({ type: ToggleType.Switch, isOn: this.needToSaveEmail })
+                .selectedColor($r('app.color.brand_accent_color'))
+                .onChange((isOn: boolean) => {
+                  this.needToSaveEmail = isOn;
+                  this.viewModel.needSaveEmail = isOn;
+                  DataPreferences.getInstance().putSync(SAVE_EMAIL, isOn ? 1 : 0);
+                })
+                .accessibilityText($r('app.string.login_remember_email'))
             }
-          })
-        }
 
-        // 显示错误信息
-        if (this.viewModel.errorMessage) {
-          Text(AppTextResolver.resource(this.viewModel.errorMessage))
-            .fontSize(14)
-            .fontColor(Color.Red)
-            .margin(12)
-          Text(this.viewModel.serverType === ServerType.US ? $r('app.string.login_region_us') :
-            this.viewModel.serverType === ServerType.EU ? $r('app.string.login_region_eu') :
-              $r('app.string.login_region_self_hosted'))
-            .fontSize(12)
-            .fontColor(Color.Gray)
-          if (this.feedbackVisible) {
-            this.feedbackEntry()
+            Row() {
+              // 服务器选择
+              Text($r('app.string.login_select_server'))
+                .fontSize(16)
+                .margin({ right: 8 })
+              Button(this.getServerTypeButtonText())
+                .stateEffect(false)
+                .fontColor($r('app.color.brand_accent_color'))
+                .buttonStyle(ButtonStyleMode.TEXTUAL)
+                .onClick(() => {
+                  this.serverTypeDialogController.open();
+                })
+            }
+
+            if (this.viewModel.serverType == ServerType.SELF_HOSTED) {
+              Row() {
+                Text('https://')
+                  .fontSize(16)
+                  .margin({ right: 8 })
+                TextInput({
+                  placeholder: $r('app.string.login_domain_placeholder'),
+                  text: this.viewModel.serverAddress
+                })
+                  .accessibilityText($r('app.string.login_select_server'))
+                  .type(InputType.URL)
+                  .onChange((value: string) => {
+                    this.viewModel.serverAddress = value;
+                    this.viewModel.clearError();
+                    this.feedbackVisible = false;
+                  })
+                  .layoutWeight(1)
+              }
+              .width('100%')
+              .margin(12)
+            }
+
+            Column() {
+              // 登录和加载状态复用同一半透明按钮，避免提交期间出现样式跳变
+              AdaptiveTextButton({
+                text: this.isLoading ? $r('app.string.login_in_progress') : $r('app.string.login_action'),
+                barWidth: 150,
+                barHeight: 50,
+                fontSize: 18,
+                translucent: true,
+                buttonEnabled: !this.isLoading,
+                onButtonClick: () => {
+                  this.handleLogin();
+                }
+              })
+            }
+
+            // 显示错误信息
+            if (this.viewModel.errorMessage) {
+              Text(AppTextResolver.resource(this.viewModel.errorMessage))
+                .fontSize(14)
+                .fontColor(Color.Red)
+                .margin(12)
+              Text(this.viewModel.serverType === ServerType.US ? $r('app.string.login_region_us') :
+                this.viewModel.serverType === ServerType.EU ? $r('app.string.login_region_eu') :
+                  $r('app.string.login_region_self_hosted'))
+                .fontSize(12)
+                .fontColor(Color.Gray)
+              if (this.feedbackVisible) {
+                this.feedbackEntry()
+              }
+            }
+
+            // 显示成功信息
+            if (this.viewModel.successMessage) {
+              Text(AppTextResolver.resource(this.viewModel.successMessage))
+                .fontSize(14)
+                .fontColor(Color.Green)
+                .margin(12)
+            }
+
           }
+          .width(this.isPc ? '60%' : '100%')
+          .constraintSize({ maxWidth: 640 })
         }
-
-        // 显示成功信息
-        if (this.viewModel.successMessage) {
-          Text(AppTextResolver.resource(this.viewModel.successMessage))
-            .fontSize(14)
-            .fontColor(Color.Green)
-            .margin(12)
-        }
-
-        }
-        .width(this.isPc ? '60%' : '100%')
-        .constraintSize({ maxWidth: 640 })
+        .width('100%')
+        .padding(24)
+        .alignItems(HorizontalAlign.Center)
       }
+      .id('login_page_scroll')
       .width('100%')
       .height('100%')
-      .padding(24)
-      .alignItems(HorizontalAlign.Center)
+      .scrollable(ScrollDirection.Vertical)
+      .align(Alignment.TopStart)
     }
     .title($r('app.string.login_action'))
     .hideBackButton(true)
