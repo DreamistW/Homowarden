@@ -7,7 +7,7 @@ import { AppToast } from '../utils/AppToast';
 import { AppDropdown } from '../component/AppDropdown';
 import { FormDialog } from '../component/FormDialog';
 import { ConfirmDialog } from '../component/ConfirmDialog';
-import { CipherTypeDialog } from '../component/CipherTypeDialog';
+import { OptionDialog } from '../component/OptionDialog';
 import { DataPreferences } from '@abner/datastore';
 import {
   CipherItemType, FilterType, NEED_RELOAD_CIPHERS
@@ -743,8 +743,15 @@ export struct VaultPage {
   @State pathInfos: NavPathStack = new NavPathStack();
   @State detailStack: NavPathStack = new NavPathStack();
   private cipherTypeDialogController: CustomDialogController = new CustomDialogController({
-    builder: CipherTypeDialog({
-      onSelect: (type: CipherItemType): void => this.openAddCipher(type)
+    builder: OptionDialog({
+      title: $r('app.string.cipher_add_title'),
+      options: [
+        { text: $r('app.string.vault_type_login'), value: CipherItemType.LOGIN },
+        { text: $r('app.string.vault_type_note'), value: CipherItemType.NOTE },
+        { text: $r('app.string.vault_type_card'), value: CipherItemType.CARD },
+        { text: $r('app.string.vault_type_identity'), value: CipherItemType.IDENTITY }
+      ],
+      onSelect: (value: number): void => this.openAddCipher(value as CipherItemType)
     }),
     autoCancel: true,
     alignment: DialogAlignment.Center,
