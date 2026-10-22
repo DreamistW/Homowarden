@@ -97,7 +97,7 @@ export struct TotpDisplayItem {
       // 标签
       Text($r('app.string.totp_title'))
         .fontSize(14)
-        .fontColor('#666666')
+        .fontColor($r('app.color.cipher_label_foreground'))
         .width(112)
 
       // 验证码显示
@@ -116,7 +116,7 @@ export struct TotpDisplayItem {
       // 剩余时间
       Text($r('app.string.totp_seconds', this.remainingSeconds))
         .fontSize(12)
-        .fontColor('#666666')
+        .fontColor($r('app.color.cipher_label_foreground'))
         .width(42)
 
       // 复制按钮

@@ -528,7 +528,7 @@ export struct CipherDetailPage {
                   Row() {
                     Text(this.cipher.notes)
                       .fontSize(14)
-                      .fontColor('#666666')
+                      .fontColor($r('app.color.cipher_label_foreground'))
                       .layoutWeight(1)
                     if (this.cipher.notes) {
                       AdaptiveIconButton({
@@ -578,7 +578,7 @@ export struct CipherDetailPage {
                 Row() {
                   Text($r('app.string.cipher_created'))
                     .fontSize(14)
-                    .fontColor('#666666')
+                    .fontColor($r('app.color.cipher_label_foreground'))
                     .width(80)
 
                   Text(this.formattedCreationDate)
@@ -591,7 +591,7 @@ export struct CipherDetailPage {
                 Row() {
                   Text($r('app.string.cipher_modified'))
                     .fontSize(14)
-                    .fontColor('#666666')
+                    .fontColor($r('app.color.cipher_label_foreground'))
                     .width(80)
 
                   Text(this.formattedRevisionDate)
@@ -605,7 +605,7 @@ export struct CipherDetailPage {
                   Row() {
                     Text($r('app.string.cipher_deleted'))
                       .fontSize(14)
-                      .fontColor('#666666')
+                      .fontColor($r('app.color.cipher_label_foreground'))
                       .width(80)
 
                     Text(this.formattedDeletedDate)

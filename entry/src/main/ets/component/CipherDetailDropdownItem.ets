@@ -29,7 +29,7 @@ export struct CipherDetailDropdownItem {
     Row() {
       Text(this.label)
         .fontSize(14)
-        .fontColor('#666666')
+        .fontColor($r('app.color.cipher_label_foreground'))
         .width(112)
 
       if (this.isEditable) {

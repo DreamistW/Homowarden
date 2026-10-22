@@ -83,7 +83,7 @@ export struct CustomFieldEditItem {
 
           Text(this.boolOn ? $r('app.string.common_yes') : $r('app.string.common_no'))
             .fontSize(14)
-            .fontColor('#666666')
+            .fontColor($r('app.color.cipher_label_foreground'))
         }
         .layoutWeight(1)
         .alignItems(VerticalAlign.Center)
