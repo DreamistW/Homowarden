@@ -14,51 +14,7 @@ import { AppTextResolver } from '../localization/AppTextResolver';
 import { VaultViewModel } from '../viewmodel/VaultViewModel';
 import { FormFactorUtil } from '../utils/FormFactorUtil';
 import { LogExportDialog } from '../component/LogExportDialog';
-
-@CustomDialog
-struct ServerTypeDialog {
-  controller: CustomDialogController;
-  onSelect: (serverType: ServerType) => void = () => {
-  };
-
-  private select(serverType: ServerType): void {
-    this.controller.close();
-    this.onSelect(serverType);
-  }
-
-  @Builder
-  private serverOption(text: ResourceStr, serverType: ServerType) {
-    Button(text)
-      .type(ButtonType.Normal)
-      .width('100%')
-      .height(48)
-      .borderRadius(8)
-      .backgroundColor($r('app.color.translucent_button_background'))
-      .fontColor($r('app.color.brand_accent_color'))
-      .onClick(() => {
-        this.select(serverType);
-      })
-  }
-
-  build() {
-    Column({ space: 8 }) {
-      this.serverOption('bitwarden.com', ServerType.US)
-      this.serverOption('bitwarden.eu', ServerType.EU)
-      this.serverOption($r('app.string.server_self_hosted'), ServerType.SELF_HOSTED)
-      Button($r('app.string.common_cancel'))
-        .type(ButtonType.Normal)
-        .width('100%')
-        .height(48)
-        .borderRadius(8)
-        .backgroundColor($r('app.color.translucent_button_background'))
-        .fontColor($r('app.color.brand_accent_color'))
-        .onClick(() => {
-          this.controller.close();
-        })
-    }
-    .padding(16)
-  }
-}
+import { OptionDialog } from '../component/OptionDialog';
 
 @Builder
 export function LoginPageBuilder() {
@@ -90,15 +46,23 @@ export struct LoginPage {
   })
 
   private serverTypeDialogController: CustomDialogController = new CustomDialogController({
-    builder: ServerTypeDialog({
-      onSelect: (serverType: ServerType) => {
-        this.viewModel.serverType = serverType;
+    builder: OptionDialog({
+      options: [
+        { text: 'bitwarden.com', value: ServerType.US },
+        { text: 'bitwarden.eu', value: ServerType.EU },
+        { text: $r('app.string.server_self_hosted'), value: ServerType.SELF_HOSTED }
+      ],
+      onSelect: (value: number) => {
+        this.viewModel.serverType = value as ServerType;
         this.viewModel.clearError();
         this.feedbackVisible = false;
       }
     }),
     autoCancel: true,
     alignment: DialogAlignment.Center,
+    // 主题背景由公共弹框内容响应资源变化。
+    backgroundColor: Color.Transparent,
+    backgroundBlurStyle: BlurStyle.NONE,
     customStyle: false
   })
 
