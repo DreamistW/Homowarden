@@ -27,7 +27,6 @@ import { AppOptionFactory } from '../localization/AppOptionFactory';
 import { AutoLockUtil } from '../utils/AutoLockUtil';
 import { LogExportDialog } from '../component/LogExportDialog';
 import { VaultTransferDialog } from '../component/VaultTransferDialog';
-import { LocaleUtil } from '../localization/LocaleUtil';
 import { LocaleState } from '../localization/LocaleState';
 import { AppearanceUtil, InterfaceColor, InterfaceLanguage } from '../utils/AppearanceUtil';
 
@@ -391,23 +390,6 @@ export struct SettingsPage {
               .padding({ top: 12, bottom: 12 })
 
               Row() {
-                Text($r('app.string.settings_registration'))
-                  .fontSize(16)
-
-                Blank()
-
-                Text($r('app.string.settings_registration_value'))
-                  .fontSize(16)
-                  .fontColor($r('app.color.brand_accent_color'))
-                  .decoration({ type: TextDecorationType.Underline })
-                  .onClick(() => {
-                    this.clickBeian();
-                  })
-              }
-              .width('100%')
-              .padding({ top: 12, bottom: 12 })
-
-              Row() {
                 Text($r('app.string.settings_author_email'))
                   .fontSize(16)
 
@@ -486,22 +468,6 @@ export struct SettingsPage {
                 this.logExportDialogController.open();
               })
 
-              Row() {
-                Text($r('app.string.privacy_policy'))
-                  .fontSize(16)
-
-                Blank()
-
-                Text('›')
-                  .fontSize(22)
-                  .fontColor($r('app.color.brand_accent_color'))
-              }
-              .width('100%')
-              .padding({ top: 12, bottom: 12 })
-              .accessibilityText($r('app.string.privacy_policy'))
-              .onClick(() => {
-                this.clickPrivacyPolicy();
-              })
             }
             .width('100%')
             .padding(16)
@@ -519,46 +485,6 @@ export struct SettingsPage {
     }
     .width('100%')
     .height('100%')
-  }
-
-  clickBeian() {
-    try {
-      const context = getContext(this) as common.UIAbilityContext;
-      if (!context) {
-        AppToast.show(this.getUIContext(), $r('app.string.error_open_website'));
-        return;
-      }
-      const want: Want = {
-        uri: 'https://beian.miit.gov.cn'
-      };
-      context.startAbility(want).catch((err: Error) => {
-        Logger.error(`Failed to open page. Error: ${err.message}`);
-        AppToast.show(this.getUIContext(), $r('app.string.error_open_website'));
-      });
-    } catch (err) {
-      Logger.error(`Failed to open page. Error: ${JSON.stringify(err)}`);
-      AppToast.show(this.getUIContext(), $r('app.string.error_open_website'));
-    }
-  }
-
-  clickPrivacyPolicy() {
-    try {
-      const context = getContext(this) as common.UIAbilityContext;
-      if (!context) {
-        AppToast.show(this.getUIContext(), $r('app.string.error_open_website'));
-        return;
-      }
-      const want: Want = {
-        uri: LocaleUtil.getPrivacyPolicyUrl()
-      };
-      context.startAbility(want).catch((err: Error) => {
-        Logger.error(`Failed to open privacy policy. Error: ${err.message}`);
-        AppToast.show(this.getUIContext(), $r('app.string.error_open_website'));
-      });
-    } catch (err) {
-      Logger.error(`Failed to open privacy policy. Error: ${JSON.stringify(err)}`);
-      AppToast.show(this.getUIContext(), $r('app.string.error_open_website'));
-    }
   }
 
   openEmail() {
