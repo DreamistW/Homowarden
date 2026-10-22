@@ -36,6 +36,7 @@ export struct UnlockPage {
   private masterPassword: string = "";
   @State private biometricEnabled: boolean = false;
   @State private isPasswordAuthenticating: boolean = false;
+  @State private viewportHeight: number = 0;
   private isPc: boolean = FormFactorUtil.isPc();
 
   aboutToAppear() {
@@ -44,92 +45,103 @@ export struct UnlockPage {
 
   build() {
     NavDestination() {
-      Column() {
-        // 应用图标
-        Image($r('app.media.app_small_icon'))
-          .width(120)
-          .height(120)
-          .margin({ bottom: 24 })
-
+      Scroll() {
         Column() {
-          Text($r('app.string.unlock_locked_prompt'))
-            .fontSize(14)
-            .fontColor('#666666')
-            .margin({
-              left: 16,
-              right: 16,
-              top: 12,
-              bottom: 12
-            })
+          // 应用图标
+          Image($r('app.media.app_small_icon'))
+            .width(120)
+            .height(120)
+            .margin({ bottom: 24 })
 
-          TextInput({ text: this.masterPassword })
-            .accessibilityText($r('app.string.unlock_enter_master_password'))
-            .onChange((v: string) => {
-              this.masterPassword = v;
-            })
-            .onSubmit(async () => {
-              await this.handlePasswordAuth();
-            })
-            .margin({ left: 16, right: 16, bottom: 24 })
-            .type(InputType.Password)
-        }
-        .width(this.isPc ? '60%' : '100%')
-        .constraintSize({ maxWidth: 640 })
-        .alignItems(HorizontalAlign.Center)
+          Column() {
+            Text($r('app.string.unlock_locked_prompt'))
+              .fontSize(14)
+              .fontColor('#666666')
+              .margin({
+                left: 16,
+                right: 16,
+                top: 12,
+                bottom: 12
+              })
 
-        // 按钮
-        Column({ space: 6 }) {
-          // 密码解锁
-          AdaptiveTextButton({
-            text: this.isPasswordAuthenticating ? $r('app.string.unlock_in_progress') :
-              $r('app.string.unlock_master_password'),
-            barWidth: 240,
-            barHeight: 50,
-            fontSize: 18,
-            contentPadding: 6,
-            translucent: true,
-            buttonEnabled: !this.isPasswordAuthenticating,
-            onButtonClick: () => {
-              void this.handlePasswordAuth();
-            }
-          })
+            TextInput({ text: this.masterPassword })
+              .accessibilityText($r('app.string.unlock_enter_master_password'))
+              .onChange((v: string) => {
+                this.masterPassword = v;
+              })
+              .onSubmit(async () => {
+                await this.handlePasswordAuth();
+              })
+              .margin({ left: 16, right: 16, bottom: 24 })
+              .type(InputType.Password)
+          }
+          .width(this.isPc ? '60%' : '100%')
+          .constraintSize({ maxWidth: 640 })
+          .alignItems(HorizontalAlign.Center)
 
-          if (this.biometricEnabled) {
-            // 生物识别解锁
+          // 按钮
+          Column({ space: 6 }) {
+            // 密码解锁
             AdaptiveTextButton({
-              text: $r('app.string.unlock_biometrics'),
+              text: this.isPasswordAuthenticating ? $r('app.string.unlock_in_progress') :
+                $r('app.string.unlock_master_password'),
               barWidth: 240,
               barHeight: 50,
               fontSize: 18,
               contentPadding: 6,
               translucent: true,
+              buttonEnabled: !this.isPasswordAuthenticating,
               onButtonClick: () => {
-                this.startBiometricAuth();
+                void this.handlePasswordAuth();
+              }
+            })
+
+            if (this.biometricEnabled) {
+              // 生物识别解锁
+              AdaptiveTextButton({
+                text: $r('app.string.unlock_biometrics'),
+                barWidth: 240,
+                barHeight: 50,
+                fontSize: 18,
+                contentPadding: 6,
+                translucent: true,
+                onButtonClick: () => {
+                  this.startBiometricAuth();
+                }
+              })
+            }
+
+            // 注销
+            AdaptiveTextButton({
+              text: $r('app.string.unlock_logout'),
+              barWidth: 240,
+              barHeight: 50,
+              fontSize: 18,
+              contentPadding: 6,
+              translucent: true,
+              translucentFontColor: $r('sys.color.warning'),
+              onButtonClick: () => {
+                void this.logout();
               }
             })
           }
 
-          // 注销
-          AdaptiveTextButton({
-            text: $r('app.string.unlock_logout'),
-            barWidth: 240,
-            barHeight: 50,
-            fontSize: 18,
-            contentPadding: 6,
-            translucent: true,
-            translucentFontColor: $r('sys.color.warning'),
-            onButtonClick: () => {
-              void this.logout();
-            }
-          })
         }
-
+        .width('100%')
+        // 空间充足时保持居中；高度不足时按内容撑开，由外层滚动。
+        .constraintSize({ minHeight: this.viewportHeight })
+        .padding({ top: 24, bottom: 24 })
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
       }
+      .id('unlock_page_scroll')
       .width('100%')
       .height('100%')
-      .padding({ top: 24, bottom: 24 })
-      .justifyContent(FlexAlign.Center)
-      .alignItems(HorizontalAlign.Center)
+      .scrollable(ScrollDirection.Vertical)
+      .align(Alignment.TopStart)
+      .onAreaChange((_oldArea: Area, newArea: Area) => {
+        this.viewportHeight = Number(newArea.height);
+      })
     }
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
