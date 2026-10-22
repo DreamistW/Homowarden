@@ -5,6 +5,8 @@
   "main": "",
   "author": "",
   "license": "",
-  "dependencies": {}
+  "dependencies": {
+    "libqrscanner.so": "file:./src/main/cpp/types/libqrscanner"
+  }
 }
 

@@ -16,7 +16,6 @@ import { CredentialStore } from '../utils/CredentialStore';
 import { PreloginResponse } from '../model/Prelogin';
 import { KdfUtil } from '../utils/KdfUtil';
 import { CryptoUtil } from '../utils/CryptoUtil';
-import { HdsNavDestination } from '@hms.hds.hdsBaseComponent';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 import { AdaptiveTextButton } from '../component/AdaptiveButton';
 import { DatabaseUtil } from '../utils/DatabaseUtil';
@@ -44,7 +43,7 @@ export struct UnlockPage {
   }
 
   build() {
-    HdsNavDestination() {
+    NavDestination() {
       Column() {
         // 应用图标
         Image($r('app.media.app_small_icon'))

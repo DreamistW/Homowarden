@@ -21,6 +21,10 @@
       "value": "#F5F5F5"
     },
     {
+      "name": "cipher_type_dialog_background",
+      "value": "#18181C"
+    },
+    {
       "name": "translucent_button_background",
       "value": "#1AFFFFFF"
     },

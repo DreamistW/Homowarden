@@ -44,5 +44,7 @@ export struct CipherTypeDialog {
     }
     .width('100%')
     .padding(24)
+    .backgroundColor($r('app.color.cipher_type_dialog_background'))
+    .borderRadius(24)
   }
 }

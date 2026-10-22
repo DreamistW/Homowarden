@@ -2,7 +2,7 @@
   "modelVersion": "5.1.0",
   "description": "Please describe the basic information.",
   "dependencies": {
-    "@huozhiniao/argon2": "^1.0.1",
+    "@huozhiniao/argon2": "file:./third_party/argon2-1.0.1-openharmony.har",
     "@ohos/axios": "^2.2.10",
     "@nzy/logger": "^1.0.7",
     "@abner/datastore": "^1.0.6"

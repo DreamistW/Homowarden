@@ -1,6 +1,5 @@
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
 import { Logger } from '@nzy/logger';
-import { hdsMaterial, HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
 import { GeneratorDatabaseUtil, GENERATOR_HISTORY_TABLE } from '../utils/GeneratorDatabaseUtil';
 import { GeneratorHistoryItem, GeneratorRecordType } from '../model/GeneratorHistoryModel';
 import { AdaptiveIconButton } from '../component/AdaptiveButton';
@@ -28,13 +27,11 @@ struct GeneratorHistory {
   private isPageActive: boolean = false;
   private appearanceGeneration: number = 0;
 
-  clearBtn: HdsNavigationBadgeIconOptions = {
-    content: {
-      label: $r('app.string.generator_history_clear'),
-      icon: $r('app.media.icon_delete'),
-      action: () => {
-        this.requestClearAll();
-      }
+  clearBtn: NavigationMenuItem = {
+    value: $r('app.string.generator_history_clear'),
+    icon: $r('app.media.icon_delete'),
+    action: () => {
+      this.requestClearAll();
     }
   };
 
@@ -254,7 +251,7 @@ struct GeneratorHistory {
   }
 
   build() {
-    HdsNavDestination() {
+    NavDestination() {
       Column() {
         if (this.historyList.length > 0) {
           // 历史记录列表
@@ -289,21 +286,8 @@ struct GeneratorHistory {
       .width('100%')
       .height('100%')
     }
-    .titleBar({
-      content: {
-        title: {
-          mainTitle: $r('app.string.generator_history_title')
-        },
-        menu: { value: this.inSelectionMode ? [] : [this.clearBtn] }
-      },
-      enableComponentSafeArea: true,
-      style: {
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.ADAPTIVE,
-          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
-        }
-      }
-    })
+    .title($r('app.string.generator_history_title'))
+    .menus(this.inSelectionMode ? [] : [this.clearBtn])
     .hideBackButton(this.isSplitView)
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;

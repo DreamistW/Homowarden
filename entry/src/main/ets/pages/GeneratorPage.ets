@@ -276,8 +276,7 @@ export struct GeneratorPage {
           onItemClicked: async (index: number) => {
             this.activeSubTabIndexes = [index];
             await this.regenerate();
-          },
-          enableStateAnimation: true
+          }
         })
       }
       .width('100%')

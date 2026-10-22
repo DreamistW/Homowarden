@@ -21,9 +21,9 @@ function getApplicationUserAgent(): string {
   if (!applicationUserAgent) {
     try {
       const info = bundleManager.getBundleInfoForSelfSync(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT);
-      applicationUserAgent = `Homowarden/${info.versionName} (HarmonyOS)`;
+      applicationUserAgent = `Homowarden/${info.versionName} (OpenHarmony)`;
     } catch (_) {
-      return 'Homowarden (HarmonyOS)';
+      return 'Homowarden (OpenHarmony)';
     }
   }
   return applicationUserAgent;

@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.5)
+project(homowarden_qr LANGUAGES C CXX)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../../../third_party/zbar ${CMAKE_CURRENT_BINARY_DIR}/zbar)
+add_library(qrscanner SHARED qrscanner.cpp)
+target_compile_features(qrscanner PRIVATE cxx_std_17)
+target_compile_options(qrscanner PRIVATE -Wall -Wextra)
+target_link_options(qrscanner PRIVATE -Wl,--no-undefined)
+target_link_libraries(qrscanner PRIVATE zbar libace_napi.z.so)

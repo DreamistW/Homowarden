@@ -15,7 +15,6 @@ import {
   NEED_RELOAD_CIPHERS
 } from '../utils/Constants';
 import { AddCipherViewModel } from '../viewmodel/AddCipherViewModel';
-import { hdsMaterial, HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
 import { VaultChangeNotifier } from '../utils/VaultChangeNotifier';
 import { AppOptionFactory } from '../localization/AppOptionFactory';
 import { DetailRouter } from '../utils/DetailRouter';
@@ -95,14 +94,12 @@ export struct AddCipherPage {
     this.confirmCancel = cancel;
     this.confirmController.open();
   }
-  ConfirmBtn: HdsNavigationBadgeIconOptions = {
-    content: {
-      label: $r('app.string.common_confirm'),
-      icon: $r('app.media.icon_confirm'),
-      isEnabled: true,
-      action: () => {
-        this.saveCipher();
-      }
+  ConfirmBtn: NavigationMenuItem = {
+    value: $r('app.string.common_confirm'),
+    icon: $r('app.media.icon_confirm'),
+
+    action: () => {
+      this.saveCipher();
     }
   }
 
@@ -180,7 +177,7 @@ export struct AddCipherPage {
   }
 
   build() {
-    HdsNavDestination() {
+    NavDestination() {
       Scroll() {
         Column() {
           // 名称
@@ -798,23 +795,8 @@ export struct AddCipherPage {
       }
       .scrollable(ScrollDirection.Vertical)
     }
-    .titleBar({
-      content: {
-        title: {
-          mainTitle: $r('app.string.cipher_add_title')
-        },
-        menu: {
-          value: [this.ConfirmBtn]
-        }
-      },
-      enableComponentSafeArea: true,
-      style: {
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.ADAPTIVE,
-          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
-        }
-      }
-    })
+    .title($r('app.string.cipher_add_title'))
+    .menus([this.ConfirmBtn])
     .hideBackButton(this.isSplitView)
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;

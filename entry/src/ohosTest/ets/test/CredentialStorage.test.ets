@@ -74,7 +74,7 @@ export default function credentialStorageTest(): void {
   describe('CredentialStorage', () => {
     it('encryptedDatabaseMigrationAndRefresh', 0, async () => {
       const delegator = abilityDelegatorRegistry.getAbilityDelegator();
-      await delegator.startAbility({ bundleName: 'com.dreamist.homowarden', abilityName: 'EntryAbility' });
+      await delegator.startAbility({ bundleName: 'com.dreamist.homowarden_oh', abilityName: 'EntryAbility' });
       const ability = await delegator.getCurrentTopAbility();
       const context = ability.context;
       const name = `credential_fixture_${Date.now()}.db`;
@@ -187,7 +187,7 @@ export default function credentialStorageTest(): void {
 
     it('startupKeyReuseAndMissingKey', 0, async () => {
       const delegator = abilityDelegatorRegistry.getAbilityDelegator();
-      await delegator.startAbility({ bundleName: 'com.dreamist.homowarden', abilityName: 'EntryAbility' });
+      await delegator.startAbility({ bundleName: 'com.dreamist.homowarden_oh', abilityName: 'EntryAbility' });
       const context = (await delegator.getCurrentTopAbility()).context;
       const name = `credential_key_fixture_${Date.now()}.db`;
       let database: CredentialDatabase | null = null;

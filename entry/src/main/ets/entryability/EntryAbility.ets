@@ -9,7 +9,6 @@ import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 import { LocaleState } from '../localization/LocaleState';
 import { BreakpointUtil } from '../utils/BreakpointUtil';
 import { VaultChangeNotifier } from '../utils/VaultChangeNotifier';
-import { SystemTrayManager } from '../utils/SystemTrayManager';
 import { FormFactorUtil } from '../utils/FormFactorUtil';
 import { LogExportService } from '../utils/LogExportService';
 import { CredentialStore } from '../utils/CredentialStore';
@@ -108,7 +107,6 @@ export default class EntryAbility extends UIAbility {
       }
       hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
       AppearanceUtil.restoreColor(this.context);
-      void SystemTrayManager.initialize(this.context, windowStage);
     });
   }
 
@@ -178,7 +176,6 @@ export default class EntryAbility extends UIAbility {
   onWindowStageDestroy(): void {
     this.mainWindow = undefined;
     this.preferredOrientation = undefined;
-    SystemTrayManager.detachMainWindow();
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageDestroy');
   }
 

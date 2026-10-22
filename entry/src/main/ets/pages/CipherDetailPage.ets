@@ -18,7 +18,6 @@ import { AppToast } from '../utils/AppToast';
 import { Logger } from '@nzy/logger';
 import { DataPreferences } from '@abner/datastore';
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
-import { hdsMaterial, HdsNavDestination, HdsNavigationBadgeIconOptions } from '@kit.UIDesignKit';
 import { AdaptiveIconButton, AdaptiveTextButton } from '../component/AdaptiveButton';
 import { VaultChangeNotifier } from '../utils/VaultChangeNotifier';
 import { AppOptionFactory } from '../localization/AppOptionFactory';
@@ -198,55 +197,45 @@ export struct CipherDetailPage {
     }
   }
 
-  EditItemBtn: HdsNavigationBadgeIconOptions = {
-    content: {
-      label: $r('app.string.common_edit'),
-      icon: $r('app.media.icon_edit'),
-      action: () => {
-        this.enterEditMode();
-      }
+  EditItemBtn: NavigationMenuItem = {
+    value: $r('app.string.common_edit'),
+    icon: $r('app.media.icon_edit'),
+    action: () => {
+      this.enterEditMode();
     }
   }
-  DeleteItemBtn: HdsNavigationBadgeIconOptions = {
-    content: {
-      label: $r('app.string.common_delete'),
-      icon: $r('app.media.icon_delete'),
-      action: () => {
-        this.deleteCipher();
-      }
+  DeleteItemBtn: NavigationMenuItem = {
+    value: $r('app.string.common_delete'),
+    icon: $r('app.media.icon_delete'),
+    action: () => {
+      this.deleteCipher();
     }
   }
-  ConfirmEditBtn: HdsNavigationBadgeIconOptions = {
-    content: {
-      label: $r('app.string.common_confirm'),
-      icon: $r('app.media.icon_confirm'),
-      action: async () => {
-        if (this.isSaving) {
-          return;
-        }
-        await this.saveCipher();
+  ConfirmEditBtn: NavigationMenuItem = {
+    value: $r('app.string.common_confirm'),
+    icon: $r('app.media.icon_confirm'),
+    action: async () => {
+      if (this.isSaving) {
+        return;
       }
+      await this.saveCipher();
     }
   }
-  CancelEditBtn: HdsNavigationBadgeIconOptions = {
-    content: {
-      label: $r('app.string.common_cancel'),
-      icon: $r('app.media.icon_cancel'),
-      action: () => {
-        if (this.isSaving) {
-          return;
-        }
-        this.requestCancelEdit();
+  CancelEditBtn: NavigationMenuItem = {
+    value: $r('app.string.common_cancel'),
+    icon: $r('app.media.icon_cancel'),
+    action: () => {
+      if (this.isSaving) {
+        return;
       }
+      this.requestCancelEdit();
     }
   }
-  RestoreItemBtn: HdsNavigationBadgeIconOptions = {
-    content: {
-      label: $r('app.string.common_restore'),
-      icon: $r('app.media.icon_restore'),
-      action: async () => {
-        await this.restoreCipher();
-      }
+  RestoreItemBtn: NavigationMenuItem = {
+    value: $r('app.string.common_restore'),
+    icon: $r('app.media.icon_restore'),
+    action: async () => {
+      await this.restoreCipher();
     }
   }
 
@@ -371,35 +360,31 @@ export struct CipherDetailPage {
     }
   }
 
-  private getConfirmEditBtn(): HdsNavigationBadgeIconOptions {
+  private getConfirmEditBtn(): NavigationMenuItem {
     return {
-      content: {
-        label: this.isSaving ? $r('app.string.common_saving') : $r('app.string.common_confirm'),
-        icon: $r('app.media.icon_confirm'),
-        action: async () => {
-          if (this.isSaving) {
-            return;
-          }
-          await this.saveCipher();
+      value: this.isSaving ? $r('app.string.common_saving') : $r('app.string.common_confirm'),
+      icon: $r('app.media.icon_confirm'),
+      action: async () => {
+        if (this.isSaving) {
+          return;
         }
+        await this.saveCipher();
       }
     };
   }
 
-  private getFavoriteItemBtn(): HdsNavigationBadgeIconOptions {
+  private getFavoriteItemBtn(): NavigationMenuItem {
     return {
-      content: {
-        label: this.isFavorite ? $r('app.string.cipher_remove_favorite') :
-          $r('app.string.cipher_add_favorite'),
-        icon: this.isFavorite ? $r('app.media.icon_favorite_filled') : $r('app.media.icon_favorite'),
-        action: async () => {
-          await this.toggleFavorite();
-        }
+      value: this.isFavorite ? $r('app.string.cipher_remove_favorite') :
+        $r('app.string.cipher_add_favorite'),
+      icon: this.isFavorite ? $r('app.media.icon_favorite_filled') : $r('app.media.icon_favorite'),
+      action: async () => {
+        await this.toggleFavorite();
       }
     };
   }
 
-  private getTitleMenu(): HdsNavigationBadgeIconOptions[] {
+  private getTitleMenu(): NavigationMenuItem[] {
     if (this.isEditable) {
       return [this.CancelEditBtn, this.getConfirmEditBtn()];
     }
@@ -464,7 +449,7 @@ export struct CipherDetailPage {
   }
 
   build() {
-    HdsNavDestination() {
+    NavDestination() {
       Column() {
         if (this.isLoading) {
           Column() {
@@ -648,23 +633,8 @@ export struct CipherDetailPage {
       .width('100%')
       .height('100%')
     }
-    .titleBar({
-      content: {
-        title: {
-          mainTitle: $r('app.string.cipher_detail_title')
-        },
-        menu: {
-          value: this.getTitleMenu()
-        }
-      },
-      enableComponentSafeArea: true,
-      style: {
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.ADAPTIVE,
-          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
-        }
-      }
-    })
+    .title($r('app.string.cipher_detail_title'))
+    .menus(this.getTitleMenu())
     .hideBackButton(this.isSplitView)
     .onReady((ctx: NavDestinationContext) => {
       // NavDestination 就绪后才能取得当前页面栈和调用方传入的密钥上下文

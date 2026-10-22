@@ -1,9 +1,8 @@
+import { util } from '@kit.ArkTS';
 import { common } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { fileIo, fileUri } from '@kit.CoreFileKit';
+import { fileIo, picker } from '@kit.CoreFileKit';
 import { hiAppEvent } from '@kit.PerformanceAnalysisKit';
-import { uniformTypeDescriptor } from '@kit.ArkData';
-import { systemShare } from '@kit.ShareKit';
 import { Logger } from '@nzy/logger';
 import { LogSanitizer } from './LogSanitizer';
 import { SanitizingFileStrategy } from './SanitizingFileStrategy';
@@ -16,7 +15,7 @@ const MAX_CRASH_LOG_CHARACTERS = 512 * 1024;
 const EXPORT_PREFIX = 'Homowarden_';
 const LEGACY_EXPORT_PREFIX = 'homowarden-logs-';
 
-/** 管理当前启动会话的 Logger 文件和系统分享流程。 */
+/** 管理当前启动会话的 Logger 文件和文件导出流程。 */
 export class LogExportService {
   private static sessionLogPath: string = '';
   private static logDirectory: string = '';
@@ -51,7 +50,7 @@ export class LogExportService {
     }
   }
 
-  static async exportAndShare(uiContext: UIContext): Promise<boolean> {
+  static async exportFile(uiContext: UIContext): Promise<boolean> {
     if (LogExportService.exporting || !LogExportService.sessionLogPath || !LogExportService.exportDirectory) {
       return false;
     }
@@ -59,19 +58,28 @@ export class LogExportService {
     try {
       Logger.info('Preparing sanitized diagnostic log export');
       const sanitizedSnapshot = LogExportService.buildExportSnapshot();
-      const exportPath = `${LogExportService.exportDirectory}/${EXPORT_PREFIX}${LogExportService.timestamp()}.log`;
-      LogExportService.writeSnapshot(exportPath, sanitizedSnapshot);
-
-      const sharedData = new systemShare.SharedData({
-        utd: uniformTypeDescriptor.UniformDataType.PLAIN_TEXT,
-        uri: fileUri.getUriFromPath(exportPath)
-      });
-      const controller = new systemShare.ShareController(sharedData);
       const context = uiContext.getHostContext() as common.UIAbilityContext;
-      await controller.show(context, {
-        selectionMode: systemShare.SelectionMode.SINGLE,
-        previewMode: systemShare.SharePreviewMode.DEFAULT
-      });
+      const options = new picker.DocumentSaveOptions();
+      options.newFileNames = [`${EXPORT_PREFIX}${LogExportService.timestamp()}.log`];
+      options.fileSuffixChoices = ['Log|.log'];
+      const uris = await new picker.DocumentViewPicker(context).save(options);
+      if (uris.length === 0) {
+        return false;
+      }
+      const file = fileIo.openSync(uris[0], fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC);
+      try {
+        const bytes = new util.TextEncoder().encodeInto(sanitizedSnapshot);
+        let offset = 0;
+        while (offset < bytes.length) {
+          const written = fileIo.writeSync(file.fd, bytes.slice(offset).buffer);
+          if (written <= 0) {
+            throw new Error('Log export write failed');
+          }
+          offset += written;
+        }
+      } finally {
+        fileIo.closeSync(file);
+      }
       return true;
     } catch (error) {
       const businessError = error as BusinessError;

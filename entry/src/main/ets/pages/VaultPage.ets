@@ -13,10 +13,6 @@ import {
   CipherItemType, FilterType, NEED_RELOAD_CIPHERS
 } from '../utils/Constants';
 import { CipherCopyField, CipherItem } from '../component/CipherItem';
-import {
-  HdsNavDestination, HdsNavigationBadgeIconOptions
-} from '@hms.hds.hdsBaseComponent';
-import { HdsTabs, HdsTabsController, hdsMaterial } from '@kit.UIDesignKit';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 import { VaultChangeNotifier, VaultLocalChange, VaultLocalChangeType } from '../utils/VaultChangeNotifier';
 import { MainNavigationItem, mainNavigationItems, MainTab } from '../component/MainNavigationItems';
@@ -742,7 +738,7 @@ export struct VaultPage {
   @State vaultActivationRevision: number = 0;
   @State vaultManualRefreshRevision: number = 0;
   private isPc: boolean = FormFactorUtil.isPc();
-  private tabsController: HdsTabsController = new HdsTabsController();
+  private tabsController: TabsController = new TabsController();
   private exitTime: number = 0;
   @State pathInfos: NavPathStack = new NavPathStack();
   @State detailStack: NavPathStack = new NavPathStack();
@@ -752,6 +748,9 @@ export struct VaultPage {
     }),
     autoCancel: true,
     alignment: DialogAlignment.Center,
+    // 控制器参数不动态刷新；主题背景交给弹框内容的响应式资源属性。
+    backgroundColor: Color.Transparent,
+    backgroundBlurStyle: BlurStyle.NONE,
     customStyle: false
   });
   private closeDetailHandler: () => void = (): void => {
@@ -801,22 +800,18 @@ export struct VaultPage {
     DetailRouter.unregisterCloseHandler(this.closeDetailHandler);
     QuickEntryManager.unregisterNavigationHandler(this.quickEntryHandler);
   }
-  historyBtn: HdsNavigationBadgeIconOptions = {
-    content: {
-      label: $r('app.string.common_history'),
-      icon: $r('app.media.icon_history'),
-      action: () => {
-        this.openDetail(EntryRouter.ShareHistoryPage);
-      }
+  historyBtn: NavigationMenuItem = {
+    value: $r('app.string.common_history'),
+    icon: $r('app.media.icon_history'),
+    action: () => {
+      this.openDetail(EntryRouter.ShareHistoryPage);
     }
   };
-  generatorHistoryBtn: HdsNavigationBadgeIconOptions = {
-    content: {
-      label: $r('app.string.common_history'),
-      icon: $r('app.media.icon_history'),
-      action: () => {
-        this.openDetail(EntryRouter.GeneratorHistoryPage);
-      }
+  generatorHistoryBtn: NavigationMenuItem = {
+    value: $r('app.string.common_history'),
+    icon: $r('app.media.icon_history'),
+    action: () => {
+      this.openDetail(EntryRouter.GeneratorHistoryPage);
     }
   };
 
@@ -871,7 +866,7 @@ export struct VaultPage {
     return MainTab.VAULT;
   }
 
-  private getTitleMenu(): HdsNavigationBadgeIconOptions[] {
+  private getTitleMenu(): NavigationMenuItem[] {
     if (this.selectedMainTab === MainTab.SHARE) {
       return [this.historyBtn];
     }
@@ -1154,7 +1149,7 @@ export struct VaultPage {
   @Builder
   private compactContent() {
     Stack({ alignContent: Alignment.BottomEnd }) {
-      HdsTabs({ barPosition: BarPosition.End, index: this.selectedMainTab, controller: this.tabsController }) {
+      Tabs({ barPosition: BarPosition.End, index: this.selectedMainTab, controller: this.tabsController }) {
         TabContent() {
           this.vaultContent(COMPACT_TAB_CONTENT_INSET)
         }
@@ -1188,15 +1183,8 @@ export struct VaultPage {
       .vertical(false)
       .barMode(BarMode.Fixed)
       .barOverlap(true)
-      .barFloatingStyle({
-        barBottomMargin: 28,
-        adaptToHandedness: true,
-        thermoCtrl: true,
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.ADAPTIVE,
-          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
-        }
-      })
+      .barHeight(72)
+      .barBackgroundColor($r('app.color.menu_background_color'))
       .scrollable(true)
       .onChange((index: number) => {
         this.selectedMainTab = this.getTabByIndex(index);
@@ -1219,7 +1207,7 @@ export struct VaultPage {
   }
 
   build() {
-    HdsNavDestination() {
+    NavDestination() {
       if (this.activeSplitView) {
         AdaptiveShell({
           railBuilder: (): void => this.splitRail(),
@@ -1230,19 +1218,8 @@ export struct VaultPage {
         this.compactContent()
       }
     }
-    .titleBar({
-      content: {
-        title: { mainTitle: this.getTitle() },
-        menu: { value: this.getTitleMenu() }
-      },
-      enableComponentSafeArea: true,
-      style: {
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.ADAPTIVE,
-          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
-        }
-      }
-    })
+    .title(this.getTitle())
+    .menus(this.getTitleMenu())
     .hideTitleBar(this.activeSplitView)
     .hideBackButton(true)
     .onReady((ctx: NavDestinationContext) => {
