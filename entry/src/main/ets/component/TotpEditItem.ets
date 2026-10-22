@@ -41,7 +41,7 @@ export struct TotpEditItem {
     Column() {
       Text($r('app.string.totp_title'))
         .fontSize(14)
-        .fontColor('#666666')
+        .fontColor($r('app.color.cipher_label_foreground'))
         .alignSelf(ItemAlign.Center)
         .margin({ bottom: 4 })
       Row({ space: 8 }) {

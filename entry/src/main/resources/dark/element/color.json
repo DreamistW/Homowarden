@@ -1,6 +1,10 @@
 {
   "color": [
     {
+      "name": "cipher_label_foreground",
+      "value": "#A9ADB7"
+    },
+    {
       "name": "start_window_background",
       "value": "#000000"
     },

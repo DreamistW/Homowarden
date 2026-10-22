@@ -183,7 +183,7 @@ export struct AddCipherPage {
           // 名称
           Text($r('app.string.cipher_item_name'))
             .fontSize(14)
-            .fontColor('#666666')
+            .fontColor($r('app.color.cipher_label_foreground'))
             .margin({
               left: 16,
               right: 16,
@@ -203,7 +203,7 @@ export struct AddCipherPage {
             Row() {
               Text($r('app.string.cipher_username'))
                 .fontSize(14)
-                .fontColor('#666666')
+                .fontColor($r('app.color.cipher_label_foreground'))
                 .width(80)
               TextInput({ text: this.loginUsername })
                 .accessibilityText($r('app.string.cipher_username'))
@@ -239,7 +239,7 @@ export struct AddCipherPage {
             Row() {
               Text($r('app.string.cipher_password'))
                 .fontSize(14)
-                .fontColor('#666666')
+                .fontColor($r('app.color.cipher_label_foreground'))
                 .width(80)
               TextInput({ text: this.loginPassword, placeholder: $r('app.string.login_password_placeholder') })
                 .accessibilityText($r('app.string.cipher_password'))
@@ -275,7 +275,7 @@ export struct AddCipherPage {
             // 网站
             Text($r('app.string.cipher_website'))
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.cipher_label_foreground'))
               .margin({
                 left: 16,
                 right: 16,
@@ -300,7 +300,7 @@ export struct AddCipherPage {
             // 称呼
             Text($r('app.string.cipher_identity_title'))
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.cipher_label_foreground'))
               .margin({
                 left: 16,
                 right: 16,
@@ -321,7 +321,7 @@ export struct AddCipherPage {
             // 名
             Text($r('app.string.cipher_first_name'))
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.cipher_label_foreground'))
               .margin({
                 left: 16,
                 right: 16,
@@ -337,7 +337,7 @@ export struct AddCipherPage {
             // 中间名
             Text($r('app.string.cipher_middle_name'))
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.cipher_label_foreground'))
               .margin({
                 left: 16,
                 right: 16,
@@ -353,7 +353,7 @@ export struct AddCipherPage {
             // 姓
             Text($r('app.string.cipher_last_name'))
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.cipher_label_foreground'))
               .margin({
                 left: 16,
                 right: 16,
@@ -369,7 +369,7 @@ export struct AddCipherPage {
             // 用户名
             Text($r('app.string.cipher_username'))
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.cipher_label_foreground'))
               .margin({
                 left: 16,
                 right: 16,
@@ -385,7 +385,7 @@ export struct AddCipherPage {
             // 公司
             Text($r('app.string.cipher_company'))
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.cipher_label_foreground'))
               .margin({
                 left: 16,
                 right: 16,
@@ -401,7 +401,7 @@ export struct AddCipherPage {
             // 社会保障号码
             Text($r('app.string.cipher_ssn'))
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.cipher_label_foreground'))
               .margin({
                 left: 16,
                 right: 16,
@@ -418,7 +418,7 @@ export struct AddCipherPage {
             // 护照号码
             Text($r('app.string.cipher_passport'))
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.cipher_label_foreground'))
               .margin({
                 left: 16,
                 right: 16,
@@ -435,7 +435,7 @@ export struct AddCipherPage {
             // 许可证号码
             Text($r('app.string.cipher_license'))
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.cipher_label_foreground'))
               .margin({
                 left: 16,
                 right: 16,
@@ -451,7 +451,7 @@ export struct AddCipherPage {
             // 电子邮箱
             Text($r('app.string.cipher_email'))
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.cipher_label_foreground'))
               .margin({
                 left: 16,
                 right: 16,
@@ -467,7 +467,7 @@ export struct AddCipherPage {
             // 电话
             Text($r('app.string.cipher_phone'))
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.cipher_label_foreground'))
               .margin({
                 left: 16,
                 right: 16,
@@ -483,7 +483,7 @@ export struct AddCipherPage {
             // 地址1
             Text($r('app.string.cipher_address1'))
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.cipher_label_foreground'))
               .margin({
                 left: 16,
                 right: 16,
@@ -499,7 +499,7 @@ export struct AddCipherPage {
             // 地址2
             Text($r('app.string.cipher_address2'))
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.cipher_label_foreground'))
               .margin({
                 left: 16,
                 right: 16,
@@ -515,7 +515,7 @@ export struct AddCipherPage {
             // 地址3
             Text($r('app.string.cipher_address3'))
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.cipher_label_foreground'))
               .margin({
                 left: 16,
                 right: 16,
@@ -531,7 +531,7 @@ export struct AddCipherPage {
             // 市/镇
             Text($r('app.string.cipher_city'))
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.cipher_label_foreground'))
               .margin({
                 left: 16,
                 right: 16,
@@ -547,7 +547,7 @@ export struct AddCipherPage {
             // 州/省
             Text($r('app.string.cipher_state'))
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.cipher_label_foreground'))
               .margin({
                 left: 16,
                 right: 16,
@@ -563,7 +563,7 @@ export struct AddCipherPage {
             // 邮政编码
             Text($r('app.string.cipher_postal_code'))
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.cipher_label_foreground'))
               .margin({
                 left: 16,
                 right: 16,
@@ -579,7 +579,7 @@ export struct AddCipherPage {
             // 国家
             Text($r('app.string.cipher_country'))
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.cipher_label_foreground'))
               .margin({
                 left: 16,
                 right: 16,
@@ -596,7 +596,7 @@ export struct AddCipherPage {
             // 姓名
             Text($r('app.string.cipher_cardholder'))
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.cipher_label_foreground'))
               .margin({
                 left: 16,
                 right: 16,
@@ -612,7 +612,7 @@ export struct AddCipherPage {
             // 号码
             Text($r('app.string.cipher_number'))
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.cipher_label_foreground'))
               .margin({
                 left: 16,
                 right: 16,
@@ -629,7 +629,7 @@ export struct AddCipherPage {
             // 品牌
             Text($r('app.string.cipher_brand'))
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.cipher_label_foreground'))
               .margin({
                 left: 16,
                 right: 16,
@@ -650,7 +650,7 @@ export struct AddCipherPage {
             // 过期月份
             Text($r('app.string.cipher_exp_month'))
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.cipher_label_foreground'))
               .margin({
                 left: 16,
                 right: 16,
@@ -672,7 +672,7 @@ export struct AddCipherPage {
             // 过期年份
             Text($r('app.string.cipher_exp_year'))
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.cipher_label_foreground'))
               .margin({
                 left: 16,
                 right: 16,
@@ -693,7 +693,7 @@ export struct AddCipherPage {
             // 安全码
             Text($r('app.string.cipher_security_code'))
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.cipher_label_foreground'))
               .margin({
                 left: 16,
                 right: 16,
@@ -712,7 +712,7 @@ export struct AddCipherPage {
           // 备注
           Text($r('app.string.cipher_notes'))
             .fontSize(14)
-            .fontColor('#666666')
+            .fontColor($r('app.color.cipher_label_foreground'))
             .margin({
               left: 16,
               right: 16,
