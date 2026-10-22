@@ -217,31 +217,7 @@
       "name": "nav_settings",
       "value": "设置"
     },
-    {
-      "name": "privacy_welcome",
-      "value": "欢迎"
-    },
-    {
-      "name": "privacy_agree",
-      "value": "同意"
-    },
-    {
-      "name": "privacy_disagree",
-      "value": "不同意"
-    },
-    {
-      "name": "privacy_intro_brand",
-      "value": "欢迎使用 Homowarden\n\n"
-    },
 
-    {
-      "name": "privacy_read_prefix",
-      "value": "在开始使用之前，请仔细阅读并同意"
-    },
-    {
-      "name": "privacy_policy",
-      "value": "隐私政策"
-    },
     {
       "name": "login_email",
       "value": "邮箱"
@@ -1130,14 +1106,6 @@
     {
       "name": "settings_qq_group",
       "value": "QQ群"
-    },
-    {
-      "name": "settings_registration",
-      "value": "ICP备案号"
-    },
-    {
-      "name": "settings_registration_value",
-      "value": "粤ICP备2021153836号-4A"
     },
     {
       "name": "settings_logout_confirm",

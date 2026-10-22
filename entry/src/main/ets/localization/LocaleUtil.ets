@@ -1,5 +1,4 @@
 import { i18n } from '@kit.LocalizationKit';
-import { PRIVACY_POLICY_URL_EN, PRIVACY_POLICY_URL_ZH } from '../utils/Constants';
 
 /** 请求头、日期和姓名格式跟随应用的实际语言。 */
 export class LocaleUtil {
@@ -18,11 +17,6 @@ export class LocaleUtil {
       return `${language},${baseLanguage};q=0.9`;
     }
     return language;
-  }
-
-  static getPrivacyPolicyUrl(): string {
-    return LocaleUtil.getLanguage().toLowerCase().startsWith('zh') ?
-      PRIVACY_POLICY_URL_ZH : PRIVACY_POLICY_URL_EN;
   }
 
   static formatDateTime(value: string | null | undefined): string {
