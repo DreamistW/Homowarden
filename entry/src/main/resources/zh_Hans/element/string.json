@@ -1369,6 +1369,23 @@
     {"name": "scanner_flash_on", "value": "开启补光"},
     {"name": "scanner_flash_off", "value": "关闭补光"},
     {"name": "scanner_retry", "value": "重试相机"},
-    {"name": "scanner_camera_reason", "value": "用于通过相机扫描二维码。"}
+    {"name": "scanner_camera_reason", "value": "用于通过相机扫描二维码。"},
+    {"name":"storage_reason_key_missing","value":"本机凭据数据库仍存在，但找不到对应的加密密钥，无法打开。"},
+    {"name":"storage_reason_key_read","value":"系统密钥仓库无法读取凭据库密钥，请解锁设备后重试。"},
+    {"name":"storage_reason_key_invalid","value":"凭据库密钥已损坏，或其保护设置不兼容。"},
+    {"name":"storage_reason_key_create","value":"无法创建或验证凭据库加密密钥。"},
+    {"name":"storage_reason_key_remove","value":"无法删除原凭据库密钥，修复未完成。"},
+    {"name":"storage_reason_database_check","value":"无法检查本机凭据数据库文件。"},
+    {"name":"storage_reason_database_open","value":"无法打开加密凭据数据库，数据库或密钥可能已失效。"},
+    {"name":"storage_reason_database_initialize","value":"无法初始化凭据数据库，或库中记录校验失败。"},
+    {"name":"storage_reason_database_delete","value":"无法清空本机凭据数据库，修复未完成。"},
+    {"name":"storage_reason_legacy_migration","value":"无法读取或迁移旧版本的登录凭据。"},
+    {"name":"storage_reason_preferences","value":"无法读取本地存储设置，请重试。"},
+    {"name":"storage_error_code","value":"系统错误码：%1$d"},
+    {"name":"storage_repair_action","value":"修复本地存储"},
+    {"name":"storage_repair_title","value":"修复本地存储？"},
+    {"name":"storage_repair_message","value":"此操作将清空本机凭据数据库、删除原密钥并生成新密钥，随后需要重新登录。服务器端的密码项不会受影响。此操作无法撤销。"},
+    {"name":"storage_repair_confirm","value":"清空并修复"},
+    {"name":"storage_repair_progress","value":"正在修复本地存储…"}
   ]
 }

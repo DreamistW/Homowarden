@@ -6,6 +6,7 @@ import { util } from '@kit.ArkTS';
 import { CredentialDatabaseKey } from '../../../main/ets/utils/CredentialDatabaseKey';
 import { CryptoUtil } from '../../../main/ets/utils/CryptoUtil';
 import { CredentialDatabase, CredentialSnapshot } from '../../../main/ets/utils/CredentialDatabase';
+import { CredentialStorageError, CredentialStorageFailure } from '../../../main/ets/utils/CredentialStorageError';
 import { LegacyCredentialMigration, LegacyCredentialSource,
   LEGACY_CREDENTIAL_ALIASES } from '../../../main/ets/utils/LegacyCredentialMigration';
 import {
@@ -72,6 +73,64 @@ function keyQuery(name: string): asset.AssetMap {
 
 export default function credentialStorageTest(): void {
   describe('CredentialStorage', () => {
+    it('confirmedRepairRecreatesKeyAndPreventsLegacyRestore', 0, async () => {
+      const delegator = abilityDelegatorRegistry.getAbilityDelegator();
+      await delegator.startAbility({ bundleName: 'com.dreamist.homowarden_oh', abilityName: 'EntryAbility' });
+      const context = (await delegator.getCurrentTopAbility()).context;
+      const name = `credential_repair_fixture_${Date.now()}.db`;
+      let database: CredentialDatabase | null = null;
+      try {
+        database = await CredentialDatabase.open(context, name);
+        const values: Record<string, string> = {};
+        values[ACCESS_TOKEN_KEY] = 'fixture-old-access';
+        values[MASTER_KEY] = 'fixture-old-master';
+        await database.replace(values, true, 'fixture-owner', true);
+        const originalKey = CredentialDatabaseKey.read(name)!;
+        const originalEncoded = new util.Base64Helper().encodeToStringSync(originalKey);
+        originalKey.fill(0);
+        database.close();
+        database = null;
+        CredentialDatabaseKey.remove(name);
+        let reason: CredentialStorageFailure | null = null;
+        try {
+          database = await CredentialDatabase.open(context, name);
+        } catch (error) {
+          reason = (error as CredentialStorageError).reason;
+        }
+        expect(reason).assertEqual(CredentialStorageFailure.KEY_MISSING);
+        expect(CredentialDatabaseKey.databaseExists(context, name)).assertTrue();
+        expect(CredentialDatabaseKey.read(name) === null).assertTrue();
+
+        database = await CredentialDatabase.recreate(context, name);
+        const replacementKey = CredentialDatabaseKey.read(name)!;
+        expect(new util.Base64Helper().encodeToStringSync(replacementKey) !== originalEncoded).assertTrue();
+        replacementKey.fill(0);
+        expect(database.readSync()!.loggedIn).assertFalse();
+        expect(Object.keys(database.readSync()!.values).length).assertEqual(0);
+        // 旧资产存在、甚至读取失败时，修复后的空记录也不能被重新导入覆盖。
+        const residual = fixtureSource();
+        residual.failRead = true;
+        await LegacyCredentialMigration.run(database, residual, true, 'fixture-owner');
+        expect(residual.reads).assertEqual(0);
+        expect(residual.removals).assertEqual(LEGACY_CREDENTIAL_ALIASES.length);
+        database.close();
+        database = await CredentialDatabase.open(context, name);
+        expect(database.readSync()!.loggedIn).assertFalse();
+        expect(Object.keys(database.readSync()!.values).length).assertEqual(0);
+        expect(database.readSync()!.legacyCleaned).assertTrue();
+        database.close();
+        database = null;
+        // 重复修复也可完成，旧库健康时仍会换成全新密钥。
+        database = await CredentialDatabase.recreate(context, name);
+        expect(database.readSync()!.loggedIn).assertFalse();
+        expect(Object.keys(database.readSync()!.values).length).assertEqual(0);
+      } finally {
+        database?.close();
+        await relationalStore.deleteRdbStore(context, name);
+        CredentialDatabaseKey.remove(name);
+      }
+    });
+
     it('encryptedDatabaseMigrationAndRefresh', 0, async () => {
       const delegator = abilityDelegatorRegistry.getAbilityDelegator();
       await delegator.startAbility({ bundleName: 'com.dreamist.homowarden_oh', abilityName: 'EntryAbility' });

@@ -4,6 +4,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { RefreshTokenResponse } from '../model/RefreshToken';
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, TOKEN_EXPIRE_TIME_KEY } from './Constants';
 import { CredentialDatabaseKey } from './CredentialDatabaseKey';
+import { CredentialStorageError, CredentialStorageFailure } from './CredentialStorageError';
 
 export interface CredentialSnapshot {
   revision: number;
@@ -42,8 +43,8 @@ export class CredentialDatabase {
     let store: relationalStore.RdbStore;
     try {
       store = await relationalStore.getRdbStore(context, config);
-    } catch (_) {
-      throw new Error('Credential database open failed');
+    } catch (error) {
+      throw CredentialStorageError.wrap(error as Error, CredentialStorageFailure.DATABASE_OPEN);
     } finally {
       key.fill(0);
     }
@@ -60,9 +61,29 @@ export class CredentialDatabase {
       const database = new CredentialDatabase(store);
       database.readSync();
       return database;
-    } catch (_) {
+    } catch (error) {
       store.close();
-      throw new Error('Credential database initialization failed');
+      throw CredentialStorageError.wrap(error as Error, CredentialStorageFailure.DATABASE_INITIALIZE);
+    }
+  }
+
+  /** 仅由二次确认后的修复流程调用；不读取旧库，不重用旧密钥。 */
+  static async recreate(context: Context, name: string = 'homowarden_credentials.db'): Promise<CredentialDatabase> {
+    CredentialDatabaseKey.alias(name);
+    try {
+      await relationalStore.deleteRdbStore(context, name);
+    } catch (error) {
+      throw CredentialStorageError.wrap(error as Error, CredentialStorageFailure.DATABASE_DELETE);
+    }
+    CredentialDatabaseKey.remove(name);
+    const database = await CredentialDatabase.open(context, name);
+    try {
+      // 先提交退出状态，阻止后续启动重新导入残留的旧凭据。
+      await database.replace({}, false, '', false);
+      return database;
+    } catch (error) {
+      database.close();
+      throw CredentialStorageError.wrap(error as Error, CredentialStorageFailure.DATABASE_INITIALIZE);
     }
   }
 

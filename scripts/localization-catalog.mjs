@@ -22,6 +22,26 @@ const zh = {
   nav_generator:'生成器',generator_title:'生成器',generator_tab_password:'密码',generator_tab_username:'用户名',generator_empty:'请至少选择一种字符类型',generator_copied:'已复制',generator_cleared:'已清空',generator_history_title:'生成历史',generator_history_empty:'暂无生成历史',generator_history_clear:'清空',generator_history_delete_confirm:'删除这条记录？',generator_history_clear_confirm:'清空全部生成历史？',generator_history_type_password:'密码',generator_history_type_username:'用户名',password_length:'长度',password_uppercase:'大写字母 (A-Z)',password_lowercase:'小写字母 (a-z)',password_digits:'数字 (0-9)',password_symbols:'符号 (!@#$%^&*)',password_min_digits:'数字最小个数',password_min_symbols:'符号最小个数',username_type:'类型',username_type_email:'邮箱别名',username_type_word:'随机单词',username_email:'邮箱',username_email_placeholder:'输入邮箱',username_capitalize:'首字母大写',username_include_number:'包含数字',accessibility_generate:'生成',accessibility_copy_generated:'复制生成内容',accessibility_password_length:'密码长度',accessibility_decrease_min_digits:'减少数字最小个数',accessibility_increase_min_digits:'增加数字最小个数',accessibility_decrease_min_symbols:'减少符号最小个数',accessibility_increase_min_symbols:'增加符号最小个数',accessibility_clear_generator_history:'清空生成历史'
 };
 
+Object.assign(zh, {
+  "storage_reason_key_missing": "本机凭据数据库仍存在，但找不到对应的加密密钥，无法打开。",
+  "storage_reason_key_read": "系统密钥仓库无法读取凭据库密钥，请解锁设备后重试。",
+  "storage_reason_key_invalid": "凭据库密钥已损坏，或其保护设置不兼容。",
+  "storage_reason_key_create": "无法创建或验证凭据库加密密钥。",
+  "storage_reason_key_remove": "无法删除原凭据库密钥，修复未完成。",
+  "storage_reason_database_check": "无法检查本机凭据数据库文件。",
+  "storage_reason_database_open": "无法打开加密凭据数据库，数据库或密钥可能已失效。",
+  "storage_reason_database_initialize": "无法初始化凭据数据库，或库中记录校验失败。",
+  "storage_reason_database_delete": "无法清空本机凭据数据库，修复未完成。",
+  "storage_reason_legacy_migration": "无法读取或迁移旧版本的登录凭据。",
+  "storage_reason_preferences": "无法读取本地存储设置，请重试。",
+  "storage_error_code": "系统错误码：%1$d",
+  "storage_repair_action": "修复本地存储",
+  "storage_repair_title": "修复本地存储？",
+  "storage_repair_message": "此操作将清空本机凭据数据库、删除原密钥并生成新密钥，随后需要重新登录。服务器端的密码项不会受影响。此操作无法撤销。",
+  "storage_repair_confirm": "清空并修复",
+  "storage_repair_progress": "正在修复本地存储…"
+});
+
 const zhDir = path.join(root, 'entry/src/main/resources/zh_Hans/element');
 fs.mkdirSync(zhDir, { recursive: true });
 const zhCatalog = { string: base.string.map((item) => ({ name: item.name, value: zh[item.name] ?? item.value })) };

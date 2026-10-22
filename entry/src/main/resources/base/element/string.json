@@ -76,6 +76,23 @@
     {"name": "scanner_flash_on", "value": "Light on"},
     {"name": "scanner_flash_off", "value": "Light off"},
     {"name": "scanner_retry", "value": "Retry camera"},
-    {"name": "scanner_camera_reason", "value": "Use the camera to scan a QR code."}
+    {"name": "scanner_camera_reason", "value": "Use the camera to scan a QR code."},
+    {"name":"storage_reason_key_missing","value":"The local credential database exists, but its encryption key is missing. It cannot be opened."},
+    {"name":"storage_reason_key_read","value":"The system key store could not read the credential database key. Unlock the device and retry."},
+    {"name":"storage_reason_key_invalid","value":"The credential database key is damaged or its protection settings are incompatible."},
+    {"name":"storage_reason_key_create","value":"The credential database key could not be created or verified."},
+    {"name":"storage_reason_key_remove","value":"The old credential database key could not be removed. Repair did not complete."},
+    {"name":"storage_reason_database_check","value":"The local credential database files could not be accessed."},
+    {"name":"storage_reason_database_open","value":"The encrypted credential database could not be opened. Its data or key may be invalid."},
+    {"name":"storage_reason_database_initialize","value":"The credential database could not be initialized or its records could not be verified."},
+    {"name":"storage_reason_database_delete","value":"The local credential database could not be cleared. Repair did not complete."},
+    {"name":"storage_reason_legacy_migration","value":"The credentials from the previous version could not be read or migrated."},
+    {"name":"storage_reason_preferences","value":"The local storage settings could not be read. Please retry."},
+    {"name":"storage_error_code","value":"System error code: %1$d"},
+    {"name":"storage_repair_action","value":"Repair local storage"},
+    {"name":"storage_repair_title","value":"Repair local storage?"},
+    {"name":"storage_repair_message","value":"This will clear the local credential database, delete its old key and generate a new key. You will need to log in again. Password items on the server will not be affected. This action cannot be undone."},
+    {"name":"storage_repair_confirm","value":"Clear and repair"},
+    {"name":"storage_repair_progress","value":"Repairing local storage…"}
   ]
 }
