@@ -10,10 +10,8 @@ import { common, Want } from '@kit.AbilityKit';
 import { EntryRouter } from '../../../../EntryRouter';
 import { Logger } from '@nzy/logger';
 import { AppToast } from '../utils/AppToast';
-import { HdsNavigation } from '@kit.UIDesignKit';
 import { window } from '@kit.ArkUI';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
-import { AntiPeepUtil } from '../utils/AntiPeepUtil';
 import { BreakpointUtil } from '../utils/BreakpointUtil';
 import { AutoLockUtil } from '../utils/AutoLockUtil';
 import { VaultViewModel } from '../viewmodel/VaultViewModel';
@@ -96,16 +94,12 @@ struct Index {
   private isLogin: boolean = false;
   private autoLockTimer: number = -1;
 
-  // 检查防窥保护开关并订阅通知
   async aboutToAppear() {
     this.startAutoLockWatcher();
-    const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
-    await AntiPeepUtil.initializeFromStartup(context);
   }
 
   aboutToDisappear(): void {
     this.privacyDialogController.close();
-    AntiPeepUtil.dispose();
     BreakpointUtil.dispose();
     this.stopAutoLockWatcher();
   }
@@ -120,7 +114,6 @@ struct Index {
         this.showPrivacyMask = false;
       }
     })
-    AntiPeepUtil.resetMaskState();
     this.getLoginStatus();
     void WindowPrivacyUtil.applyForCurrentState();
     if (this.hasInitializedRoute && this.isLogin) {
@@ -188,7 +181,6 @@ struct Index {
     if (!DataPreferences.getInstance().hasSync(AUTO_LOCK_TIMEOUT)) {
       DataPreferences.getInstance().putSync(AUTO_LOCK_TIMEOUT, AutoLockTimeout.NEVER);
     }
-    AntiPeepUtil.ensureDefaults();
     this.getLoginStatus();
     void WindowPrivacyUtil.applyForCurrentState();
     // 隐私政策已接入托管，停用应用内首次启动弹窗。
@@ -257,7 +249,7 @@ struct Index {
 
   build() {
     Stack() {
-      HdsNavigation(this.pathInfos) {
+      Navigation(this.pathInfos) {
       }
       .width('100%')
       .height('100%')

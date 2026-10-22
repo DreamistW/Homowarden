@@ -1,7 +1,7 @@
 {
   "string": [
     {"name":"settings_anti_peep_unsupported_desc","value":"当前设备不支持防窥保护"},
-    {"name":"log_export_ready","value":"日志已生成，请在分享面板中保存或分享。"},
+    {"name":"log_export_ready","value":"日志文件已保存"},
     {"name":"settings_appearance","value":"外观设置"},
     {"name":"settings_interface_language","value":"界面语言"},
     {"name":"settings_interface_color","value":"界面颜色"},
@@ -1377,15 +1377,30 @@
     },
     {
       "name": "log_export_confirm",
-      "value": "确定"
+      "value": "保存日志"
     },
     {
       "name": "log_export_message",
-      "value": "点击确定后将导出本应用的脱敏日志，你可以在保存日志后，将日志通过以下方式发送给开发者：邮箱yume.w@outlook.com、QQ群1087498262"
+      "value": "将脱敏日志保存到你选择的位置。反馈问题时，请附上日志，并描述出现问题的操作和时间。"
     },
     {
       "name": "log_export_failed",
       "value": "日志导出失败，请重试"
-    }
+    },
+    {"name": "totp_manual_hint", "value": "输入密钥或粘贴 otpauth:// 链接"},
+    {"name": "scanner_title", "value": "扫描二维码"},
+    {"name": "scanner_opening", "value": "正在打开相机…"},
+    {"name": "scanner_tip", "value": "将相机对准二维码，或从相册选择图片。"},
+    {"name": "scanner_ready", "value": "相机已就绪"},
+    {"name": "scanner_permission", "value": "未获得相机权限，仍可从相册选择图片。"},
+    {"name": "scanner_camera_unavailable", "value": "相机不可用，请重试或选择图片。"},
+    {"name": "scanner_no_match", "value": "未找到当前页面支持的二维码。"},
+    {"name": "scanner_no_qr", "value": "图片中未识别到二维码。"},
+    {"name": "scanner_image_failed", "value": "无法读取图片，请尝试其他图片。"},
+    {"name": "scanner_album", "value": "选择图片"},
+    {"name": "scanner_flash_on", "value": "开启补光"},
+    {"name": "scanner_flash_off", "value": "关闭补光"},
+    {"name": "scanner_retry", "value": "重试相机"},
+    {"name": "scanner_camera_reason", "value": "用于通过相机扫描二维码。"}
   ]
 }

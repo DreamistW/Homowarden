@@ -1,6 +1,8 @@
 # Homowarden
 
-Homowarden 是一个面向 HarmonyOS 的 Bitwarden 非官方客户端，使用 ArkTS 开发，支持手机、平板和 2in1 设备。
+Homowarden 是一个面向 OpenHarmony API 23 及以上标准系统 的 Bitwarden 非官方客户端，使用 ArkTS 开发，支持标准系统设备、平板和 2in1 设备。
+
+当前为 `openharmony` 移植分支，包名 `com.dreamist.homowarden_oh`，与 HarmonyOS 版本独立安装。第一阶段状态、构建方式和待验证项见 [OpenHarmony 移植说明](spec/OPENHARMONY_PORT.md)。
 
 项目已经具备日常可用的密码库能力，包括账户认证、密码库同步、本地加密存储、密码项管理、TOTP、密码与用户名生成、生物识别解锁和自动锁定等核心功能，并针对宽屏和 PC 使用场景进行了适配。
 
@@ -17,13 +19,11 @@ Homowarden 是一个面向 HarmonyOS 的 Bitwarden 非官方客户端，使用 A
 - 支持密码项收藏、自定义字段、多网址和敏感条目二次验证
 - 收藏、回收站、类型筛选、关键字搜索与常用字段快捷复制
 - TOTP 验证码查看、录入、编辑、删除
-- 支持通过扫描 `otpauth://` 二维码录入 TOTP 密钥
-- 支持在 2in1 设备上从图片导入 TOTP 二维码
+- 支持手动输入 TOTP 密钥、安全粘贴，以及相机扫码和相册二维码导入
 - 密码与用户名生成器，以及生成历史管理
 - 主密码解锁、生物识别解锁、自动锁定
 - 中英文界面、无障碍语义与系统语言变化响应
 - 手机底部导航、宽屏侧栏和密码库列表/详情分栏布局
-- 2in1 状态栏图标、关闭至托盘和窗口会话恢复
 - 脱敏日志导出与登录问题反馈入口
 
 此外，应用还包含一个与密码库无关的实验性工具页面“安心分享”，用于清洗常见平台分享链接，并支持搜索、复制和批量删除历史记录。
@@ -68,8 +68,7 @@ Homowarden 是一个面向 HarmonyOS 的 Bitwarden 非官方客户端，使用 A
 - 在独立列表页集中查看所有可用 TOTP
 - 在新增/编辑登录项时维护 TOTP 密钥
 - 解析 `otpauth://` 链接并提取密钥
-- 扫码录入 TOTP
-- 在支持的设备上从图片识别并导入 TOTP 二维码
+- 手动输入、粘贴、相机扫码或相册图片导入 TOTP（OH 真机待验证）
 
 ### 密码与用户名生成器
 
@@ -85,7 +84,6 @@ Homowarden 是一个面向 HarmonyOS 的 Bitwarden 非官方客户端，使用 A
 - 手机使用悬浮底部导航，宽屏设备使用侧栏导航
 - 平板横屏和大窗口采用密码库列表/详情分栏布局
 - 支持键盘提交、列表快捷操作和未保存修改离开确认
-- 2in1 支持状态栏图标、关闭至托盘和窗口恢复
 - 2in1 密码库支持右键快捷菜单
 
 ### 安全能力
@@ -97,7 +95,7 @@ Homowarden 是一个面向 HarmonyOS 的 Bitwarden 非官方客户端，使用 A
 - 锁屏密码 / 指纹 / 人脸认证解锁
 - 应用退到后台后自动锁定
 - 对敏感条目执行主密码二次确认
-- 支持按设备能力启用截屏保护和防窥能力
+- 支持截屏保护和后台隐私遮罩
 - 注销时清理本地密码库、生成历史和登录凭据
 - 导出日志前对令牌、密码、Cookie 等敏感诊断信息进行脱敏
 
@@ -142,14 +140,14 @@ entry/src/main/ets/
 
 - ArkTS
 - ArkUI
-- HarmonyOS
+- OpenHarmony API 23+
 - `@ohos/axios`
 - `@huozhiniao/argon2`
 - `@abner/datastore`
 - `@nzy/logger`
 - `CryptoArchitectureKit`
 - `UserAuthenticationKit`
-- `ScanKit`
+- ZBar 原生二维码解码、`CameraKit`、`ImageKit` 与公共 PhotoViewPicker
 - `ArkData` 关系型数据库
 
 ## 已实现与待完善
@@ -160,12 +158,11 @@ entry/src/main/ets/
 - 密码库同步与本地缓存
 - 密码项 CRUD
 - 收藏、自定义字段和密码项快捷操作
-- TOTP 管理与二维码导入
+- TOTP 管理与离线二维码导入
 - 密码和用户名生成器
 - 生物识别与自动锁定
 - 手机、平板和 2in1 自适应布局
 - 中英文界面和无障碍支持
-- 2in1 状态栏与关闭至托盘
 - 分享历史与生成历史管理
 - 脱敏日志导出
 
@@ -178,7 +175,7 @@ entry/src/main/ets/
 
 ## 注意事项
 
-- 本项目为 Bitwarden 的非官方 HarmonyOS 实现
+- 本项目为 Bitwarden 的非官方 OpenHarmony 实现
 - 本项目尚未经过独立安全审计，不应作为密码数据的唯一备份
 - 应用内有提示：关键数据存储在关键资产区域，卸载前应先注销登录
 - 自托管服务通常需要正确的 HTTPS 配置

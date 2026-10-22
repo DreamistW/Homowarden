@@ -5,7 +5,6 @@ import { LoginViewModel } from '../viewmodel/LoginViewModel';
 import { EntryRouter } from '../../../../EntryRouter';
 import { common } from '@kit.AbilityKit';
 import { DataPreferences } from '@abner/datastore';
-import { HdsNavDestination } from '@hms.hds.hdsBaseComponent';
 import { WindowPrivacyUtil } from '../utils/WindowPrivacyUtil';
 import { AdaptiveTextButton } from '../component/AdaptiveButton';
 import { FormDialog } from '../component/FormDialog';
@@ -176,7 +175,7 @@ export struct LoginPage {
   @Builder
   twoFactorInputContent() {
     Column({ space: 20 }) {
-      Text(this.viewModel.twoFactorProvider === TwoFactorProvider.WEB_AUTHN ? $r('app.string.login_passkey_prompt') : $r('app.string.login_two_factor_prompt'))
+      Text($r('app.string.login_two_factor_prompt'))
         .margin(12)
 
       if (this.getVisibleTwoFactorProviders().length > 1) {
@@ -198,19 +197,17 @@ export struct LoginPage {
         }
       }
 
-      if (this.viewModel.twoFactorProvider !== TwoFactorProvider.WEB_AUTHN) {
-        TextInput({ placeholder: $r('app.string.login_enter') })
-          .accessibilityText($r('app.string.login_two_factor_prompt'))
-          .onChange(value => {
-            this.viewModel.twoFactorToken = value;
-            this.twoFactorInputError = false;
-            this.feedbackVisible = false;
-          })
-          .onSubmit(async () => {
-            await this.handleTwoFactorConfirm();
-          })
-          .type(InputType.Number)
-      }
+      TextInput({ placeholder: $r('app.string.login_enter') })
+        .accessibilityText($r('app.string.login_two_factor_prompt'))
+        .onChange(value => {
+          this.viewModel.twoFactorToken = value;
+          this.twoFactorInputError = false;
+          this.feedbackVisible = false;
+        })
+        .onSubmit(async () => {
+          await this.handleTwoFactorConfirm();
+        })
+        .type(InputType.Number)
 
       Row() {
         Toggle({ type: ToggleType.Switch, isOn: this.twoFactorRemember })
@@ -308,7 +305,7 @@ export struct LoginPage {
   }
 
   build() {
-    HdsNavDestination() {
+    NavDestination() {
       Column() {
         Column() {
         // 邮箱输入框
@@ -441,14 +438,7 @@ export struct LoginPage {
       .padding(24)
       .alignItems(HorizontalAlign.Center)
     }
-    .titleBar({
-      content: {
-        title: {
-          mainTitle: $r('app.string.login_action')
-        }
-      },
-      enableComponentSafeArea: true
-    })
+    .title($r('app.string.login_action'))
     .hideBackButton(true)
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
@@ -520,7 +510,7 @@ export struct LoginPage {
     }
   }
 
-  // 两步验证确认：异步校验验证码/Passkey，失败时保持弹框打开
+  // 两步验证确认：异步校验验证码，失败时保持弹框打开
   private async handleTwoFactorConfirm(): Promise<void> {
     if (this.verificationSubmitting) {
       return;
@@ -534,25 +524,12 @@ export struct LoginPage {
   }
 
   private async performTwoFactorConfirm(): Promise<void> {
-    if (this.viewModel.twoFactorProvider === TwoFactorProvider.WEB_AUTHN) {
-      const context = this.getUIContext().getHostContext() as common.Context;
-      const passkeyResult = await this.viewModel.performPasskeyTwoFactor(context);
-      if (!passkeyResult) {
-        this.syncVerificationDialogs();
-        this.twoFactorInputError = true;
-        this.feedbackVisible = true;
-        this.twoFactorInputHint = AppTextResolver.resource(this.viewModel.errorMessage ??
-          new AppText(AppTextKey.PASSKEY_FAILED));
-        return;
-      }
-    } else {
-      const valueLength = this.viewModel.twoFactorToken.trim().length;
-      this.twoFactorInputError = !valueLength;
-      if (this.twoFactorInputError) {
-        this.feedbackVisible = false;
-        this.twoFactorInputHint = $r('app.string.login_error_code_required');
-        return;
-      }
+    const valueLength = this.viewModel.twoFactorToken.trim().length;
+    this.twoFactorInputError = !valueLength;
+    if (this.twoFactorInputError) {
+      this.feedbackVisible = false;
+      this.twoFactorInputHint = $r('app.string.login_error_code_required');
+      return;
     }
     const result = await this.viewModel.continueLogin();
     if (!result) {
@@ -560,8 +537,7 @@ export struct LoginPage {
       this.twoFactorInputError = true;
       this.feedbackVisible = true;
       this.twoFactorInputHint = AppTextResolver.resource(this.viewModel.errorMessage ??
-        new AppText(this.viewModel.twoFactorProvider === TwoFactorProvider.WEB_AUTHN ?
-          AppTextKey.PASSKEY_FAILED : AppTextKey.CODE_INVALID));
+        new AppText(AppTextKey.CODE_INVALID));
       return;
     }
     this.updateUI();
@@ -658,8 +634,6 @@ export struct LoginPage {
 
   private getTwoFactorProviderText(provider: number): ResourceStr {
     switch (provider) {
-      case TwoFactorProvider.WEB_AUTHN:
-        return $r('app.string.login_provider_passkey');
       case TwoFactorProvider.EMAIL:
         return $r('app.string.login_provider_email');
       default:
@@ -668,10 +642,7 @@ export struct LoginPage {
   }
 
   private getVisibleTwoFactorProviders(): number[] {
-    // 暂时隐藏通行密钥入口
-    return this.viewModel.availableTwoFactorProviders.filter((provider: number) => {
-      return provider !== TwoFactorProvider.WEB_AUTHN;
-    });
+    return this.viewModel.availableTwoFactorProviders;
   }
 
   // 获取服务器类型按钮文本

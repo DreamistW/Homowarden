@@ -1,11 +1,9 @@
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
 import { ShareDatabaseUtil } from '../utils/ShareDatabaseUtil';
 import { HistoryItem } from '../model/ShareHistoryModel';
-import { systemShare } from '@kit.ShareKit';
 import { uniformTypeDescriptor } from '@kit.ArkData';
 import { common } from '@kit.AbilityKit';
 import { getShareLink } from '../utils/ParseLinkUtil';
-import { hdsMaterial, HdsNavDestination } from '@kit.UIDesignKit';
 import { AdaptiveIconButton } from '../component/AdaptiveButton';
 import { DetailRouter } from '../utils/DetailRouter';
 import { ConfirmDialog } from '../component/ConfirmDialog';
@@ -248,33 +246,10 @@ struct History {
     }
   }
 
-  shareLink(text: string, shareLink: boolean) {
-    if (text == "") {
-      this.getUIContext().getPromptAction().showToast({
-        message: $r('app.string.share_convert_first')
-      });
-      return;
-    }
-    let shareData: systemShare.SharedData = new systemShare.SharedData({
-      utd: shareLink ? uniformTypeDescriptor.UniformDataType.HYPERLINK : uniformTypeDescriptor.UniformDataType.TEXT,
-      content: text
-    });
-    let controller: systemShare.ShareController = new systemShare.ShareController(shareData);
-    let uiContext: UIContext = this.getUIContext();
-    let context: common.UIAbilityContext = uiContext.getHostContext() as common.UIAbilityContext;
-    controller.show(context, {
-      selectionMode: systemShare.SelectionMode.SINGLE,
-      previewMode: systemShare.SharePreviewMode.DETAIL
-    }).catch((err: BusinessError) => {
-      console.error(`Failed to show share panel. Code is ${err.code}, message is ${err.message}.`);
-      this.getUIContext().getPromptAction().showToast({
-        message: $r('app.string.share_failed')
-      });
-    })
-  }
+
 
   build() {
-    HdsNavDestination() {
+    NavDestination() {
       Column() {
         // 搜索栏
         Search({
@@ -323,20 +298,7 @@ struct History {
       .width('100%')
       .height('100%')
     }
-    .titleBar({
-      content: {
-        title: {
-          mainTitle: $r('app.string.share_history_title')
-        }
-      },
-      enableComponentSafeArea: true,
-      style: {
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.ADAPTIVE,
-          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
-        }
-      }
-    })
+    .title($r('app.string.share_history_title'))
     .hideBackButton(this.isSplitView)
     .onReady((ctx: NavDestinationContext) => {
       this.pathInfos = ctx.pathStack;
@@ -430,38 +392,6 @@ struct History {
                 action: async () => {
                   const link: string = await getShareLink(item.content);
                   this.copyLink(link);
-                }
-              }
-            ], {
-              backgroundColor: $r('app.color.menu_background_color'),
-              backgroundBlurStyle: BlurStyle.NONE
-            })
-
-          Button() {
-            Image($r('app.media.icon_share'))
-              .width(18)
-              .height(18)
-              .fillColor($r('app.color.button_foreground_color'))
-              .accessibilityLevel('no')
-          }
-            .type(ButtonType.Circle)
-            .width(36)
-            .height(36)
-            .padding(0)
-            .backgroundColor($r('app.color.button_background_color'))
-            .accessibilityText($r('app.string.common_share'))
-            .bindMenu([
-              {
-                value: $r('app.string.share_full'),
-                action: () => {
-                  this.shareLink(item.content, false);
-                }
-              },
-              {
-                value: $r('app.string.share_link'),
-                action: async () => {
-                  const link: string = await getShareLink(item.content);
-                  this.shareLink(link, true);
                 }
               }
             ], {

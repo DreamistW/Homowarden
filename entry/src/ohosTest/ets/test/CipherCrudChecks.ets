@@ -9,10 +9,12 @@ import { Cipher, CipherField, CipherUri } from '../../../main/ets/model/CipherMo
 import { getAllCiphers, getCipherById } from '../../../main/ets/network/CipherApi';
 import { DatabaseUtil } from '../../../main/ets/utils/DatabaseUtil';
 import { CredentialStore } from '../../../main/ets/utils/CredentialStore';
+import { AppearanceUtil, InterfaceColor, InterfaceLanguage } from '../../../main/ets/utils/AppearanceUtil';
 import { CryptoUtil } from '../../../main/ets/utils/CryptoUtil';
 import { CipherItemType, CipherFieldType, DBTableName, FilterType, MASTER_KEY, USER_KEY } from '../../../main/ets/utils/Constants';
 
 interface CheckResult {
+  appearance: string;
   type: string;
   step: string;
   passed: boolean;
@@ -21,6 +23,8 @@ interface CheckResult {
 }
 
 interface CrudReport {
+  ownedIds: string[];
+  remainingIds: string[];
   runId: string;
   startedAt: string;
   finishedAt: string;
@@ -49,8 +53,11 @@ export class CrudChecks {
   private owned: Cipher[] = [];
   private baseline: Cipher[] = [];
   private current: CheckResult | null = null;
+  private appearance: string = 'original';
+  private variant: string = '';
   private print: (message: string) => Promise<void>;
   private report: CrudReport = {
+    ownedIds: [], remainingIds: [],
     runId: `${Date.now()}`, startedAt: new Date().toISOString(), finishedAt: '',
     baselineCount: 0, finalCount: 0, assertions: 0, results: []
   };
@@ -72,7 +79,7 @@ export class CrudChecks {
   }
 
   private async step(type: string, name: string, action: () => Promise<void>): Promise<void> {
-    this.current = { type: type, step: name, passed: true, assertions: 0, failedFields: [] };
+    this.current = { appearance: this.appearance, type: type, step: name, passed: true, assertions: 0, failedFields: [] };
     try {
       await action();
     } catch (error) {
@@ -98,7 +105,7 @@ export class CrudChecks {
     const form = new AddCipherViewModel();
     form.type = type;
     form.symmetricKey = this.key;
-    form.name = `HW-CRUD-${this.report.runId}-${NAMES[type]}-${stage}`;
+    form.name = `HW-CRUD-${this.report.runId}-${this.appearance}-${this.variant}-${NAMES[type]}-${stage}`;
     form.notes = empty ? '' : `备注-${stage}-中文 🔐\nsecond line "quoted", &<>`;
     form.fields = empty ? [] : [
       { name: `文本-${stage}`, value: ` value ${stage}\n中文 & "quote" `, type: CipherFieldType.TEXT },
@@ -314,6 +321,7 @@ export class CrudChecks {
 
   private async lifecycle(type: CipherItemType, empty: boolean): Promise<void> {
     const label = `${NAMES[type]}-${empty ? 'minimal' : 'full'}`;
+    this.variant = empty ? 'minimal' : 'full';
     const form = this.fixture(type, 'create', empty);
     let id = '';
     let expected = this.expected(form);
@@ -323,6 +331,8 @@ export class CrudChecks {
       if (!created) { throw new Error('create_failed'); }
       id = created.id;
       this.owned.push(created);
+      this.report.ownedIds.push(id);
+      this.saveReport();
       await this.verify(id, expected);
     });
     if (!id) { return; }
@@ -381,7 +391,8 @@ export class CrudChecks {
     });
   }
 
-  async run(): Promise<number> {
+  async run(matrix: boolean = false): Promise<number> {
+    if (matrix) { AppearanceUtil.initialize(this.context); }
     await CredentialStore.initialize(this.context);
     CredentialStore.sessionSync();
     this.key = await CryptoUtil.decryptUserKey(CredentialStore.querySync(USER_KEY), CredentialStore.querySync(MASTER_KEY));
@@ -389,24 +400,42 @@ export class CrudChecks {
     await DatabaseUtil.getInstance().createTable();
     this.baseline = (await getAllCiphers()).ciphers || [];
     this.report.baselineCount = this.baseline.length;
+    const originalColor = AppearanceUtil.getColor();
+    const originalLanguage = AppearanceUtil.getLanguage();
     try {
-      for (const type of TYPES) {
-        await this.lifecycle(type, false);
-        await this.lifecycle(type, true);
+      for (const color of matrix ? [InterfaceColor.DARK, InterfaceColor.LIGHT] : [originalColor]) {
+        for (const language of matrix ? [InterfaceLanguage.CHINESE, InterfaceLanguage.ENGLISH] : [originalLanguage]) {
+          this.appearance = `${color === InterfaceColor.DARK ? 'dark' : 'light'}-${language === InterfaceLanguage.CHINESE ? 'zh' : 'en'}`;
+          if (matrix) {
+            await AppearanceUtil.setColor(this.context, color);
+            await AppearanceUtil.setLanguage(language);
+          }
+          for (const type of TYPES) {
+            await this.lifecycle(type, false);
+            await this.lifecycle(type, true);
+          }
+        }
       }
     } finally {
+      if (matrix) {
+        await AppearanceUtil.setColor(this.context, originalColor);
+        await AppearanceUtil.setLanguage(originalLanguage);
+      }
       await this.step('safety', 'cleanup-only-this-run', async () => {
         const current = (await getAllCiphers()).ciphers || [];
         for (const cipher of this.owned) {
           if (this.baseline.some(original => original.id === cipher.id)) { throw new Error('baseline_id_guard'); }
           if (current.some(item => item.id === cipher.id)) {
-            await new CipherDetailViewModel().deleteCipher(cipher, true);
+            try { await new CipherDetailViewModel().deleteCipher(cipher, true); }
+            catch (_) { this.report.remainingIds.push(cipher.id); }
           }
         }
         const vault = new VaultViewModel();
         this.check('final.sync', await vault.loadCiphers(true), true);
         const final = (await getAllCiphers()).ciphers || [];
         this.report.finalCount = final.length;
+        this.report.remainingIds = this.report.ownedIds.filter(id => final.some(item => item.id === id));
+        this.check('cleanup.noneRemaining', this.report.remainingIds.length, 0);
         this.check('baseline.countPreserved', final.length, this.baseline.length);
         for (const original of this.baseline) {
           const preserved = final.find(item => item.id === original.id);
@@ -430,7 +459,7 @@ export async function runCipherCrudChecks(): Promise<number> {
   if (abilityDelegatorRegistry.getArguments().parameters['-s liveCrud'] !== 'true') {
     throw new Error('Explicit liveCrud flag required');
   }
-  await delegator.startAbility({ bundleName: 'com.dreamist.homowarden', abilityName: 'EntryAbility' });
+  await delegator.startAbility({ bundleName: 'com.dreamist.homowarden_oh', abilityName: 'EntryAbility' });
   const ability = await delegator.getCurrentTopAbility();
   const prefs = DataPreferences.getInstance();
   prefs.init(ability.context);

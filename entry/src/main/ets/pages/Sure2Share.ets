@@ -1,6 +1,5 @@
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
-import { systemShare } from '@kit.ShareKit';
-import { relationalStore, uniformTypeDescriptor } from '@kit.ArkData';
+import { relationalStore } from '@kit.ArkData';
 import { common } from '@kit.AbilityKit';
 import { inputMethod } from '@kit.IMEKit';
 import { getFullLink, getShareLink, replaceOutputText } from '../utils/ParseLinkUtil';
@@ -67,26 +66,7 @@ export struct Sure2SharePage {
   /**
    * 根据内容类型拉起系统分享面板，不在应用内选择或缓存接收方
    */
-  shareLink(text: string, shareLink: boolean) {
-    if (text == "") {
-      AppToast.show(this.getUIContext(), $r('app.string.share_convert_first'));
-      return;
-    }
-    let shareData: systemShare.SharedData = new systemShare.SharedData({
-      utd: shareLink ? uniformTypeDescriptor.UniformDataType.HYPERLINK : uniformTypeDescriptor.UniformDataType.TEXT,
-      content: text
-    });
-    let controller: systemShare.ShareController = new systemShare.ShareController(shareData);
-    let uiContext: UIContext = this.getUIContext();
-    let context: common.UIAbilityContext = uiContext.getHostContext() as common.UIAbilityContext;
-    controller.show(context, {
-      selectionMode: systemShare.SelectionMode.SINGLE,
-      previewMode: systemShare.SharePreviewMode.DETAIL
-    }).catch((err: BusinessError) => {
-      Logger.error(`Failed to show share panel. Code is ${err.code}, message is ${err.message}.`);
-      AppToast.show(this.getUIContext(), $r('app.string.share_failed'));
-    })
-  }
+
 
   build() {
     Scroll() {
@@ -200,30 +180,7 @@ export struct Sure2SharePage {
               ]
             })
 
-            AdaptiveMenuTextButton({
-              text: $r('app.string.common_share'),
-              barWidth: 144,
-              barHeight: 50,
-              fontSize: 16,
-              contentPadding: 6,
-              barBottomMargin: 0,
-              translucent: true,
-              menuItems: [
-                {
-                  value: $r('app.string.share_full'),
-                  action: () => {
-                    this.shareLink(this.outputText, false);
-                  }
-                },
-                {
-                  value: $r('app.string.share_link'),
-                  action: async () => {
-                    const link: string = await getShareLink(this.outputText);
-                    this.shareLink(link, true);
-                  }
-                }
-              ]
-            })
+
           }
           .width('100%')
           .justifyContent(FlexAlign.Center)

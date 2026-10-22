@@ -16,7 +16,7 @@ export struct LogExportDialog {
     this.submitting = true;
     try {
       const uiContext = this.getUIContext();
-      const success = await LogExportService.exportAndShare(uiContext);
+      const success = await LogExportService.exportFile(uiContext);
       if (success) {
         this.controller.close();
         AppToast.show(uiContext, $r('app.string.log_export_ready'));

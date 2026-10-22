@@ -28,7 +28,6 @@ import { AccessTokenRequest, AccessTokenResponse, TwoFactorProvider, TwoFactorPr
 import { KdfParameters, PreloginRequest, PreloginResponse } from '../model/Prelogin';
 import { KdfUtil } from '../utils/KdfUtil';
 import { ResendNewDeviceOtpRequest, SendEmailLoginRequest } from '../model/SendEmailLogin';
-import { PasskeyTwoFactorUtil } from '../utils/PasskeyTwoFactorUtil';
 import { common } from '@kit.AbilityKit';
 import { getServerEndpoints } from '../network/ServerEndpointResolver';
 import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
@@ -76,7 +75,6 @@ export class LoginViewModel {
   deviceName: string = '';
   // 设备信息初始化状态
   private deviceInfoInitialized: boolean = false;
-  private passkeyChallengeNeedsRefresh: boolean = false;
 
   constructor() {
     // 初始化同步的设备信息
@@ -336,13 +334,12 @@ export class LoginViewModel {
     const supportedProviders: number[] = [];
     const preferredOrder: number[] = [
       TwoFactorProvider.AUTHENTICATOR_APP,
-      TwoFactorProvider.EMAIL,
-      TwoFactorProvider.WEB_AUTHN
+      TwoFactorProvider.EMAIL
     ];
 
     for (let i = 0; i < preferredOrder.length; i++) {
       const provider = preferredOrder[i];
-      if (rawProviders.includes(provider) && this.isSupportedTwoFactorProvider(provider, errorData)) {
+      if (rawProviders.includes(provider) && this.isSupportedTwoFactorProvider(provider)) {
         supportedProviders.push(provider);
       }
     }
@@ -350,25 +347,12 @@ export class LoginViewModel {
     return supportedProviders;
   }
 
-  private isSupportedTwoFactorProvider(provider: number, errorData?: LoginErrorResponseData): boolean {
+  private isSupportedTwoFactorProvider(provider: number): boolean {
     if (provider === TwoFactorProvider.AUTHENTICATOR_APP || provider === TwoFactorProvider.EMAIL) {
       return true;
     }
 
-    if (provider === TwoFactorProvider.WEB_AUTHN) {
-      return this.hasNativePasskeyChallenge(this.getTwoFactorProviderData(errorData, provider));
-    }
-
     return false;
-  }
-
-  private hasNativePasskeyChallenge(providerData: TwoFactorProviderData | null): boolean {
-    if (!providerData) {
-      return false;
-    }
-
-    const challenge = providerData['challenge'] ?? providerData['Challenge'];
-    return typeof challenge === 'string' && challenge.length > 0;
   }
 
   private parseRawTwoFactorProviders(errorData?: LoginErrorResponseData): number[] {
@@ -398,59 +382,8 @@ export class LoginViewModel {
   }
 
   private getCurrentTwoFactorToken(): string {
-    if (this.twoFactorProvider === TwoFactorProvider.WEB_AUTHN) {
-      // 通行密钥令牌是完整 JSON，不能像人工输入的验证码一样裁剪内容
-      return this.twoFactorToken;
-    }
 
     return this.twoFactorToken.trim();
-  }
-
-  async performPasskeyTwoFactor(context: common.Context): Promise<boolean> {
-    if (this.twoFactorProvider !== TwoFactorProvider.WEB_AUTHN) {
-      this.errorMessage = new AppText(AppTextKey.PASSKEY_FAILED);
-      return false;
-    }
-
-    if (this.passkeyChallengeNeedsRefresh) {
-      const selectedProvider = this.twoFactorProvider;
-      this.needTwoFactor = false;
-      this.availableTwoFactorProviders = [];
-      this.twoFactorProviderData = null;
-      // 上次响应可能已消耗服务端挑战。重新获取后再调系统凭据接口。
-      await this.performLogin();
-      if (!this.needTwoFactor || !this.availableTwoFactorProviders.includes(selectedProvider)) {
-        this.errorMessage = this.errorMessage ?? new AppText(AppTextKey.PASSKEY_FAILED);
-        return false;
-      }
-      this.setTwoFactorProvider(selectedProvider);
-      this.passkeyChallengeNeedsRefresh = false;
-    }
-    if (!this.twoFactorProviderData) {
-      this.errorMessage = new AppText(AppTextKey.PASSKEY_FAILED);
-      return false;
-    }
-
-    try {
-      // 无论本地认证或后续服务端验证在哪一步失败，下次均获取新挑战。
-      this.passkeyChallengeNeedsRefresh = true;
-      this.twoFactorToken = await PasskeyTwoFactorUtil.authenticate(
-        context,
-        this.twoFactorProviderData,
-        await this.getFallbackRpId()
-      );
-      return true;
-    } catch (error) {
-      Logger.error(`Passkey two factor failed: ${error}`);
-      this.errorMessage = new AppText(AppTextKey.PASSKEY_FAILED);
-      return false;
-    }
-  }
-
-  private async getFallbackRpId(): Promise<string> {
-    const endpoints = await getServerEndpoints();
-    const match = endpoints.vaultBaseUrl.match(/^https?:\/\/([^\/:?#]+)/i);
-    return match ? match[1] : '';
   }
 
   /**
@@ -664,7 +597,6 @@ export class LoginViewModel {
     newViewModel.deviceIdentifier = this.deviceIdentifier;
     newViewModel.deviceName = this.deviceName;
     newViewModel.deviceInfoInitialized = this.deviceInfoInitialized;
-    newViewModel.passkeyChallengeNeedsRefresh = this.passkeyChallengeNeedsRefresh;
     newViewModel.needTwoFactor = this.needTwoFactor;
     newViewModel.needNewDevice = this.needNewDevice;
     newViewModel.needSaveEmail = this.needSaveEmail;
@@ -703,7 +635,6 @@ export class LoginViewModel {
     this.twoFactorProviderData = null;
     this.twoFactorProvidersData = null;
     this.ssoEmail2FaSessionToken = '';
-    this.passkeyChallengeNeedsRefresh = false;
   }
 
   // 清理敏感数据

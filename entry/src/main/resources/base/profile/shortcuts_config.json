@@ -6,7 +6,7 @@
       "icon": "$media:shortcut_totp",
       "visible": false,
       "wants": [{
-        "bundleName": "com.dreamist.homowarden",
+        "bundleName": "com.dreamist.homowarden_oh",
         "moduleName": "entry",
         "abilityName": "EntryAbility",
         "parameters": { "homowarden.quickEntry": "totp" }
@@ -18,7 +18,7 @@
       "icon": "$media:shortcut_generator",
       "visible": false,
       "wants": [{
-        "bundleName": "com.dreamist.homowarden",
+        "bundleName": "com.dreamist.homowarden_oh",
         "moduleName": "entry",
         "abilityName": "EntryAbility",
         "parameters": { "homowarden.quickEntry": "generator" }
@@ -30,7 +30,7 @@
       "icon": "$media:shortcut_share",
       "visible": false,
       "wants": [{
-        "bundleName": "com.dreamist.homowarden",
+        "bundleName": "com.dreamist.homowarden_oh",
         "moduleName": "entry",
         "abilityName": "EntryAbility",
         "parameters": { "homowarden.quickEntry": "share" }
