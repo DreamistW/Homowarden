@@ -123,5 +123,5 @@ jobs:
           notes_file=".github/release-notes/$RELEASE_VERSION.md"
           test -s "$notes_file"
           gh release create "$GITHUB_REF_NAME" release/* \
-            --verify-tag --target "$GITHUB_SHA" --latest=false \
+            --verify-tag --target "$GITHUB_SHA" --latest=true \
             --title "OpenHarmony $RELEASE_VERSION" --notes-file "$notes_file"
