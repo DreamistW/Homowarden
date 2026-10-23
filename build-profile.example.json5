@@ -1,0 +1,47 @@
+{
+  app: {
+    signingConfigs: [],
+    products: [
+      {
+        name: "default",
+        compileSdkVersion: 23,
+        targetSdkVersion: 23,
+        compatibleSdkVersion: 23,
+        runtimeOS: 'OpenHarmony',
+        buildOption: {
+          strictMode: {
+            caseSensitiveCheck: true,
+            useNormalizedOHMUrl: true,
+          },
+          removePermissions: [
+            {
+              name: 'ohos.permission.DISTRIBUTED_DATASYNC',
+            },
+          ],
+        },
+      },
+    ],
+    buildModeSet: [
+      {
+        name: 'debug',
+      },
+      {
+        name: 'release',
+      },
+    ],
+  },
+  modules: [
+    {
+      name: 'entry',
+      srcPath: './entry',
+      targets: [
+        {
+          name: 'default',
+          applyToProducts: [
+            'default',
+          ],
+        },
+      ],
+    },
+  ],
+}
