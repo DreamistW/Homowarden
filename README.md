@@ -195,6 +195,28 @@ devecocli.cmd build --modules entry@default
 `debug` 签名；签名材料放在用户目录的 `.ohos/config` 或其他本地忽略路径。
 `build-profile.json5` 仅在本地使用，不提交到 Git。
 
+## GitHub Actions 自动构建与发布
+
+推送 `openharmony` 分支时，工作流会构建 release 无签名 HAP，并将 HAP 和 SHA256 校验文件保存到
+Actions 的 Artifacts（保留 14 天）。首次运行需下载官方 Command Line Tools 和 API 23 SDK，之后复用缓存。
+
+正式发布时，先确认 `AppScope/app.json5` 的 `versionName`，再为 `openharmony` 的提交创建并推送
+`oh-v<versionName>` 标签。例如当前版本：
+
+```bash
+git push github openharmony
+git tag oh-v2.0.3 openharmony
+git push github refs/tags/oh-v2.0.3
+```
+
+标签必须属于 `openharmony` 的历史，且版本必须与应用一致。构建通过后，工作流会在 Releases 中创建
+`OpenHarmony 2.0.3`，附上无签名 HAP 和 SHA256 文件；不会改变现有 Latest Release 或 `master` 分支。
+发布使用 GitHub 自动提供的 `GITHUB_TOKEN`，仅发布任务申请 `contents: write`，无需个人 API Key、
+签名证书或签名口令。工作流按推送事件触发，不依赖默认分支上的手动运行按钮。
+
+工具包来源和 SHA256 固定在 `.github/scripts/install-openharmony.sh`；该脚本只安装构建工具，
+`.github/scripts/package-release.py` 会检查应用包名、release 标记和无签名状态，再生成发布附件。
+
 ## License
 
 This project is licensed under the MIT License. See the LICENSE file for details.
