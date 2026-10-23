@@ -33,7 +33,7 @@ if [[ ! -f "$tools_root/.installed" ]]; then
 import pathlib, shutil, subprocess, sys, tarfile
 
 archive, destination, scratch = map(pathlib.Path, sys.argv[1:])
-required = {'ets', 'js', 'native', 'toolchains'}
+required = {'ets', 'js', 'native', 'toolchains', 'previewer'}
 installed = set()
 with tarfile.open(archive, 'r:gz') as source:
     for member in source:
@@ -55,7 +55,7 @@ PY
 import json, pathlib, sys
 
 sdk = pathlib.Path(sys.argv[1])
-for component in ['ets', 'js', 'native', 'toolchains']:
+for component in ['ets', 'js', 'native', 'toolchains', 'previewer']:
     metadata = json.loads((sdk / component / 'oh-uni-package.json').read_text(encoding='utf-8'))
     if str(metadata['apiVersion']) != '23':
         raise SystemExit('Expected API 23 SDK: ' + component)
