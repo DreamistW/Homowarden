@@ -200,7 +200,8 @@ devecocli.cmd build --modules entry@default
 推送 `openharmony` 分支时，工作流会构建 release 无签名 HAP，并将 HAP 和 SHA256 校验文件保存到
 Actions 的 Artifacts（保留 14 天）。首次运行需下载官方 Command Line Tools 和 API 23 SDK，之后复用缓存。
 
-正式发布时，先确认 `AppScope/app.json5` 的 `versionName`，再为 `openharmony` 的提交创建并推送
+正式发布时，先确认 `AppScope/app.json5` 的 `versionName`，并在
+`.github/release-notes/<versionName>.md` 中填写发布说明，再为 `openharmony` 的提交创建并推送
 `oh-v<versionName>` 标签。例如当前版本：
 
 ```bash
