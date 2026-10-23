@@ -1,0 +1,119 @@
+name: OpenHarmony unsigned release
+
+on:
+  push:
+    branches: [openharmony]
+    tags: ['oh-v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openharmony-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    outputs:
+      version: ${{ steps.package.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Verify release tag
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --unshallow origin refs/heads/openharmony:refs/remotes/origin/openharmony
+          git merge-base --is-ancestor HEAD refs/remotes/origin/openharmony
+          python3 - <<'PY'
+          import os, pathlib, re
+          source = pathlib.Path('AppScope/app.json5').read_text(encoding='utf-8')
+          version = re.search(r'"versionName"\s*:\s*"([^"]+)"', source).group(1)
+          if os.environ['GITHUB_REF_NAME'] != 'oh-v' + version:
+              raise SystemExit('The release tag must match AppScope/app.json5 versionName: oh-v' + version)
+          PY
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Restore toolchain
+        id: toolchain
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/openharmony-ci
+          key: oh-api23-linux-${{ hashFiles('.github/scripts/install-openharmony.sh') }}
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libgl1 libx11-6 libncurses5
+
+      - name: Set up OpenHarmony SDK and command-line tools
+        run: bash .github/scripts/install-openharmony.sh "$RUNNER_TEMP/openharmony-ci"
+
+      - name: Save toolchain
+        if: steps.toolchain.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/openharmony-ci
+          key: ${{ steps.toolchain.outputs.cache-primary-key }}
+
+      - name: Build unsigned release HAP
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp build-profile.example.json5 build-profile.json5
+          npm config set registry https://repo.huaweicloud.com/repository/npm/
+          npm config set @ohos:registry https://repo.harmonyos.com/npm/
+          ohpm config set registry https://ohpm.openharmony.cn/ohpm/
+          ohpm install --all
+          # Use the official public CLT wrapper directly; devecocli's Linux
+          # integration requires the separately distributed CLT 26 or later.
+          hvigorw assembleHap --mode module -p product=default -p module=entry@default -p buildMode=release --no-daemon
+
+      - name: Verify and package HAP
+        id: package
+        run: python3 .github/scripts/package-release.py --output "$RUNNER_TEMP/release-artifacts"
+
+      - name: Upload HAP and checksum
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: openharmony-release-${{ github.sha }}
+          path: ${{ runner.temp }}/release-artifacts/*
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/oh-v')
+    needs: build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: openharmony-release-${{ github.sha }}
+          path: release
+
+      - name: Publish OpenHarmony release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'OpenHarmony %s\n\nRelease build, API 23, unsigned HAP.\nCommit: %s\n\nIncludes the HAP and its SHA256 checksum.\n' \
+            "$RELEASE_VERSION" "$GITHUB_SHA" > notes.md
+          gh release create "$GITHUB_REF_NAME" release/* \
+            --verify-tag --latest=false \
+            --title "OpenHarmony $RELEASE_VERSION" --notes-file notes.md
