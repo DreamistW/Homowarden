@@ -18,8 +18,8 @@ are not included. Character conversion uses OpenHarmony libc's iconv.
 Build from the repository root with the OpenHarmony API 23 SDK configured:
 
 ```powershell
-$env:JAVA_HOME='JAVA_HOME'
-$env:OHOS_SDK_HOME='OPENHARMONY_SDK'
+# Configure JAVA_HOME for your JDK installation.
+# Configure OHOS_BASE_SDK_HOME for your OpenHarmony SDK installation.
 devecocli.cmd build --modules entry@default
 ```
 

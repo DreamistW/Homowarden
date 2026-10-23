@@ -2,7 +2,7 @@
 
 Homowarden 是一个面向 OpenHarmony API 23 及以上标准系统 的 Bitwarden 非官方客户端，使用 ArkTS 开发，支持标准系统设备、平板和 2in1 设备。
 
-当前为 `openharmony` 移植分支，包名 `com.dreamist.homowarden_oh`，与 HarmonyOS 版本独立安装。第一阶段状态、构建方式和待验证项见 [OpenHarmony 移植说明](spec/OPENHARMONY_PORT.md)。
+当前为 `openharmony` 移植分支，包名 `com.dreamist.homowarden_oh`，与 HarmonyOS 版本独立安装。本地构建方式见下文。
 
 项目已经具备日常可用的密码库能力，包括账户认证、密码库同步、本地加密存储、密码项管理、TOTP、密码与用户名生成、生物识别解锁和自动锁定等核心功能，并针对宽屏和 PC 使用场景进行了适配。
 
@@ -180,6 +180,20 @@ entry/src/main/ets/
 - 应用内有提示：关键数据存储在关键资产区域，卸载前应先注销登录
 - 自托管服务通常需要正确的 HTTPS 配置
 - Vaultwarden 的 `DOMAIN` 应设置为客户端实际访问的完整地址（包括非标准端口和子路径）。对于 `/api/config` 返回同一基础地址下 `/api`、`/identity` 标准端点的部署，应用沿用用户填写的服务器地址，兼容反向代理与容器地址不一致的情况；独立域名或自定义路径的端点仍按服务端配置解析。
+
+## 本地构建
+
+安装 OpenHarmony API 23 SDK、JDK 和 DevEco CLI，并配置本机的 `JAVA_HOME`、`OHOS_BASE_SDK_HOME`。
+首次检出后，在项目根目录复制公开构建模板：
+
+```powershell
+Copy-Item build-profile.example.json5 build-profile.json5
+devecocli.cmd build --modules entry@default
+```
+
+模板保留 SDK、产品和模块配置，不包含签名材料。需要安装到设备时，在本机配置自己的
+`debug` 签名；签名材料放在用户目录的 `.ohos/config` 或其他本地忽略路径。
+`build-profile.json5` 仅在本地使用，不提交到 Git。
 
 ## License
 
