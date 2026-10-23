@@ -74,6 +74,7 @@ jobs:
           npm config set @ohos:registry https://repo.harmonyos.com/npm/
           ohpm config set registry https://ohpm.openharmony.cn/ohpm/
           ohpm install --all
+          export DEVECO_SDK_HOME="$OHOS_BASE_SDK_HOME"
           # Use the official public CLT wrapper directly; devecocli's Linux
           # integration requires the separately distributed CLT 26 or later.
           hvigorw assembleHap --mode module -p product=default -p module=entry@default -p buildMode=release --no-daemon
