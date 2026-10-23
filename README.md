@@ -211,7 +211,7 @@ git push github refs/tags/oh-v2.0.3
 ```
 
 标签必须属于 `openharmony` 的历史，且版本必须与应用一致。构建通过后，工作流会在 Releases 中创建
-`OpenHarmony 2.0.3`，附上无签名 HAP 和 SHA256 文件；不会改变现有 Latest Release 或 `master` 分支。
+`OpenHarmony 2.0.3`，附上无签名 HAP 和 SHA256 文件；自动将该发行标记为 Latest，`master` 分支保持不变。
 发布使用 GitHub 自动提供的 `GITHUB_TOKEN`，仅发布任务申请 `contents: write`，无需个人 API Key、
 签名证书或签名口令。工作流按推送事件触发，不依赖默认分支上的手动运行按钮。
 
