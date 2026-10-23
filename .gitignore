@@ -55,3 +55,7 @@
 *.hap
 *.hsp
 *.hqf
+
+# Local test runners and live-device test bridges.
+/scripts/test-*
+/scripts/CipherMatrixBridge.ets
