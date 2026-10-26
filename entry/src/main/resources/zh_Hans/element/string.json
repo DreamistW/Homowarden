@@ -287,6 +287,10 @@
       "value": "发送验证码到邮箱"
     },
     {
+      "name": "login_resend_email_code",
+      "value": "再次发送验证码到邮箱"
+    },
+    {
       "name": "login_status_logged_in",
       "value": "已登录"
     },

@@ -247,7 +247,8 @@ export struct LoginPage {
         }
       }
 
-      Button($r('app.string.login_send_email_code'))
+      // 新设备验证的首封邮件已由服务端发送，此处明确标示为再次发送。
+      Button($r('app.string.login_resend_email_code'))
         .onClick(async () => {
           // 新设备验证码重发与 2FA 邮件发送共享防重入状态
           this.pendingEmailLogin = true;

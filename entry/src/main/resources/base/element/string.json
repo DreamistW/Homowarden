@@ -93,6 +93,7 @@
     {"name":"storage_repair_title","value":"Repair local storage?"},
     {"name":"storage_repair_message","value":"This will clear the local credential database, delete its old key and generate a new key. You will need to log in again. Password items on the server will not be affected. This action cannot be undone."},
     {"name":"storage_repair_confirm","value":"Clear and repair"},
-    {"name":"storage_repair_progress","value":"Repairing local storage…"}
+    {"name":"storage_repair_progress","value":"Repairing local storage…"},
+    {"name":"login_resend_email_code","value":"Resend code by email"}
   ]
 }
