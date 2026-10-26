@@ -16,9 +16,10 @@ import { QuickEntryManager } from '../utils/QuickEntryManager';
 import { AppearanceUtil } from '../utils/AppearanceUtil';
 
 const DOMAIN = 0x0000;
-const PC_MIN_WINDOW_WIDTH = 840;
+// PC 窗口最小尺寸（vp）允许进入手机布局，低高度内容由页面滚动承接。
+const PC_MIN_WINDOW_WIDTH = 360;
+const PC_MIN_WINDOW_HEIGHT = 480;
 const RESPONSIVE_MIN_VIEWPORT_SIZE = 600;
-const PC_MIN_WINDOW_HEIGHT = RESPONSIVE_MIN_VIEWPORT_SIZE;
 export default class EntryAbility extends UIAbility {
   private mainWindow?: window.Window;
   private preferredOrientation?: window.Orientation;
@@ -98,6 +99,8 @@ export default class EntryAbility extends UIAbility {
   }
 
   private async loadContentWithPrivacy(windowStage: window.WindowStage): Promise<void> {
+    // 首次显示前启用系统窗口记忆，避免内容加载后才恢复窗口尺寸和位置。
+    await this.configureWindowMemory(windowStage);
     // 首次内容加载前先应用保护；存储未就绪时使用默认开启状态。
     await WindowPrivacyUtil.applyForCurrentState();
     windowStage.loadContent('pages/Index', (err) => {
@@ -108,6 +111,22 @@ export default class EntryAbility extends UIAbility {
       hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
       AppearanceUtil.restoreColor(this.context);
     });
+  }
+
+  /** 由系统保存和恢复主窗口大小、位置及最大化状态，适配支持自由窗口的设备。 */
+  private async configureWindowMemory(windowStage: window.WindowStage): Promise<void> {
+    if (!canIUse('SystemCapability.Window.SessionManager')) {
+      return;
+    }
+
+    try {
+      await windowStage.setWindowRectAutoSave(true);
+      hilog.info(DOMAIN, 'windowMemory', 'System window rect auto-save enabled.');
+    } catch (error) {
+      // 窗口记忆不可用时继续加载页面，避免影响应用启动。
+      hilog.error(DOMAIN, 'windowMemory', 'Failed to enable system window rect auto-save: %{public}s',
+        JSON.stringify(error));
+    }
   }
 
   private configureResponsiveOrientation(windowStage: window.WindowStage): void {
