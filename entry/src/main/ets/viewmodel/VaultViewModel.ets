@@ -473,16 +473,17 @@ export class VaultViewModel {
 
     // 按搜索文本筛选
     if (searchText && searchText.trim()) {
-      const searchLower = searchText.toLowerCase();
+      const searchLower = searchText.trim().toLowerCase();
       filtered = filtered.filter(cipher => {
         // 搜索名称
         if (cipher.name.toLowerCase().includes(searchLower)) {
           return true;
         }
 
-        // 搜索用户名（如果是登录类型）
-        if (cipher.login && cipher.login.username &&
-          cipher.login.username.toLowerCase().includes(searchLower)) {
+        // 列表不保留登录详情，已解密的用户名存放在副标题中；兼容带登录详情的明文对象。
+        const username = cipher.type === CipherItemType.LOGIN ?
+          (cipher.subtitle ?? cipher.login?.username ?? '') : '';
+        if (username.toLowerCase().includes(searchLower)) {
           return true;
         }
 
