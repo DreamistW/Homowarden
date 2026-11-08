@@ -1,6 +1,11 @@
 import { Cipher, CipherDisplayNameKind, CipherDisplaySubtitleKind } from '../model/CipherModels';
 import { CipherItemType } from '../utils/Constants';
 
+/** 为危险操作标记文字样式，供右键和更多菜单共用。 */
+interface CipherMenuItem extends MenuElement {
+  destructive?: boolean;
+}
+
 export enum CipherCopyField {
   USERNAME = 0,
   PASSWORD = 1,
@@ -19,6 +24,8 @@ export struct CipherItem {
   onCopyField?: (field: CipherCopyField) => void;
   onEdit?: () => void;
   onOpenUrl?: () => void;
+  // 删除意图交由列表宿主处理，菜单本身不执行数据修改。
+  onDelete?: () => void;
 
   @Builder
   CipherTypeIcon() {
@@ -72,8 +79,8 @@ export struct CipherItem {
     }
   }
 
-  private getMenuItems(): MenuElement[] {
-    const items: MenuElement[] = [];
+  private getMenuItems(): CipherMenuItem[] {
+    const items: CipherMenuItem[] = [];
     if (this.cipher.type === CipherItemType.LOGIN) {
       this.addCopyMenuItem(items, $r('app.string.vault_copy_username'), CipherCopyField.USERNAME);
       this.addCopyMenuItem(items, $r('app.string.vault_copy_password'), CipherCopyField.PASSWORD);
@@ -105,6 +112,11 @@ export struct CipherItem {
         action: () => this.onOpenUrl?.()
       });
     }
+    items.push({
+      value: $r('app.string.common_delete'),
+      destructive: true,
+      action: () => this.onDelete?.()
+    });
     return items;
   }
 
@@ -118,8 +130,9 @@ export struct CipherItem {
   @Builder
   private ContextMenuBuilder() {
     Menu() {
-      ForEach(this.getMenuItems(), (item: MenuElement) => {
+      ForEach(this.getMenuItems(), (item: CipherMenuItem) => {
         MenuItem({ content: item.value })
+          .contentFontColor(item.destructive ? $r('sys.color.warning') : $r('sys.color.font_primary'))
           .onClick(() => {
             item.action?.();
           })
@@ -170,7 +183,7 @@ export struct CipherItem {
       .height(40)
       .padding(0)
       .accessibilityText($r('app.string.vault_item_menu'))
-      .bindMenu(this.getMenuItems(), {
+      .bindMenu(this.ContextMenuBuilder, {
         backgroundColor: $r('app.color.menu_background_color'),
         backgroundBlurStyle: BlurStyle.NONE
       })

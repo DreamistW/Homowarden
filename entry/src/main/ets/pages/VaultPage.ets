@@ -68,6 +68,7 @@ struct VaultContent {
   @Prop bottomContentInset: number = 0;
   onVaultDataChanged: (ciphers: Cipher[], symmetricKey: string) => void = () => {};
   onNavigateToDetail: (params: CipherDetailParams) => void = () => {};
+  onCipherDeleted: (cipherId: string) => void = () => {};
   @State viewModel: VaultViewModel = new VaultViewModel();
   private listScroller: ListScroller = new ListScroller();
   @State searchText: string = '';
@@ -81,6 +82,24 @@ struct VaultContent {
   groupId: string = 'filter_menu';
   private pendingProtectedAction: (() => void) | null = null;
   private isQuickActionLoading: boolean = false;
+  private pendingDeleteCipher: Cipher | null = null;
+  private pendingDeleteSession: number = -1;
+  private isDeleting: boolean = false;
+  @State deleteConfirmTitle: ResourceStr = $r('app.string.cipher_delete_title');
+  @State deleteConfirmMessage: ResourceStr = '';
+  @State deleteConfirmText: ResourceStr = $r('app.string.common_delete');
+  private deleteConfirmController: CustomDialogController = new CustomDialogController({
+    builder: ConfirmDialog({
+      title: $deleteConfirmTitle,
+      message: $deleteConfirmMessage,
+      confirmText: $deleteConfirmText,
+      onConfirm: async (): Promise<boolean> => this.confirmCipherDeletion(),
+      onCancel: (): void => { this.pendingDeleteCipher = null; }
+    }),
+    autoCancel: false,
+    alignment: DialogAlignment.Center,
+    customStyle: false
+  });
   private passwordDialogController: CustomDialogController = new CustomDialogController({
     builder: FormDialog({
       title: $r('app.string.totp_master_title'),
@@ -104,6 +123,8 @@ struct VaultContent {
   aboutToDisappear(): void {
     this.pendingProtectedAction = null;
     this.passwordDialogController.close();
+    this.pendingDeleteCipher = null;
+    this.deleteConfirmController.close();
   }
 
   private handleActivationRevision(): void {
@@ -334,6 +355,9 @@ struct VaultContent {
                 onEdit: () => {
                   this.navigateToEdit(cipher);
                 },
+                onDelete: () => {
+                  this.requestCipherDeletion(cipher);
+                },
                 onOpenUrl: () => {
                   this.requestProtectedAction(cipher, () => {
                     void this.openCipherUrl(cipher);
@@ -428,6 +452,58 @@ struct VaultContent {
     this.requestProtectedAction(cipher, () => {
       this.doNavigateToDetail(cipher, CipherDetailMode.EDIT);
     });
+  }
+
+  /** 捕获菜单目标和会话，重验主密码后再展示与详情页一致的删除确认。 */
+  private requestCipherDeletion(cipher: Cipher): void {
+    if (this.pendingDeleteCipher || this.isDeleting) {
+      return;
+    }
+    const target = JSON.parse(JSON.stringify(cipher)) as Cipher;
+    const sessionRevision = VaultViewModel.getSessionRevision();
+    this.requestProtectedAction(target, () => {
+      if (!VaultViewModel.isSessionActive() || sessionRevision !== VaultViewModel.getSessionRevision()) {
+        return;
+      }
+      this.pendingDeleteCipher = target;
+      this.pendingDeleteSession = sessionRevision;
+      this.deleteConfirmMessage = target.deletedDate ?
+        $r('app.string.cipher_delete_forever_confirm', target.name) :
+        $r('app.string.cipher_move_trash_confirm', target.name);
+      this.deleteConfirmController.open();
+    });
+  }
+
+  /** 复用现有删除服务；成功后从数据库刷新列表，避免将精简列表对象当作完整详情回写。 */
+  private async confirmCipherDeletion(): Promise<boolean> {
+    const target = this.pendingDeleteCipher;
+    const sessionRevision = this.pendingDeleteSession;
+    if (!target || this.isDeleting || !VaultViewModel.isSessionActive() ||
+      sessionRevision !== VaultViewModel.getSessionRevision()) {
+      return false;
+    }
+    this.isDeleting = true;
+    try {
+      VaultChangeNotifier.markLocalChangePending();
+      const detailViewModel = new CipherDetailViewModel();
+      await detailViewModel.deleteCipher(target, !!target.deletedDate);
+      // 旧会话的完成结果不能更新新账号的列表、详情或提示。
+      if (VaultViewModel.isSessionActive() && sessionRevision === VaultViewModel.getSessionRevision()) {
+        DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
+        VaultChangeNotifier.setVaultReloadRequired();
+        this.onCipherDeleted(target.id);
+        AppToast.show(this.getUIContext(), $r('app.string.common_delete_success'));
+      }
+      this.pendingDeleteCipher = null;
+      return true;
+    } catch (error) {
+      if (VaultViewModel.isSessionActive() && sessionRevision === VaultViewModel.getSessionRevision()) {
+        AppErrorDialog.showError(this.getUIContext(), error as Object, $r('app.string.error_delete_failed'));
+      }
+      return false;
+    } finally {
+      this.isDeleting = false;
+    }
   }
 
   private requestProtectedAction(cipher: Cipher, action: () => void): void {
@@ -874,6 +950,19 @@ export struct VaultPage {
     this.openDetail(EntryRouter.CipherDetailPage, params);
   }
 
+  /** 删除当前分栏展示的条目后收起旧详情，保留其他条目的查看或编辑状态。 */
+  private handleCipherDeleted(cipherId: string): void {
+    const stack = this.activeSplitView ? this.detailStack : this.pathInfos;
+    const path = this.getTopDetailPath(stack);
+    if (path?.name !== EntryRouter.CipherDetailPage) {
+      return;
+    }
+    const params = path.param as CipherDetailParams;
+    if (params?.cipher?.id === cipherId) {
+      this.closeDetailHandler();
+    }
+  }
+
   private openDetail(name: string, param?: Object): void {
     if (!this.activeSplitView) {
       DetailRouter.openDetail(this.pathInfos, this.detailStack, false, name, param);
@@ -976,6 +1065,9 @@ export struct VaultPage {
       },
       onNavigateToDetail: (params: CipherDetailParams) => {
         this.navigateToCipherDetail(params);
+      },
+      onCipherDeleted: (cipherId: string) => {
+        this.handleCipherDeleted(cipherId);
       }
     })
   }
