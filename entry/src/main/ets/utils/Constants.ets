@@ -113,6 +113,7 @@ export enum CipherFieldType {
 }
 
 export enum DBTableName {
+  FOLDERS = 'vault_folders',
   MAIN = 'ciphers',
   KEYS = 'cipher_keys',
   LOGINS = 'cipher_logins',

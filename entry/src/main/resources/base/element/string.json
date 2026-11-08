@@ -116,6 +116,18 @@
     {"name":"error_connection_interrupted","value":"The connection was interrupted. Please try again."},
     {"name":"share_convert_failed","value":"Link conversion failed"},
     {"name":"share_history_save_failed","value":"The link was converted, but saving history failed."},
-    {"name":"totp_import_failed_generic","value":"QR code import failed"}
+    {"name":"totp_import_failed_generic","value":"QR code import failed"},
+    {"name":"folder_title","value":"Folder"},
+    {"name":"folder_all","value":"All folders"},
+    {"name":"folder_none","value":"No folder"},
+    {"name":"folder_unavailable","value":"Folder unavailable"},
+    {"name":"folder_search","value":"Search folders"},
+    {"name":"folder_create","value":"Create folder"},
+    {"name":"folder_rename","value":"Rename folder"},
+    {"name":"folder_delete","value":"Delete folder"},
+    {"name":"folder_name","value":"Folder name"},
+    {"name":"folder_name_required","value":"Enter a folder name"},
+    {"name":"folder_delete_confirm","value":"Delete folder “%s”? Items in this folder will be kept under No folder."},
+    {"name":"folder_close","value":"Close"}
   ]
 }

@@ -14,6 +14,8 @@ export class AddCipherViewModel {
   symmetricKey: string = '';
   // 表单字段
   name: string = '';
+  // 仅保存稳定 ID；文件夹名称与选项不属于表单草稿。
+  folderId: string | null = null;
   loginItem: CipherLogin = {} as CipherLogin;
   loginUri: CipherUri = {} as CipherUri;
   noteItem: CipherSecureNote = {} as CipherSecureNote;
@@ -206,7 +208,7 @@ export class AddCipherViewModel {
       name: encName,
       favorite: false,
       edit: true,
-      folderId: null,
+      folderId: this.folderId,
       organizationId: null,
       creationDate: timestamp,
       revisionDate: timestamp,

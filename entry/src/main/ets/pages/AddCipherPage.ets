@@ -1,4 +1,5 @@
 import { AppErrorDialog } from '../utils/AppErrorDialog';
+import { CipherFolderField } from '../component/CipherFolderField';
 import { DataPreferences } from '@abner/datastore';
 import { AppDropdown } from '../component/AppDropdown';
 import { AppToast } from '../utils/AppToast';
@@ -198,6 +199,16 @@ export struct AddCipherPage {
               this.canSave();
             })
             .margin({ left: 16, right: 16 })
+
+          // 文件夹归属与密码项一起保存，异步选项不影响表单脏状态。
+          Column() {
+            CipherFolderField({
+              folderId: this.viewModel.folderId || '', symmetricKey: this.viewModel.symmetricKey,
+              editable: true, disabled: this.isSubmitting, stackedLabel: true,
+              onFolderDeleted: (folderId: string) => { this.handleFolderDeleted(folderId); },
+              onChange: (folderId: string | null) => { this.viewModel.folderId = folderId; }
+            })
+          }.padding({ left: 16, right: 16, top: 12 })
 
           if (this.cipherType == CipherItemType.LOGIN) {
             // 用户名
@@ -798,6 +809,7 @@ export struct AddCipherPage {
         this.viewModel.symmetricKey = param.symmetricKey;
         this.cipherType = param.type;
         this.viewModel.type = param.type;
+        this.viewModel.folderId = param.folderId || null;
       }
       this.initialViewModelSnapshot = JSON.stringify(this.viewModel);
       DetailLeaveGuard.register(this.leaveHandler);
@@ -824,6 +836,18 @@ export struct AddCipherPage {
   }
 
   // 相对初始快照判断表单是否有未保存改动
+  /** 删除目录后同步草稿与取消基线的归属，保留其他未保存字段。 */
+  private handleFolderDeleted(folderId: string): void {
+    if (this.viewModel.folderId === folderId) { this.viewModel.folderId = null; }
+    if (this.initialViewModelSnapshot) {
+      const original = JSON.parse(this.initialViewModelSnapshot) as AddCipherViewModel;
+      if (original.folderId === folderId) {
+        original.folderId = null;
+        this.initialViewModelSnapshot = JSON.stringify(original);
+      }
+    }
+  }
+
   private hasUnsavedChanges(): boolean {
     return JSON.stringify(this.viewModel) !== this.initialViewModelSnapshot;
   }

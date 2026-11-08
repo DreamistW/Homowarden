@@ -201,7 +201,8 @@ export class DatabaseUtil {
       DBTableName.IDENTITIES,
       DBTableName.FIELDS,
       DBTableName.NOTES,
-      DBTableName.MAIN
+      DBTableName.MAIN,
+      DBTableName.FOLDERS
     ];
     const errors: string[] = [];
     for (const table of tables) {
@@ -330,6 +331,10 @@ export class DatabaseUtil {
   }
 
   private static async createTables(): Promise<void> {
+    // 新表不建立级联到密码项的外键；删除文件夹不能删除密码项。
+    await DatabaseUtil.getInstance().executeSql(`CREATE TABLE IF NOT EXISTS vault_folders (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, revision_date TEXT
+    )`);
     // 创建密码项主表
     const createCiphersTable = `
     CREATE TABLE IF NOT EXISTS ciphers (

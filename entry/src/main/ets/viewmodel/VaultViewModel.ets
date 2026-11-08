@@ -1,4 +1,6 @@
 import { getAllCiphers } from '../network/CipherApi';
+import { ALL_FOLDERS, FolderView, FolderOption, VaultFolder } from '../model/FolderModels';
+import { FolderRepository } from '../utils/FolderRepository';
 import { Cipher, CipherDisplayNameKind, CipherDisplaySubtitleKind } from '../model/CipherModels';
 import { Logger } from '@nzy/logger';
 import {
@@ -39,10 +41,12 @@ export class VaultViewModel {
   private static activeDatabaseWritePromise: Promise<void> | null = null;
   private static syncGeneration: number = 0;
   private static syncBlocked: boolean = false;
+  private static folderMutation: Promise<void> | null = null;
   private static sessionActive: boolean = false;
   private static sessionRevision: number = 0;
   // 所有密码项
   allCiphers: Cipher[] = [];
+  folders: FolderView[] = [];
   // 筛选后的密码项
   filteredCiphers: Cipher[] = [];
   // 加载状态
@@ -97,7 +101,7 @@ export class VaultViewModel {
    * 从服务器同步密码项数据
    */
   private async syncCiphersFromServer(shouldApplyResult?: () => boolean): Promise<boolean> {
-    if (VaultViewModel.syncBlocked) {
+    if (VaultViewModel.syncBlocked || VaultViewModel.folderMutation) {
       return false;
     }
     if (VaultViewModel.activeSyncPromise) {
@@ -146,6 +150,9 @@ export class VaultViewModel {
     VaultViewModel.sessionActive = false;
     VaultViewModel.syncBlocked = true;
     VaultViewModel.syncGeneration++;
+    if (VaultViewModel.folderMutation) {
+      try { await VaultViewModel.folderMutation; } catch (_) { /* 失效会话不再写入本地。 */ }
+    }
     const writePromise = VaultViewModel.activeDatabaseWritePromise;
     if (writePromise) {
       try {
@@ -177,6 +184,27 @@ export class VaultViewModel {
     return VaultViewModel.sessionActive;
   }
 
+  /** 文件夹写入期间使旧同步失效，等待在途数据库事务结束后再操作。 */
+  static async runFolderMutation(action: () => Promise<void>): Promise<void> {
+    if (VaultViewModel.folderMutation) {
+      throw new Error('folder_operation_busy');
+    }
+    VaultViewModel.syncGeneration++;
+    const pendingWrite = VaultViewModel.activeDatabaseWritePromise;
+    const operation = (async (): Promise<void> => {
+      if (pendingWrite) {
+        try { await pendingWrite; } catch (_) { /* 旧同步回滚后继续。 */ }
+      }
+      await action();
+    })();
+    VaultViewModel.folderMutation = operation;
+    try { await operation; } finally {
+      if (VaultViewModel.folderMutation === operation) {
+        VaultViewModel.folderMutation = null;
+      }
+    }
+  }
+
   private async performSyncCiphersFromServer(generation: number): Promise<boolean> {
     try {
       Logger.info('Starting to sync ciphers from server...');
@@ -199,7 +227,8 @@ export class VaultViewModel {
           return false;
         }
 
-        const writePromise = this.replaceVaultDatabase(response.ciphers, generation);
+        await DatabaseUtil.getInstance().createTable();
+        const writePromise = this.replaceVaultDatabase(response.ciphers, generation, response.folders);
         VaultViewModel.activeDatabaseWritePromise = writePromise;
         try {
           await writePromise;
@@ -236,9 +265,22 @@ export class VaultViewModel {
     }
   }
 
-  private async replaceVaultDatabase(ciphers: Cipher[], generation: number): Promise<void> {
+  private async replaceVaultDatabase(ciphers: Cipher[], generation: number,
+    folders?: VaultFolder[] | null): Promise<void> {
     await DatabaseUtil.getInstance().beginTransaction();
     try {
+      // 缺失字段不代表空目录；明确的空数组才会清空旧缓存。
+      if (folders !== undefined && folders !== null) {
+        await DatabaseUtil.getInstance().deleteAllData(DBTableName.FOLDERS);
+        for (const folder of folders) {
+          if (!folder.id || typeof folder.name !== 'string') {
+            throw new Error('Invalid folder sync response');
+          }
+          await DatabaseUtil.getInstance().insertData(DBTableName.FOLDERS, {
+            id: folder.id, name: folder.name, revision_date: folder.revisionDate || null
+          });
+        }
+      }
       await DatabaseUtil.getInstance().deleteAllData(DBTableName.MAIN);
       for (const cipher of ciphers) {
         if (!VaultViewModel.canApplySync(generation)) {
@@ -263,6 +305,12 @@ export class VaultViewModel {
   private async loadCiphersFromDatabase() {
     await DatabaseUtil.getInstance().createTable();
     this.symmetricKey = await this.getSymmetricKey();
+    const folderSession = VaultViewModel.getSessionRevision();
+    const folders = await FolderRepository.load(this.symmetricKey);
+    if (folderSession !== VaultViewModel.getSessionRevision()) {
+      return;
+    }
+    this.folders = folders;
     const ciphersData = await DatabaseUtil.getInstance().queryAllData(DBTableName.MAIN);
     const cipherKeysData = await DatabaseUtil.getInstance().queryAllData(DBTableName.KEYS);
     const loginData = await DatabaseUtil.getInstance().queryAllData(DBTableName.LOGINS);
@@ -436,12 +484,8 @@ export class VaultViewModel {
     return CryptoUtil.decryptUserKey(userKey, masterKey);
   }
 
-  /**
-   * 筛选密码项
-   * @param type 筛选类型：all, favorites, folders
-   * @param searchText 搜索文本
-   */
-  filterCiphers(type: FilterType, searchText: string): void {
+  /** 返回主筛选范围，供列表与文件夹数量复用，不修改展示状态。 */
+  private getCiphersInScope(type: FilterType): Cipher[] {
     let filtered = [...this.allCiphers];
 
     // 按类型筛选
@@ -471,6 +515,17 @@ export class VaultViewModel {
         break;
     }
 
+    return filtered;
+  }
+
+  /** 文件夹、主筛选与搜索共同决定列表结果。 */
+  filterCiphers(type: FilterType, searchText: string, folderId: string = ALL_FOLDERS): void {
+    let filtered = this.getCiphersInScope(type);
+    // 文件夹与类型、收藏、回收站及搜索取交集；空字符串仅匹配真正的无文件夹。
+    if (folderId !== ALL_FOLDERS) {
+      filtered = filtered.filter(cipher => (cipher.folderId || '') === folderId);
+    }
+
     // 按搜索文本筛选
     if (searchText && searchText.trim()) {
       const searchLower = searchText.trim().toLowerCase();
@@ -497,6 +552,32 @@ export class VaultViewModel {
     }
 
     this.filteredCiphers = filtered;
+  }
+
+  /** 数量按主筛选统计，搜索和当前文件夹选择不改变目录数量。 */
+  buildFolderOptions(type: FilterType): FolderOption[] {
+    const scope = this.getCiphersInScope(type);
+    const counts = new Map<string, number>();
+    for (const cipher of scope) {
+      const id = cipher.folderId || '';
+      counts.set(id, (counts.get(id) || 0) + 1);
+    }
+    const options: FolderOption[] = [
+      { value: ALL_FOLDERS, text: $r('app.string.folder_all'), count: scope.length },
+      { value: '', text: $r('app.string.folder_none'), count: counts.get('') || 0 }
+    ];
+    for (const folder of FolderRepository.options(this.folders)) {
+      options.push({ value: folder.value, text: folder.text, count: counts.get(folder.value) || 0,
+        manageable: folder.manageable, editableName: folder.editableName });
+      counts.delete(folder.value);
+    }
+    // 仍被条目引用的未知目录可查看，不将它们归入“无文件夹”。
+    for (const id of counts.keys()) {
+      if (id !== '') {
+        options.push({ value: id, text: $r('app.string.folder_unavailable'), count: counts.get(id) || 0 });
+      }
+    }
+    return options;
   }
 
   applyLocalCipherChange(cipher: Cipher, filterType: FilterType, searchText: string): void {

@@ -1412,6 +1412,18 @@
     {"name":"error_connection_interrupted","value":"网络连接中断，请重试。"},
     {"name":"share_convert_failed","value":"链接转换失败"},
     {"name":"share_history_save_failed","value":"链接已转换，但保存历史记录失败。"},
-    {"name":"totp_import_failed_generic","value":"二维码导入失败"}
+    {"name":"totp_import_failed_generic","value":"二维码导入失败"},
+    {"name":"folder_title","value":"文件夹"},
+    {"name":"folder_all","value":"全部文件夹"},
+    {"name":"folder_none","value":"无文件夹"},
+    {"name":"folder_unavailable","value":"文件夹不可用"},
+    {"name":"folder_search","value":"搜索文件夹"},
+    {"name":"folder_create","value":"创建文件夹"},
+    {"name":"folder_rename","value":"重命名文件夹"},
+    {"name":"folder_delete","value":"删除文件夹"},
+    {"name":"folder_name","value":"文件夹名称"},
+    {"name":"folder_name_required","value":"请输入文件夹名称"},
+    {"name":"folder_delete_confirm","value":"删除文件夹“%s”？其中的密码项会保留在“无文件夹”中。"},
+    {"name":"folder_close","value":"关闭"}
   ]
 }

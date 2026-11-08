@@ -25,6 +25,15 @@ export class VaultChangeNotifier {
 
   static initialize(): void {
     AppStorage.setOrCreate(COMMITTED_CHANGE_REVISION_KEY, 0);
+    AppStorage.setOrCreate('vaultFolderRevision', 0);
+    AppStorage.setOrCreate('vaultDeletedFolderId', '');
+  }
+
+  /** 文件夹元数据与密码项列表分别通知，避免编辑页刷新覆盖未保存字段。 */
+  static notifyFolderChanged(deletedId: string = ''): void {
+    AppStorage.setOrCreate('vaultDeletedFolderId', deletedId);
+    AppStorage.setOrCreate('vaultFolderRevision', (AppStorage.get<number>('vaultFolderRevision') || 0) + 1);
+    VaultChangeNotifier.setVaultReloadRequired();
   }
 
   static markLocalChangePending(): void {

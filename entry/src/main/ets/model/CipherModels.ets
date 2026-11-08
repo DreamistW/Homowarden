@@ -1,9 +1,11 @@
 import { CipherFieldType, CipherItemType } from '../utils/Constants';
+import { VaultFolder } from './FolderModels';
 
-/** 新建密码项时由密码库传入的密钥和已选类型。 */
+/** 新建密码项时由密码库传入的密钥、类型和默认文件夹。 */
 export interface AddCipherParams {
   symmetricKey: string;
   type: CipherItemType;
+  folderId?: string | null;
 }
 
 /** 密码项名称的显示来源，用于区分用户数据与本地状态文案 */
@@ -314,7 +316,7 @@ export interface CreateCipherInOrganizationRequest {
 }
 
 export interface VaultSyncResponse {
-  folders?: Object[] | null;
+  folders?: VaultFolder[] | null;
   collections?: Object[] | null;
   profile?: Object | null;
   Profile?: Object | null;

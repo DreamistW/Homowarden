@@ -12,6 +12,8 @@ import { AppDropdown } from '../component/AppDropdown';
 import { FormDialog } from '../component/FormDialog';
 import { ConfirmDialog } from '../component/ConfirmDialog';
 import { OptionDialog } from '../component/OptionDialog';
+import { FolderPicker } from '../component/FolderPicker';
+import { ALL_FOLDERS, FolderOption } from '../model/FolderModels';
 import { DataPreferences } from '@abner/datastore';
 import {
   CipherItemType, FilterType, NEED_RELOAD_CIPHERS
@@ -74,6 +76,9 @@ struct VaultContent {
   private listScroller: ListScroller = new ListScroller();
   @State searchText: string = '';
   @State selectedType: FilterType = FilterType.ALL;
+  @Prop selectedFolderId: string = ALL_FOLDERS;
+  @State folderOptions: FolderOption[] = [];
+  onFolderSelected: (folderId: string) => void = () => {};
   @State filterOptions: AppDropdownOption[] = AppOptionFactory.vaultFilters(0, 0, 0, 0, 0, 0, 0);
   @State displayCiphers: Cipher[] = [];
   @State isInitialLoading: boolean = true;
@@ -197,7 +202,13 @@ struct VaultContent {
   }
 
   private applyCurrentFilter(): void {
-    this.viewModel.filterCiphers(this.selectedType, this.searchText);
+    this.folderOptions = this.viewModel.buildFolderOptions(this.selectedType);
+    // 外部删除当前空文件夹时保留选择入口，避免静默切到全部项目。
+    if (!this.folderOptions.some((option: FolderOption) => option.value === this.selectedFolderId)) {
+      this.folderOptions = [...this.folderOptions,
+        { value: this.selectedFolderId, text: $r('app.string.folder_unavailable'), count: 0 }];
+    }
+    this.viewModel.filterCiphers(this.selectedType, this.searchText, this.selectedFolderId);
     this.displayCiphers = this.viewModel.filteredCiphers.slice();
   }
 
@@ -477,6 +488,17 @@ struct VaultContent {
             .id('vault_list_toolbar')
             .width('100%')
             .padding({ left: 16, right: 16, bottom: 8 })
+
+            Row() {
+              FolderPicker({ options: this.folderOptions, value: this.selectedFolderId,
+                symmetricKey: this.viewModel.symmetricKey, filterScope: true,
+                onChange: (folderId: string) => {
+                  this.selectedFolderId = folderId;
+                  this.onFolderSelected(folderId);
+                  this.applyCurrentFilter();
+                }
+              })
+            }.id('vault_folder_filter').padding({ left: 16, right: 16, bottom: 8 }).width('100%')
 
             if (this.pullToRefreshEnabled) {
               Refresh({ refreshing: this.isLoading, builder: this.refreshContent() }) {
@@ -839,6 +861,7 @@ export struct VaultPage {
   @State selectedMainTab: MainTab = MainTab.VAULT;
   @State sharedCiphers: Cipher[] = [];
   @State sharedSymmetricKey: string = '';
+  @State selectedFolderId: string = ALL_FOLDERS;
   @State vaultDataRevision: number = 0;
   @State vaultActivationRevision: number = 0;
   @State vaultManualRefreshRevision: number = 0;
@@ -997,7 +1020,8 @@ export struct VaultPage {
   }
 
   private openAddCipher(type: CipherItemType): void {
-    const params: AddCipherParams = { symmetricKey: this.sharedSymmetricKey, type: type };
+    const params: AddCipherParams = { symmetricKey: this.sharedSymmetricKey, type: type,
+      folderId: this.selectedFolderId === ALL_FOLDERS ? null : this.selectedFolderId || null };
     this.openDetail(EntryRouter.AddCipherPage, params);
   }
 
@@ -1122,6 +1146,8 @@ export struct VaultPage {
   @Builder
   private vaultContent(bottomContentInset: number) {
     VaultContent({
+      selectedFolderId: this.selectedFolderId,
+      onFolderSelected: (folderId: string) => { this.selectedFolderId = folderId; },
       bottomContentInset: bottomContentInset,
       activationRevision: this.vaultActivationRevision,
       manualRefreshRevision: this.vaultManualRefreshRevision,

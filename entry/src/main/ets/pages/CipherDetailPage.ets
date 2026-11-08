@@ -1,4 +1,5 @@
 import { AppErrorDialog } from '../utils/AppErrorDialog';
+import { CipherFolderField } from '../component/CipherFolderField';
 import { Cipher, CipherDetailMode, CipherDetailParams, CipherField, CipherUri } from '../model/CipherModels';
 import {
   CardBrandType,
@@ -58,6 +59,8 @@ export struct CipherDetailPage {
   pathInfos: NavPathStack = new NavPathStack();
   private viewModel: CipherDetailViewModel = new CipherDetailViewModel();
   private initialMode: CipherDetailMode = CipherDetailMode.VIEW;
+  // 跨单双栏迁移会复用路由参数；只将已提交状态写回，避免重建后退回旧归属。
+  private detailParams: CipherDetailParams | null = null;
   // 进入编辑模式时的明文快照，用于判断是否有未保存改动
   private originalCipherSnapshot: string = '';
   private identityTitleGroup: string = 'identityTitleSelector';
@@ -293,6 +296,15 @@ export struct CipherDetailPage {
     this.isEditable = true;
   }
 
+  /** 路由保留独立的已保存快照，后续草稿编辑不能污染布局重建的基线。 */
+  private updateDetailRouteSnapshot(): void {
+    if (!this.detailParams || this.detailParams.cipher.id !== this.cipher.id) {
+      return;
+    }
+    this.detailParams.cipher = JSON.parse(JSON.stringify(this.cipher)) as Cipher;
+    this.detailParams.initialMode = CipherDetailMode.VIEW;
+  }
+
   // 退出编辑模式并重新加载详情
   private exitEditMode(): void {
     this.isEditable = false;
@@ -316,6 +328,20 @@ export struct CipherDetailPage {
   }
 
   // 编辑模式下相对快照判断是否有未保存改动
+  /** 删除目录后同步草稿与取消基线的归属，保留其他未保存字段。 */
+  private handleFolderDeleted(folderId: string): void {
+    if (this.cipher.folderId === folderId) { this.cipher.folderId = null; }
+    // 删除目录属于已提交变更，但不能把其他尚未保存的编辑一起带入路由快照。
+    if (this.detailParams?.cipher.folderId === folderId) { this.detailParams.cipher.folderId = null; }
+    if (this.originalCipherSnapshot) {
+      const original = JSON.parse(this.originalCipherSnapshot) as Cipher;
+      if (original.folderId === folderId) {
+        original.folderId = null;
+        this.originalCipherSnapshot = JSON.stringify(original);
+      }
+    }
+  }
+
   private hasUnsavedChanges(): boolean {
     return this.isEditable && JSON.stringify(this.cipher) !== this.originalCipherSnapshot;
   }
@@ -346,6 +372,7 @@ export struct CipherDetailPage {
       // ViewModel 在内部完成明文到密文的转换，页面对象仍保持明文供后续展示
       VaultChangeNotifier.markLocalChangePending();
       this.cipher = await this.viewModel.updateCipher(this.cipher);
+      this.updateDetailRouteSnapshot();
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
       VaultChangeNotifier.setUpdatedCipher(this.cipher);
       this.isEditable = false;
@@ -405,6 +432,7 @@ export struct CipherDetailPage {
     try {
       VaultChangeNotifier.markLocalChangePending();
       this.cipher = await this.viewModel.updateFavorite(this.cipher, !this.isFavorite);
+      this.updateDetailRouteSnapshot();
       this.isFavorite = this.cipher.favorite;
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
       VaultChangeNotifier.setUpdatedCipher(this.cipher);
@@ -424,6 +452,7 @@ export struct CipherDetailPage {
     try {
       VaultChangeNotifier.markLocalChangePending();
       this.cipher = await this.viewModel.restoreCipher(this.cipher);
+      this.updateDetailRouteSnapshot();
       this.refreshFormattedDates();
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
       VaultChangeNotifier.setUpdatedCipher(this.cipher);
@@ -483,6 +512,15 @@ export struct CipherDetailPage {
               .margin({ top: 8, bottom: 8 })
               .width('100%')
               .padding(16)
+
+              Column() {
+                CipherFolderField({
+                  folderId: this.cipher.folderId || '', symmetricKey: this.viewModel.symmetricKey,
+                  editable: this.isEditable, disabled: this.isSaving,
+                  onFolderDeleted: (folderId: string) => { this.handleFolderDeleted(folderId); },
+                  onChange: (folderId: string | null) => { this.cipher.folderId = folderId; }
+                })
+              }.padding({ left: 16, right: 16 })
 
               // 登录信息
               if (this.cipher.type === CipherItemType.LOGIN && this.cipher.login) {
@@ -641,6 +679,7 @@ export struct CipherDetailPage {
       this.pathInfos = ctx.pathStack;
       const param = ctx.pathInfo.param as CipherDetailParams;
       if (param.cipher && param.cipher.id) {
+        this.detailParams = param;
         // 深拷贝：避免编辑 this.cipher 时污染 param.cipher（同一引用会连累列表数据，
         // 且旋转跨栈迁移重建时新实例会读到被改过的 param，显示修改后内容）
         this.cipher = JSON.parse(JSON.stringify(param.cipher)) as Cipher;
