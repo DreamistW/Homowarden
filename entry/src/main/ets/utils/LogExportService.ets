@@ -17,6 +17,7 @@ const LEGACY_EXPORT_PREFIX = 'homowarden-logs-';
 
 /** 管理当前启动会话的 Logger 文件和文件导出流程。 */
 export class LogExportService {
+  static lastError: Object | null = null;
   private static sessionLogPath: string = '';
   private static logDirectory: string = '';
   private static exportDirectory: string = '';
@@ -51,6 +52,7 @@ export class LogExportService {
   }
 
   static async exportFile(uiContext: UIContext): Promise<boolean> {
+    LogExportService.lastError = null;
     if (LogExportService.exporting || !LogExportService.sessionLogPath || !LogExportService.exportDirectory) {
       return false;
     }
@@ -83,6 +85,7 @@ export class LogExportService {
       return true;
     } catch (error) {
       const businessError = error as BusinessError;
+      LogExportService.lastError = error as Object;
       Logger.error(`Failed to export diagnostic logs. Code: ${businessError.code ?? 0}, message: ${businessError.message ?? ''}`);
       return false;
     } finally {

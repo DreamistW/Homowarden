@@ -1,3 +1,5 @@
+import { AppErrorDialog } from '../utils/AppErrorDialog';
+
 /**
  * 带内容区（输入框等）的通用对话框基类
  *
@@ -18,6 +20,15 @@ export struct FormDialog {
   confirm: () => Promise<void> = async () => {
   };
   @State private submitting: boolean = false;
+  @State private errorMessage: ResourceStr = '';
+
+  aboutToAppear(): void {
+    AppErrorDialog.registerInline(this, (message: ResourceStr) => { this.errorMessage = message; });
+  }
+
+  aboutToDisappear(): void {
+    AppErrorDialog.unregisterInline(this);
+  }
 
   private async submit(): Promise<void> {
     // 异步确认完成前禁止再次提交，避免重复触发
@@ -25,8 +36,11 @@ export struct FormDialog {
       return;
     }
     this.submitting = true;
+    this.errorMessage = '';
     try {
       await this.confirm();
+    } catch (error) {
+      AppErrorDialog.showError(this.getUIContext(), error as Error, $r('app.string.error_unknown'));
     } finally {
       this.submitting = false;
     }
@@ -41,6 +55,9 @@ export struct FormDialog {
           .margin({ bottom: 12 })
 
         this.contentBuilder()
+        if (this.errorMessage) {
+          Text(this.errorMessage).fontSize(14).fontColor($r('sys.color.warning')).margin({ top: 12 })
+        }
       }
       .padding({ left: 24, right: 24, top: 24, bottom: 16 })
 

@@ -1,4 +1,6 @@
+import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
 import { common } from '@kit.AbilityKit';
+import { AppErrorDialog } from '../utils/AppErrorDialog';
 import { AppDropdown } from './AppDropdown';
 import { AppDropdownOption } from '../model/AppUiModels';
 import { AppText, AppTextKey } from '../localization/AppText';
@@ -24,6 +26,7 @@ export struct VaultTransferDialog {
   private sessionTimer: number = -1;
 
   aboutToAppear(): void {
+    AppErrorDialog.registerInline(this, (message: ResourceStr) => { this.errorText = message; });
     this.service = new VaultTransferService();
     this.password = '';
     this.errorText = '';
@@ -39,6 +42,7 @@ export struct VaultTransferDialog {
   }
 
   aboutToDisappear(): void {
+    AppErrorDialog.unregisterInline(this);
     if (this.sessionTimer !== -1) {
       clearInterval(this.sessionTimer);
       this.sessionTimer = -1;
@@ -88,7 +92,8 @@ export struct VaultTransferDialog {
       } else {
         const verifier = new VaultViewModel();
         if (!await verifier.verifyMasterPassword(this.password)) {
-          this.errorText = AppTextResolver.resource(verifier.errorMessage ?? new AppText(AppTextKey.VERIFICATION_FAILED));
+          this.errorText = ErrorMessageUtil.getDisplayMessage(this.getUIContext(), verifier.verificationError,
+            AppTextResolver.resource(verifier.errorMessage ?? new AppText(AppTextKey.VERIFICATION_FAILED)));
           return;
         }
         this.password = '';
@@ -97,7 +102,7 @@ export struct VaultTransferDialog {
         }
       }
     } catch (error) {
-      this.errorText = this.errorResource((error as Error).message);
+      AppErrorDialog.showError(this.getUIContext(), error as Object, this.errorResource((error as Error).message));
     } finally {
       this.busy = false;
     }

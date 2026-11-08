@@ -1,3 +1,7 @@
+import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
+import { BackgroundErrorStore } from '../utils/BackgroundErrorStore';
+import { BackgroundErrorIndicator } from '../component/BackgroundErrorIndicator';
+import { AppErrorDialog } from '../utils/AppErrorDialog';
 import { CredentialStore } from '../utils/CredentialStore';
 import { EntryRouter } from '../../../../EntryRouter';
 import { AddCipherParams, Cipher, CipherDetailMode, CipherDetailParams, CipherIdentity } from '../model/CipherModels';
@@ -64,7 +68,6 @@ struct VaultContent {
   @Prop bottomContentInset: number = 0;
   onVaultDataChanged: (ciphers: Cipher[], symmetricKey: string) => void = () => {};
   onNavigateToDetail: (params: CipherDetailParams) => void = () => {};
-  onRelogin: () => void = () => {};
   @State viewModel: VaultViewModel = new VaultViewModel();
   private listScroller: ListScroller = new ListScroller();
   @State searchText: string = '';
@@ -76,7 +79,6 @@ struct VaultContent {
   @State passwordInput: string = '';
   @State passwordError: ResourceStr = '';
   groupId: string = 'filter_menu';
-  private needReLogin: boolean = false;
   private pendingProtectedAction: (() => void) | null = null;
   private isQuickActionLoading: boolean = false;
   private passwordDialogController: CustomDialogController = new CustomDialogController({
@@ -94,38 +96,13 @@ struct VaultContent {
     alignment: DialogAlignment.Center,
     customStyle: false
   });
-  @State reloginTitle: ResourceStr = $r('app.string.vault_relogin_title');
-  @State reloginMessage: ResourceStr = $r('app.string.vault_relogin_message');
-  @State reloginConfirmText: ResourceStr = $r('app.string.common_confirm');
-  private isReloginDialogOpen: boolean = false;
-  private reloginDialogController: CustomDialogController = new CustomDialogController({
-    builder: ConfirmDialog({
-      title: $reloginTitle,
-      message: $reloginMessage,
-      confirmText: $reloginConfirmText,
-      showCancel: false,
-      onConfirm: async (): Promise<boolean> => {
-        this.isReloginDialogOpen = false;
-        await CredentialStore.deactivate();
-        void WindowPrivacyUtil.applyForCurrentState();
-        this.onRelogin();
-        return true;
-      }
-    }),
-    autoCancel: false,
-    alignment: DialogAlignment.Center,
-    customStyle: false
-  });
-
   async aboutToAppear(): Promise<void> {
     await this.loadCiphersWithBackgroundSync();
     this.consumeCommittedChange();
   }
 
   aboutToDisappear(): void {
-    this.isReloginDialogOpen = false;
     this.pendingProtectedAction = null;
-    this.reloginDialogController.close();
     this.passwordDialogController.close();
   }
 
@@ -178,17 +155,13 @@ struct VaultContent {
   /** 优先展示本地数据，并按是否为空选择前台或后台同步策略 */
   private async loadCiphersWithBackgroundSync() {
     // 设置重新登录回调
-    this.viewModel.onReLoginRequired = () => {
-      this.needReLogin = true;
-      this.showReloginDialog();
-    };
 
     this.isInitialLoading = true;
     try {
       // 第一步：先加载本地数据库
       const localResult = await this.viewModel.loadCiphers(false);
       if (!localResult) {
-        AppToast.show(this.getUIContext(), $r('app.string.error_load_failed'));
+        AppErrorDialog.showError(this.getUIContext(), this.viewModel.lastError, $r('app.string.error_load_failed'));
       }
 
       this.applyCurrentFilter();
@@ -210,15 +183,16 @@ struct VaultContent {
     });
 
     if (result) {
+      BackgroundErrorStore.clear('vault-sync');
       // 后台同步完成后，重新应用当前筛选条件
       this.applyCurrentFilter();
       this.refreshFilterOptions();
       this.publishVaultData();
     } else {
       // 后台同步失败时，不影响已显示的本地数据
-      if (!this.needReLogin && this.viewModel.errorMessage) {
-        AppToast.show(this.getUIContext(), this.viewModel.errorDetail || $r('app.string.vault_sync_failed_local'),
-          this.viewModel.errorIsRequestFailure);
+      if (this.viewModel.errorMessage) {
+        BackgroundErrorStore.setError('vault-sync', this.viewModel.lastError,
+          $r('app.string.vault_background_sync_failed'));
       }
     }
   }
@@ -230,7 +204,7 @@ struct VaultContent {
       this.refreshFilterOptions();
       this.publishVaultData();
     } else {
-      AppToast.show(this.getUIContext(), $r('app.string.error_load_failed'));
+      AppErrorDialog.showError(this.getUIContext(), this.viewModel.lastError, $r('app.string.error_load_failed'));
     }
     void this.doBackgroundSync();
   }
@@ -259,41 +233,27 @@ struct VaultContent {
   }
 
   private async loadCiphers(forceSync: boolean = true): Promise<void> {
-    this.viewModel.onReLoginRequired = () => {
-      this.needReLogin = true;
-      this.showReloginDialog();
-    };
 
     this.isLoading = true;
     try {
       const result = await this.viewModel.loadCiphers(forceSync);
       if (result) {
+        BackgroundErrorStore.clear('vault-sync');
         AppToast.show(this.getUIContext(), $r('app.string.vault_refresh_success'));
-      } else if (this.viewModel.errorDetail.length > 0) {
-        AppToast.show(this.getUIContext(), this.viewModel.errorDetail, this.viewModel.errorIsRequestFailure);
       } else if (this.viewModel.errorMessage !== undefined) {
-        AppToast.show(this.getUIContext(), AppTextResolver.resource(this.viewModel.errorMessage),
-          this.viewModel.errorIsRequestFailure);
+        AppErrorDialog.showError(this.getUIContext(), this.viewModel.lastError,
+          AppTextResolver.resource(this.viewModel.errorMessage));
       } else {
-        AppToast.show(this.getUIContext(), $r('app.string.vault_refresh_failed'));
+        AppErrorDialog.show(this.getUIContext(), $r('app.string.vault_refresh_failed'));
       }
       this.applyCurrentFilter();
       this.refreshFilterOptions();
       this.publishVaultData();
     } catch (error) {
-      AppToast.showError(this.getUIContext(), error, $r('app.string.vault_refresh_failed'));
+      AppErrorDialog.showError(this.getUIContext(), error, $r('app.string.vault_refresh_failed'));
     } finally {
       this.isLoading = false;
     }
-  }
-
-  // 后台同步判定会话失效时，用 ConfirmDialog 提示重新登录（无取消按钮，只能确认）
-  private showReloginDialog(): void {
-    if (this.isReloginDialogOpen) {
-      return;
-    }
-    this.isReloginDialogOpen = true;
-    this.reloginDialogController.open();
   }
 
   @Builder
@@ -422,7 +382,9 @@ struct VaultContent {
                   this.applyCurrentFilter();
                 }
               ).layoutWeight(1)
+              BackgroundErrorIndicator()
             }
+            .id('vault_list_toolbar')
             .width('100%')
             .padding({ left: 16, right: 16, bottom: 8 })
 
@@ -451,6 +413,7 @@ struct VaultContent {
         .height('100%')
 
       }
+      .id('vault_list_region')
       .width('100%')
       .height('100%')
     }
@@ -531,8 +494,8 @@ struct VaultContent {
       this.passwordError = '';
       return true;
     } else {
-      this.passwordError = AppTextResolver.resource(this.viewModel.errorMessage ??
-        new AppText(AppTextKey.VERIFICATION_FAILED));
+      this.passwordError = ErrorMessageUtil.getDisplayMessage(this.getUIContext(), this.viewModel.verificationError,
+      AppTextResolver.resource(this.viewModel.errorMessage ?? new AppText(AppTextKey.VERIFICATION_FAILED)));
       return false;
     }
   }
@@ -554,7 +517,7 @@ struct VaultContent {
     } catch (error) {
       const err = error as Error;
       Logger.error(`Failed to load cipher for quick action: ${err.message}`);
-      AppToast.show(this.getUIContext(), $r('app.string.error_load_failed'));
+      AppErrorDialog.showError(this.getUIContext(), error as Object, $r('app.string.error_load_failed'));
       return null;
     } finally {
       this.isQuickActionLoading = false;
@@ -568,7 +531,7 @@ struct VaultContent {
     }
     const value = await this.getCopyFieldValue(detail, field);
     if (value.length === 0) {
-      AppToast.show(this.getUIContext(), $r('app.string.vault_copy_field_empty'));
+      AppErrorDialog.show(this.getUIContext(), $r('app.string.vault_copy_field_empty'));
       return;
     }
     await this.copyQuickActionText(value);
@@ -639,7 +602,7 @@ struct VaultContent {
     } catch (error) {
       const err = error as BusinessError;
       Logger.error(`Failed to copy cipher quick action value: ${err.message}`);
-      AppToast.show(this.getUIContext(), $r('app.string.totp_copy_failed'));
+      AppErrorDialog.showError(this.getUIContext(), error as Object, $r('app.string.totp_copy_failed'));
     }
   }
 
@@ -659,7 +622,7 @@ struct VaultContent {
       }
     }
     if (uris.length === 0) {
-      AppToast.show(this.getUIContext(), $r('app.string.vault_no_url'));
+      AppErrorDialog.show(this.getUIContext(), $r('app.string.vault_no_url'));
       return;
     }
     if (uris.length === 1) {
@@ -685,7 +648,7 @@ struct VaultContent {
     } catch (error) {
       const err = error as Error;
       Logger.error(`Failed to open cipher URL: ${err.message}`);
-      AppToast.show(this.getUIContext(), $r('app.string.error_open_website'));
+      AppErrorDialog.showError(this.getUIContext(), error as Object, $r('app.string.error_open_website'));
     }
   }
 
@@ -1013,9 +976,6 @@ export struct VaultPage {
       },
       onNavigateToDetail: (params: CipherDetailParams) => {
         this.navigateToCipherDetail(params);
-      },
-      onRelogin: () => {
-        this.logout();
       }
     })
   }

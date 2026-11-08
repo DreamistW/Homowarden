@@ -1,3 +1,6 @@
+import { BackgroundErrorIndicator } from '../component/BackgroundErrorIndicator';
+import { BackgroundErrorStore } from '../utils/BackgroundErrorStore';
+import { AppErrorDialog } from '../utils/AppErrorDialog';
 import { Context } from '@kit.AbilityKit';
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
 import { relationalStore } from '@kit.ArkData';
@@ -101,12 +104,12 @@ export struct GeneratorPage {
       this.output = value;
       if (value.length > 0) {
         await this.saveToHistory(value, GeneratorRecordType.PASSWORD);
+        BackgroundErrorStore.clear('generator');
       }
     } catch (err) {
       const error = err as Error;
       Logger.error(`Failed to generate password: ${error.message}`);
-      AppToast.show(this.getUIContext(), error.message.length > 0 ?
-        error.message : $r('app.string.error_unknown'));
+      BackgroundErrorStore.setError('generator', err as Object, $r('app.string.error_save_failed'));
     }
   }
 
@@ -136,10 +139,12 @@ export struct GeneratorPage {
       this.output = value;
       if (value.length > 0) {
         await this.saveToHistory(value, GeneratorRecordType.USERNAME);
+        BackgroundErrorStore.clear('generator');
       }
     } catch (err) {
       const error = err as BusinessError;
       Logger.error(`Failed to generate username: ${error.message}`);
+      BackgroundErrorStore.setError('generator', err as Object, $r('app.string.error_save_failed'));
     }
   }
 
@@ -167,6 +172,7 @@ export struct GeneratorPage {
     } catch (error) {
       const err = error as BusinessError;
       Logger.error(`Failed to copy generated value: ${err.message}`);
+      AppErrorDialog.showError(this.getUIContext(), error as Object, $r('app.string.share_copy_failed'));
     }
   }
 
@@ -235,6 +241,7 @@ export struct GeneratorPage {
           .fontFamily('monospace')
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
+        BackgroundErrorIndicator({ source: 'generator' })
 
         AdaptiveIconButton({
           icon: $r('app.media.icon_restore'),

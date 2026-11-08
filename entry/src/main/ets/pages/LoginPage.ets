@@ -1,4 +1,5 @@
-import { AppToast } from '../utils/AppToast';
+import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
+import { AppErrorDialog } from '../utils/AppErrorDialog';
 import { CredentialStore } from '../utils/CredentialStore';
 import { EMAIL_KEY, SAVE_EMAIL, ServerType } from '../utils/Constants';
 import { LoginViewModel } from '../viewmodel/LoginViewModel';
@@ -34,6 +35,7 @@ export struct LoginPage {
   @State pendingEmailLogin: boolean = false;
   @State verificationSubmitting: boolean = false;
   @State feedbackVisible: boolean = false;
+  @State codeSendSucceeded: boolean = false;
   private exitTime: number = 0;
   private isPc: boolean = FormFactorUtil.isPc();
   pathInfos: NavPathStack = new NavPathStack();
@@ -189,7 +191,7 @@ export struct LoginPage {
         Text(this.twoFactorInputHint)
           .width("100%")
           .textAlign(TextAlign.Center)
-          .fontColor(Color.Red)
+          .fontColor(this.codeSendSucceeded ? $r('sys.color.font_primary') : Color.Red)
           .fontSize(16)
         if (this.feedbackVisible) {
           this.feedbackEntry()
@@ -201,16 +203,17 @@ export struct LoginPage {
           .onClick(async () => {
             // 请求未结束前禁用按钮，避免并发发送多个邮箱验证码
             this.pendingEmailLogin = true;
+            this.codeSendSucceeded = false;
             const result = await this.viewModel.doSendEmailLogin();
             if (!result) {
               this.twoFactorInputError = true;
               this.feedbackVisible = true;
-              this.twoFactorInputHint = AppTextResolver.resource(this.viewModel.errorMessage ??
-                new AppText(AppTextKey.CODE_SEND_FAILED));
+              this.twoFactorInputHint = this.getErrorText(AppTextKey.CODE_SEND_FAILED);
             } else {
               this.twoFactorInputError = true;
               this.feedbackVisible = false;
               this.twoFactorInputHint = $r('app.string.login_code_sent');
+              this.codeSendSucceeded = true;
             }
             this.pendingEmailLogin = false;
           })
@@ -240,7 +243,7 @@ export struct LoginPage {
         Text(this.twoFactorInputHint)
           .width("100%")
           .textAlign(TextAlign.Center)
-          .fontColor(Color.Red)
+          .fontColor(this.codeSendSucceeded ? $r('sys.color.font_primary') : Color.Red)
           .fontSize(16)
         if (this.feedbackVisible) {
           this.feedbackEntry()
@@ -252,16 +255,17 @@ export struct LoginPage {
         .onClick(async () => {
           // 新设备验证码重发与 2FA 邮件发送共享防重入状态
           this.pendingEmailLogin = true;
+            this.codeSendSucceeded = false;
           const result = await this.viewModel.doResendNewDeviceOtp();
           if (!result) {
             this.twoFactorInputError = true;
             this.feedbackVisible = true;
-            this.twoFactorInputHint = AppTextResolver.resource(this.viewModel.errorMessage ??
-              new AppText(AppTextKey.CODE_SEND_FAILED));
+            this.twoFactorInputHint = this.getErrorText(AppTextKey.CODE_SEND_FAILED);
           } else {
             this.twoFactorInputError = true;
             this.feedbackVisible = false;
             this.twoFactorInputHint = $r('app.string.login_code_sent');
+              this.codeSendSucceeded = true;
           }
           this.pendingEmailLogin = false;
         })
@@ -371,22 +375,6 @@ export struct LoginPage {
               })
             }
 
-            // 显示错误信息
-            if (this.viewModel.errorMessage) {
-              Text(AppTextResolver.resource(this.viewModel.errorMessage))
-                .fontSize(14)
-                .fontColor(Color.Red)
-                .margin(12)
-              Text(this.viewModel.serverType === ServerType.US ? $r('app.string.login_region_us') :
-                this.viewModel.serverType === ServerType.EU ? $r('app.string.login_region_eu') :
-                  $r('app.string.login_region_self_hosted'))
-                .fontSize(12)
-                .fontColor(Color.Gray)
-              if (this.feedbackVisible) {
-                this.feedbackEntry()
-              }
-            }
-
             // 显示成功信息
             if (this.viewModel.successMessage) {
               Text(AppTextResolver.resource(this.viewModel.successMessage))
@@ -444,12 +432,12 @@ export struct LoginPage {
       return;
     }
     if (this.viewModel.email.trim().length === 0 || this.viewModel.password.trim().length === 0) {
-      AppToast.show(this.getUIContext(), $r('app.string.error_validation'));
+      AppErrorDialog.show(this.getUIContext(), $r('app.string.error_validation'));
       return;
     }
     if (this.viewModel.serverType === ServerType.SELF_HOSTED &&
       this.viewModel.serverAddress.trim().length === 0) {
-      AppToast.show(this.getUIContext(), $r('app.string.error_validation'));
+      AppErrorDialog.show(this.getUIContext(), $r('app.string.error_validation'));
       return;
     }
     this.twoFactorInputError = false;
@@ -471,11 +459,14 @@ export struct LoginPage {
       } else if (loginSuccess) {
         // 登录成功，跳转到密码库页面
         await this.navigateToVault();
-      } else if (this.viewModel.errorMessage) {
-        this.feedbackVisible = true;
+      }
+      if (this.viewModel.errorMessage && !this.isNeed2FA && !this.isNeedNewDevice) {
+        AppErrorDialog.show(this.getUIContext(), this.getErrorText(AppTextKey.LOGIN_FAILED));
       }
       this.updateUI();
       this.getUIContext().getFocusController().clearFocus();
+    } catch (error) {
+      AppErrorDialog.showError(this.getUIContext(), error as Error, $r('app.string.login_error_failed'));
     } finally {
       this.isLoading = false;
     }
@@ -502,13 +493,13 @@ export struct LoginPage {
       this.twoFactorInputHint = $r('app.string.login_error_code_required');
       return;
     }
+    this.codeSendSucceeded = false;
     const result = await this.viewModel.continueLogin();
     if (!result) {
       this.syncVerificationDialogs();
       this.twoFactorInputError = true;
       this.feedbackVisible = true;
-      this.twoFactorInputHint = AppTextResolver.resource(this.viewModel.errorMessage ??
-        new AppText(AppTextKey.CODE_INVALID));
+      this.twoFactorInputHint = this.getErrorText(AppTextKey.CODE_INVALID);
       return;
     }
     this.updateUI();
@@ -538,13 +529,13 @@ export struct LoginPage {
       this.twoFactorInputHint = $r('app.string.login_error_code_required');
       return;
     }
+    this.codeSendSucceeded = false;
     const result = await this.viewModel.continueLogin();
     if (!result) {
       this.syncVerificationDialogs();
       this.twoFactorInputError = true;
       this.feedbackVisible = true;
-      this.twoFactorInputHint = AppTextResolver.resource(this.viewModel.errorMessage ??
-        new AppText(AppTextKey.CODE_INVALID));
+      this.twoFactorInputHint = this.getErrorText(AppTextKey.CODE_INVALID);
       return;
     }
     this.updateUI();
@@ -595,6 +586,11 @@ export struct LoginPage {
     await WindowPrivacyUtil.applyForCurrentState();
     VaultViewModel.beginSession();
     this.pathInfos.replacePath({ name: EntryRouter.VaultPage });
+  }
+
+  private getErrorText(fallback: AppTextKey): ResourceStr {
+    return ErrorMessageUtil.getDisplayMessage(this.getUIContext(), this.viewModel.lastError,
+      AppTextResolver.resource(this.viewModel.errorMessage ?? new AppText(fallback)));
   }
 
   // 更新UI状态

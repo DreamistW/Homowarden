@@ -1,4 +1,4 @@
-import { ErrorMessageUtil } from './ErrorMessageUtil';
+import { AppErrorDialog } from './AppErrorDialog';
 
 /**
  * 统一通过当前 UIContext 展示短时提示，避免依赖已废弃的全局提示接口
@@ -20,6 +20,6 @@ export class AppToast {
   }
 
   static showError(uiContext: UIContext, error: Object, fallback: ResourceStr): void {
-    AppToast.show(uiContext, fallback, ErrorMessageUtil.isRequestFailure(error));
+    AppErrorDialog.showError(uiContext, error, fallback);
   }
 }

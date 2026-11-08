@@ -1,3 +1,5 @@
+import { AppErrorDialog } from '../utils/AppErrorDialog';
+
 /**
  * 通用确认对话框：可选标题 + 消息 + 确认/取消（无背景文字按钮），@CustomDialog 可由
  * controller.close() 关闭。message/title/confirmText 经 @Link 双向绑定，便于同一页面
@@ -19,16 +21,29 @@ export struct ConfirmDialog {
   onCancel: () => void = () => {
   };
   @State private submitting: boolean = false;
+  @State private errorMessage: ResourceStr = '';
+
+  aboutToAppear(): void {
+    this.errorMessage = '';
+    AppErrorDialog.registerInline(this, (message: ResourceStr) => { this.errorMessage = message; });
+  }
+
+  aboutToDisappear(): void {
+    AppErrorDialog.unregisterInline(this);
+  }
 
   private async submit(): Promise<void> {
     if (this.submitting) {
       return;
     }
     this.submitting = true;
+    this.errorMessage = '';
     try {
       if (await this.onConfirm()) {
         this.controller.close();
       }
+    } catch (error) {
+      AppErrorDialog.showError(this.getUIContext(), error as Error, $r('app.string.error_unknown'));
     } finally {
       this.submitting = false;
     }
@@ -45,6 +60,9 @@ export struct ConfirmDialog {
         }
         Text(this.message)
           .fontSize(16)
+        if (this.errorMessage) {
+          Text(this.errorMessage).fontSize(14).fontColor($r('sys.color.warning')).margin({ top: 12 })
+        }
       }
       .padding({ left: 24, right: 24, top: 24, bottom: 16 })
 

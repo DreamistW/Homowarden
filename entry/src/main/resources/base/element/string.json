@@ -94,6 +94,27 @@
     {"name":"storage_repair_message","value":"This will clear the local credential database, delete its old key and generate a new key. You will need to log in again. Password items on the server will not be affected. This action cannot be undone."},
     {"name":"storage_repair_confirm","value":"Clear and repair"},
     {"name":"storage_repair_progress","value":"Repairing local storage…"},
-    {"name":"login_resend_email_code","value":"Resend code by email"}
+    {"name":"login_resend_email_code","value":"Resend code by email"},
+    {"name":"common_got_it","value":"Got it"},
+    {"name":"error_dialog_title","value":"Operation failed"},
+    {"name":"background_error_hint","value":"Background operation failed. Show details"},
+    {"name":"login_error_email_invalid","value":"Enter a valid email address"},
+    {"name":"error_server_unavailable","value":"The server is temporarily unavailable. Try again later."},
+    {"name":"error_endpoint_unavailable","value":"The requested interface is unavailable. Check the server address."},
+    {"name":"error_input_invalid","value":"Some fields are invalid. Check your input."},
+    {"name":"anti_peep_face_required","value":"Set up facial recognition in system settings before enabling anti-peeping protection."},
+    {"name":"anti_peep_failed","value":"Anti-peeping protection could not be enabled. Check the system settings."},
+    {"name":"vault_background_sync_failed","value":"Background data sync failed. Please try syncing manually."},
+    {"name":"error_reason_prefix","value":"Reason"},
+    {"name":"error_details_prefix","value":"Details"},
+    {"name":"error_code_prefix","value":"Error code"},
+    {"name":"error_http_prefix","value":"HTTP status"},
+    {"name":"error_dns","value":"The server address could not be resolved. Check the server address and DNS connection."},
+    {"name":"error_connection_refused","value":"Unable to connect to the server. The service may be unavailable or refusing connections."},
+    {"name":"error_tls","value":"The secure connection failed. Check the server certificate and device time."},
+    {"name":"error_connection_interrupted","value":"The connection was interrupted. Please try again."},
+    {"name":"share_convert_failed","value":"Link conversion failed"},
+    {"name":"share_history_save_failed","value":"The link was converted, but saving history failed."},
+    {"name":"totp_import_failed_generic","value":"QR code import failed"}
   ]
 }

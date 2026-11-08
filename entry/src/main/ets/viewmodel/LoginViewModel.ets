@@ -32,7 +32,7 @@ import { common } from '@kit.AbilityKit';
 import { getServerEndpoints } from '../network/ServerEndpointResolver';
 import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
 import { AppText, AppTextKey } from '../localization/AppText';
-import { LoginErrorResponseData, LoginRequestError } from '../model/LoginError';
+import { LoginErrorResponseData, LoginRequestError, LoginOperationError } from '../model/LoginError';
 import { LoginErrorUtil } from '../utils/LoginErrorUtil';
 import { DECRYPTION_UNSUPPORTED, LoginDecryptionMaterial, LoginResponseUtil,
   PASSWORD_RESET_REQUIRED } from '../utils/LoginResponseUtil';
@@ -48,6 +48,7 @@ export class LoginViewModel {
   serverAddress: string = '';
   serverType: ServerType = ServerType.US;
   errorMessage: AppText | undefined = undefined;
+  lastError: Object | null = null;
   successMessage: AppText | undefined = undefined;
   needTwoFactor: boolean = false;
   needNewDevice: boolean = false;
@@ -96,9 +97,10 @@ export class LoginViewModel {
         this.deviceInfoInitialized = true;
         Logger.info(`Device info initialized: type=${this.deviceType}`);
       } catch (error) {
+      this.lastError = error as Object;
         Logger.error(`Failed to initialize device info: ${error}`);
         // 未可靠持久化设备身份时停止登录，不能退回临时 UUID。
-        throw new Error('Device identifier persistence failed');
+        throw new LoginOperationError('Device identifier persistence failed', error as Object);
       }
     }
   }
@@ -143,6 +145,7 @@ export class LoginViewModel {
         `saltSource=${response.salt === undefined || response.salt === null ? 'email' : 'server'}`);
       return true;
     } catch (error) {
+      this.lastError = error as Object;
       Logger.error(`Prelogin failed: ${error}`);
       this.errorMessage = new AppText((error as Error).message?.includes('KDF') ||
         (error as Error).message?.includes('Argon2') ? AppTextKey.KDF_UNSUPPORTED :
@@ -161,6 +164,7 @@ export class LoginViewModel {
       Logger.info('Master key derived successfully');
       return true;
     } catch (error) {
+      this.lastError = error as Object;
       Logger.error(`Master key derivation failed: ${error}`);
       this.errorMessage = new AppText((error as Error).message === 'argon2_resources_unavailable' ?
         AppTextKey.KDF_RESOURCES_UNAVAILABLE : AppTextKey.MASTER_KEY_FAILED);
@@ -187,6 +191,7 @@ export class LoginViewModel {
       Logger.info('Hash master key successfully');
       return true;
     } catch (error) {
+      this.lastError = error as Object;
       Logger.error(`Master key hash failed: ${error}`);
       this.errorMessage = new AppText(AppTextKey.MASTER_KEY_FAILED);
       return false;
@@ -216,6 +221,7 @@ export class LoginViewModel {
       Logger.info('Login successful, tokens received');
       return true;
     } catch (error) {
+      this.lastError = error as Object;
       const loginError = error as LoginRequestError;
       const errorData = loginError.response?.data;
       if (this.isTwoFactorRequired(errorData)) {
@@ -256,6 +262,7 @@ export class LoginViewModel {
       Logger.info('Login successful, tokens received');
       return true;
     } catch (error) {
+      this.lastError = error as Object;
       const loginError = error as LoginRequestError;
       const errorMessage = this.extractLoginErrorMessage(loginError);
       Logger.error(`Login with 2FA failed: ${errorMessage}`);
@@ -284,6 +291,7 @@ export class LoginViewModel {
       Logger.info('Login successful, tokens received');
       return true;
     } catch (error) {
+      this.lastError = error as Object;
       const loginError = error as LoginRequestError;
       const errorMessage = this.extractLoginErrorMessage(loginError);
       Logger.error(`Login with new device failed: ${errorMessage}`);
@@ -392,6 +400,7 @@ export class LoginViewModel {
   async login(): Promise<boolean> {
     // 清除之前的错误信息
     this.errorMessage = undefined;
+    this.lastError = null;
     this.successMessage = undefined;
 
     // 验证输入
@@ -436,6 +445,7 @@ export class LoginViewModel {
       }
       return false;
     } catch (error) {
+      this.lastError = error as Object;
       Logger.error(`Login process failed: ${error}`);
       this.errorMessage = new AppText(AppTextKey.LOGIN_FAILED);
       return false;
@@ -444,6 +454,7 @@ export class LoginViewModel {
 
   async continueLogin(): Promise<boolean> {
     this.errorMessage = undefined;
+    this.lastError = null;
     try {
       let loginSuccess: boolean = false;
       if (this.needTwoFactor) {
@@ -459,6 +470,7 @@ export class LoginViewModel {
       }
       return await this.saveLoginInfo();
     } catch (error) {
+      this.lastError = error as Object;
       const errorMessage = ErrorMessageUtil.getMessage(error as Object);
       Logger.error(`Login continuation failed: ${errorMessage}`);
       this.errorMessage = new AppText(AppTextKey.LOGIN_FAILED);
@@ -478,12 +490,20 @@ export class LoginViewModel {
         await CryptoUtil.deriveMasterKey(this.password, material.params);
       await CryptoUtil.decryptUserKey(material.encryptedUserKey, unlockMasterKey);
       // 校验完成后才提交凭据事务，失败响应不会覆盖现有账号凭据。
-      await this.persistLoginInfo(material, unlockMasterKey);
+      try {
+        await this.persistLoginInfo(material, unlockMasterKey);
+      } catch (storageError) {
+        this.lastError = storageError as Object;
+        this.errorMessage = new AppText(AppTextKey.STORAGE_ERROR);
+        Logger.error(`Failed to persist login credentials: ${ErrorMessageUtil.getMessage(storageError as Object)}`);
+        return false;
+      }
       this.successMessage = new AppText(AppTextKey.LOGIN_SUCCESS);
       Logger.info(`Login credentials saved: decryptionSource=${material.source}, ` +
         `KDF type=${material.params.kdf}, userKeyVerified=true`);
       return true;
     } catch (error) {
+      this.lastError = error as Object;
       const message = (error as Error).message;
       Logger.error(`Login credential initialization failed: ${message}`);
       if (message === PASSWORD_RESET_REQUIRED) {
@@ -570,6 +590,7 @@ export class LoginViewModel {
   // 清除错误信息
   clearError(): void {
     this.errorMessage = undefined;
+    this.lastError = null;
   }
 
   // 清除成功信息
@@ -585,6 +606,7 @@ export class LoginViewModel {
     newViewModel.serverAddress = this.serverAddress;
     newViewModel.serverType = this.serverType;
     newViewModel.errorMessage = this.errorMessage;
+    newViewModel.lastError = this.lastError;
     newViewModel.successMessage = this.successMessage;
     newViewModel.kdfType = this.kdfType;
     newViewModel.kdfIterations = this.kdfIterations;
@@ -618,6 +640,7 @@ export class LoginViewModel {
     this.serverAddress = '';
     this.serverType = ServerType.US;
     this.errorMessage = undefined;
+    this.lastError = null;
     this.successMessage = undefined;
     this.kdfType = 0;
     this.kdfIterations = 0;
@@ -654,6 +677,7 @@ export class LoginViewModel {
       DataPreferences.getInstance().putSync(SERVER_TYPE_KEY, serverType);
       DataPreferences.getInstance().putSync(SERVER_ADDRESS_KEY, this.getNormalizedServerAddress());
     } catch (error) {
+      this.lastError = error as Object;
       Logger.error("failed to save server config, error message: " + error);
     }
   }
@@ -690,6 +714,7 @@ export class LoginViewModel {
       }
       return await sendEmailLogin(request);
     } catch (error) {
+      this.lastError = error as Object;
       const errorMessage = ErrorMessageUtil.getMessage(error as Object);
       Logger.error(`Send email login failed: ${errorMessage}`);
       const key = LoginErrorUtil.classify(error as LoginRequestError);
@@ -707,6 +732,7 @@ export class LoginViewModel {
       }
       return await resendNewDeviceOtp(request, this.deviceIdentifier);
     } catch (error) {
+      this.lastError = error as Object;
       const errorMessage = ErrorMessageUtil.getMessage(error as Object);
       Logger.error(`Resend new device OTP failed: ${errorMessage}`);
       const key = LoginErrorUtil.classify(error as LoginRequestError);

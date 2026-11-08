@@ -1,3 +1,4 @@
+import { AppErrorDialog } from '../utils/AppErrorDialog';
 import { DataPreferences } from '@abner/datastore';
 import { AppDropdown } from '../component/AppDropdown';
 import { AppToast } from '../utils/AppToast';
@@ -782,14 +783,6 @@ export struct AddCipherPage {
           }
           .margin({ left: 16, right: 16, top: 8, bottom: 24 })
 
-          // 错误提示
-          if (this.viewModel.errorMessage && this.viewModel.errorMessage.length > 0) {
-            Text(this.viewModel.errorMessage === 'cipher_name_required' ?
-              $r('app.string.cipher_name_required') : $r('app.string.error_save_failed'))
-              .fontColor(Color.Red)
-              .fontSize(14)
-              .margin({ left: 16, right: 16, bottom: 16 })
-          }
         }
         .width('100%')
       }
@@ -848,28 +841,36 @@ export struct AddCipherPage {
       return;
     }
     if (!this.allowSave) {
-      AppToast.show(this.getUIContext(), $r('app.string.cipher_name_required'));
+      AppErrorDialog.show(this.getUIContext(), $r('app.string.cipher_name_required'));
       return;
     }
     this.isSubmitting = true;
     // 在异步创建开始前标记本地变更，避免后台同步覆盖尚未回写的结果
     VaultChangeNotifier.markLocalChangePending();
-    const createdCipher = await this.viewModel.submitCreate();
-    this.isSubmitting = false;
-    if (createdCipher) {
-      AppToast.show(this.getUIContext(), $r('app.string.cipher_create_success'));
-      DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
-      VaultChangeNotifier.setUpdatedCipher(createdCipher);
-      const params: CipherDetailParams = {
-        cipher: createdCipher,
-        symmetricKey: this.viewModel.symmetricKey,
-        initialMode: CipherDetailMode.VIEW
-      };
-      // 替换当前栈的新建页，单栏和分栏均停留在查看页，返回时不会重新打开已提交的表单。
-      this.pathInfos.replacePath({ name: EntryRouter.CipherDetailPage, param: params });
-    } else if (this.viewModel.errorMessage && this.viewModel.errorMessage.length > 0) {
-      AppToast.show(this.getUIContext(), this.viewModel.errorMessage === 'cipher_name_required' ?
-        $r('app.string.cipher_name_required') : $r('app.string.error_save_failed'));
+    try {
+      const createdCipher = await this.viewModel.submitCreate();
+      if (createdCipher) {
+        AppToast.show(this.getUIContext(), $r('app.string.cipher_create_success'));
+        DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
+        VaultChangeNotifier.setUpdatedCipher(createdCipher);
+        const params: CipherDetailParams = {
+          cipher: createdCipher,
+          symmetricKey: this.viewModel.symmetricKey,
+          initialMode: CipherDetailMode.VIEW
+        };
+        // 替换当前栈的新建页，单栏和分栏均停留在查看页，返回时不会重新打开已提交的表单。
+        this.pathInfos.replacePath({ name: EntryRouter.CipherDetailPage, param: params });
+      } else if (this.viewModel.errorMessage && this.viewModel.errorMessage.length > 0) {
+        if (this.viewModel.submitError) {
+          AppErrorDialog.showError(this.getUIContext(), this.viewModel.submitError, $r('app.string.error_save_failed'));
+        } else {
+          AppErrorDialog.show(this.getUIContext(), $r('app.string.cipher_name_required'));
+        }
+      }
+    } catch (error) {
+      AppErrorDialog.showError(this.getUIContext(), error as Error, $r('app.string.error_save_failed'));
+    } finally {
+      this.isSubmitting = false;
     }
   }
 }

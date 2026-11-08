@@ -1,3 +1,4 @@
+import { AppErrorDialog } from '../utils/AppErrorDialog';
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
 import { ShareDatabaseUtil } from '../utils/ShareDatabaseUtil';
 import { HistoryItem } from '../model/ShareHistoryModel';
@@ -78,14 +79,13 @@ struct History {
     customStyle: false
   });
 
-  private showConfirm(title: ResourceStr, message: ResourceStr, action: () => void,
+  private showConfirm(title: ResourceStr, message: ResourceStr, action: () => Promise<boolean>,
     confirmText: ResourceStr = $r('app.string.common_confirm')): void {
     this.confirmTitle = title;
     this.confirmMessage = message;
     this.confirmText = confirmText;
     this.confirmAction = async (): Promise<boolean> => {
-      action();
-      return true;
+      return await action();
     };
     this.confirmController.open();
   }
@@ -95,7 +95,7 @@ struct History {
   }
 
   // 从数据库加载历史记录
-  async loadHistory() {
+  async loadHistory(): Promise<boolean> {
     try {
       const results = await this.dbUtil.queryHistoryBySearch(this.searchText);
       const historyItems: HistoryItem[] = [];
@@ -110,11 +110,11 @@ struct History {
       }
       this.historyList = historyItems;
       this.filteredList = this.historyList;
+      return true;
     } catch (err) {
       console.error(`Failed to load history. Error: ${JSON.stringify(err)}`);
-      this.getUIContext().getPromptAction().showToast({
-        message: $r('app.string.error_load_failed')
-      });
+      AppErrorDialog.showError(this.getUIContext(), err as Object, $r('app.string.error_load_failed'));
+      return false;
     }
   }
 
@@ -125,22 +125,21 @@ struct History {
   }
 
   // 复制功能
-  copyLink(text: string) {
+  async copyLink(text: string): Promise<void> {
     if (text == "") {
-      this.getUIContext().getPromptAction().showToast({
-        message: $r('app.string.share_convert_first')
-      });
+      AppErrorDialog.show(this.getUIContext(), $r('app.string.share_convert_first'));
       return;
     }
     let pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, text);
     const systemPasteboard: pasteboard.SystemPasteboard = pasteboard.getSystemPasteboard();
-    systemPasteboard.setData(pasteData).catch((err: BusinessError) => {
+    try {
+      await systemPasteboard.setData(pasteData);
+    } catch (error) {
+      const err = error as BusinessError;
       console.error(`Failed to set paste data. Code is ${err.code}, message is ${err.message}.`);
-      this.getUIContext().getPromptAction().showToast({
-        message: $r('app.string.share_copy_failed')
-      });
+      AppErrorDialog.showError(this.getUIContext(), error as Object, $r('app.string.share_copy_failed'));
       return;
-    });
+    }
     this.getUIContext().getPromptAction().showToast({
       message: $r('app.string.share_copy_success')
     });
@@ -148,24 +147,26 @@ struct History {
 
   // 弹出确认对话框请求删除单条记录
   requestDelete(item: HistoryItem): void {
-    this.showConfirm($r('app.string.share_history_delete_confirm'), item.content, () => {
-      void this.doDelete(item);
+    this.showConfirm($r('app.string.share_history_delete_confirm'), item.content, async () => {
+      return await this.doDelete(item);
     });
   }
 
   // 删除指定记录并刷新列表
-  async doDelete(item: HistoryItem) {
+  async doDelete(item: HistoryItem): Promise<boolean> {
     try {
       await this.dbUtil.deleteData('history', item.id);
-      await this.loadHistory();
+      if (!await this.loadHistory()) {
+        return false;
+      }
       this.getUIContext().getPromptAction().showToast({
         message: $r('app.string.common_delete_success')
       });
+      return true;
     } catch (err) {
       console.error(`Failed to delete item. Error: ${JSON.stringify(err)}`);
-      this.getUIContext().getPromptAction().showToast({
-        message: $r('app.string.error_delete_failed')
-      });
+      AppErrorDialog.showError(this.getUIContext(), err as Object, $r('app.string.error_delete_failed'));
+      return false;
     }
   }
 
@@ -221,28 +222,30 @@ struct History {
     if (this.selectedIds.length === 0) {
       return;
     }
-    this.showConfirm($r('app.string.common_delete'), $r('app.string.history_delete_selected_confirm'), () => {
-      void this.doDeleteSelected();
+    this.showConfirm($r('app.string.common_delete'), $r('app.string.history_delete_selected_confirm'), async () => {
+      return await this.doDeleteSelected();
     }, $r('app.string.common_delete'));
   }
 
   // 删除选中的记录并刷新列表
-  async doDeleteSelected(): Promise<void> {
+  async doDeleteSelected(): Promise<boolean> {
     const ids: string[] = [...this.selectedIds];
     try {
       for (const id of ids) {
         await this.dbUtil.deleteData('history', id);
       }
       this.exitSelectionMode();
-      await this.loadHistory();
+      if (!await this.loadHistory()) {
+        return false;
+      }
       this.getUIContext().getPromptAction().showToast({
         message: $r('app.string.common_delete_success')
       });
+      return true;
     } catch (err) {
       console.error(`Failed to delete selected items. Error: ${JSON.stringify(err)}`);
-      this.getUIContext().getPromptAction().showToast({
-        message: $r('app.string.error_delete_failed')
-      });
+      AppErrorDialog.showError(this.getUIContext(), err as Object, $r('app.string.error_delete_failed'));
+      return false;
     }
   }
 

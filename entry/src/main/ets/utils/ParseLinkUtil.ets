@@ -1,6 +1,19 @@
 import { http } from '@kit.NetworkKit';
 import { Logger } from '@nzy/logger';
 
+interface LinkHttpResponse {
+  status: number;
+}
+
+class LinkRequestError extends Error {
+  response: LinkHttpResponse;
+
+  constructor(status: number) {
+    super(`Request failed with status code ${status}`);
+    this.response = { status: status };
+  }
+}
+
 /** 从分享文案中提取首个 HTTP(S) 链接 */
 export async function getShareLink(content: string): Promise<string> {
   const urlRegex = /https?:\/\/[^\s\u4e00-\u9fa5]+/;
@@ -83,6 +96,9 @@ export async function getFullLink(link: string): Promise<string> {
         'User-Agent': 'Mozilla/5.0 (Linux; Android 13; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36'
       }
     });
+    if (response.responseCode !== 200) {
+      throw new LinkRequestError(response.responseCode);
+    }
     if (response.responseCode === 200) {
       // 针对淘宝平台
       if (link.match("tb.cn") != null) {
@@ -100,6 +116,7 @@ export async function getFullLink(link: string): Promise<string> {
     }
   } catch (err) {
     Logger.error(`Failed to parse full url, error message: ${err.message}`);
+    throw err as Error;
   } finally {
     // HttpRequest 持有系统网络资源，所有返回和异常路径都必须释放
     if (httpRequest !== undefined) {
@@ -122,6 +139,6 @@ export async function replaceOutputText(originalText: string, fullLink: string):
     return result;
   } catch (err) {
     Logger.error(`Failed to replace url, error message: ${err.message}`);
-    return "";
+    throw err as Error;
   }
 }

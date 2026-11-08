@@ -1,3 +1,4 @@
+import { AppErrorDialog } from '../utils/AppErrorDialog';
 import { DataPreferences } from '@abner/datastore';
 import {
   AUTO_LOCK_TIMEOUT,
@@ -39,8 +40,7 @@ struct Index {
       message: $repairMessage,
       confirmText: $repairConfirmText,
       onConfirm: async (): Promise<boolean> => {
-        await this.repairCredentialStorage();
-        return true;
+        return await this.repairCredentialStorage();
       }
     }),
     autoCancel: true,
@@ -130,14 +130,19 @@ struct Index {
 
   private showCredentialFailure(error: Error): void {
     const failure = CredentialStorageError.wrap(error, CredentialStorageFailure.PREFERENCES);
-    this.credentialFailureReason = CredentialStorageError.description(failure.reason);
+    const description = CredentialStorageError.description(failure.reason);
+    this.credentialFailureReason = description;
     this.credentialFailureCode = failure.code;
     this.credentialInitializationFailed = true;
+    const manager = this.getUIContext().getHostContext()?.resourceManager;
+    const reason = manager?.getStringSync(description.id) ?? '';
+    const code = failure.code !== 0 ? manager?.getStringSync($r('app.string.storage_error_code').id, failure.code) : '';
+    AppErrorDialog.show(this.getUIContext(), reason + (code ? '\n\n' + code : ''));
   }
 
-  private async repairCredentialStorage(): Promise<void> {
+  private async repairCredentialStorage(): Promise<boolean> {
     if (this.credentialBusy) {
-      return;
+      return false;
     }
     this.credentialBusy = true;
     let repaired = false;
@@ -155,6 +160,7 @@ struct Index {
       this.pathInfos.clear();
       await this.initAppEntry();
     }
+    return repaired && !this.credentialInitializationFailed;
   }
 
   private canRestoreUnlockedVault(): boolean {
@@ -225,13 +231,6 @@ struct Index {
           Text($r('app.string.error_storage'))
             .fontSize(20)
             .fontWeight(FontWeight.Medium)
-          Text(this.credentialFailureReason)
-            .textAlign(TextAlign.Center)
-          if (this.credentialFailureCode !== 0) {
-            Text($r('app.string.storage_error_code', this.credentialFailureCode))
-              .fontSize(14)
-              .fontColor($r('sys.color.ohos_id_color_text_secondary'))
-          }
           Button($r('app.string.common_retry'))
             .enabled(!this.credentialBusy)
             .onClick(() => { void this.initAppEntry(); })

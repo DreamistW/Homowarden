@@ -40,12 +40,15 @@ export class LoginErrorUtil {
   }
 
   static classify(error: LoginRequestError): AppTextKey {
+    if (error.message === 'auth_session_expired') {
+      return AppTextKey.AUTH_EXPIRED;
+    }
     if (error.message === 'Device identifier persistence failed') {
       return AppTextKey.STORAGE_ERROR;
     }
     const data = error.response?.data;
     const message = LoginErrorUtil.messages(data);
-    if (error.message?.toLowerCase().includes('timeout')) {
+    if (error.code === 'ETIMEDOUT' || error.code === 'ECONNABORTED' || error.message?.toLowerCase().includes('timeout')) {
       return AppTextKey.TIMEOUT_ERROR;
     }
     if (!error.response) {
@@ -53,6 +56,15 @@ export class LoginErrorUtil {
     }
     if (error.response.status === 429 || message.includes('too many requests') || message.includes('rate limit')) {
       return AppTextKey.RATE_LIMITED;
+    }
+    const fields = data?.validationErrors ?? data?.ValidationErrors ??
+      data?.ErrorModel?.validationErrors ?? data?.ErrorModel?.ValidationErrors ??
+      data?.errorModel?.validationErrors ?? data?.errorModel?.ValidationErrors;
+    if (fields && Object.keys(fields).some((field: string) => field.toLowerCase() === 'email')) {
+      return AppTextKey.EMAIL_INVALID;
+    }
+    if (fields && Object.keys(fields).some((field: string) => field.trim().length > 0)) {
+      return AppTextKey.INPUT_INVALID;
     }
     if (message.includes('verify your email')) {
       return AppTextKey.EMAIL_UNVERIFIED;
@@ -74,11 +86,17 @@ export class LoginErrorUtil {
       message.includes('cf-chl-') || message.includes('cloudflare')) {
       return AppTextKey.ACCESS_RESTRICTED;
     }
+    if (LoginErrorUtil.isInvalidVerificationCode(data)) {
+      return AppTextKey.CODE_INVALID;
+    }
     if (LoginErrorUtil.isInvalidCredentials(data)) {
       return AppTextKey.INVALID_CREDENTIALS;
     }
-    if (LoginErrorUtil.isInvalidVerificationCode(data)) {
-      return AppTextKey.CODE_INVALID;
+    if (error.response.status !== undefined && error.response.status >= 500) {
+      return AppTextKey.SERVER_UNAVAILABLE;
+    }
+    if (error.response.status === 404) {
+      return AppTextKey.ENDPOINT_UNAVAILABLE;
     }
     return data?.error === 'device_error' ? AppTextKey.DEVICE_VERIFICATION_FAILED : AppTextKey.LOGIN_FAILED;
   }
@@ -87,12 +105,12 @@ export class LoginErrorUtil {
     if (typeof data === 'string') {
       return (data as string).toLowerCase();
     }
-    return [LoginErrorUtil.getModelMessage(data), data?.message ?? '', data?.error_description ?? '',
+    return [LoginErrorUtil.getModelMessage(data), data?.message ?? data?.Message ?? '', data?.error_description ?? '',
       data?.error ?? ''].join(' ').toLowerCase();
   }
 
   private static matches(data: LoginErrorResponseData | undefined, expected: string): boolean {
-    const messages = [LoginErrorUtil.getModelMessage(data), data?.message ?? '', data?.error_description ?? ''];
+    const messages = [LoginErrorUtil.getModelMessage(data), data?.message ?? data?.Message ?? '', data?.error_description ?? ''];
     return messages.some((message: string) => message.trim().toLowerCase().replace(/[.!]+$/, '') === expected);
   }
 }

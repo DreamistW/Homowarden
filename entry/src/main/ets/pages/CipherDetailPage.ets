@@ -1,3 +1,4 @@
+import { AppErrorDialog } from '../utils/AppErrorDialog';
 import { Cipher, CipherDetailMode, CipherDetailParams, CipherField, CipherUri } from '../model/CipherModels';
 import {
   CardBrandType,
@@ -277,7 +278,7 @@ export struct CipherDetailPage {
     } catch (error) {
       Logger.error('Failed to load cipher detail:', error);
       this.isEditable = false;
-      AppToast.show(this.getUIContext(), $r('app.string.error_load_failed'));
+      AppErrorDialog.showError(this.getUIContext(), error as Object, $r('app.string.error_load_failed'));
     } finally {
       this.isLoading = false;
     }
@@ -285,7 +286,7 @@ export struct CipherDetailPage {
 
   private enterEditMode(): void {
     if (!this.isDetailLoaded || !this.cipher.edit || this.cipher.deletedDate) {
-      AppToast.show(this.getUIContext(), $r('app.string.error_encryption'));
+      AppErrorDialog.show(this.getUIContext(), $r('app.string.error_encryption'));
       return;
     }
     this.originalCipherSnapshot = JSON.stringify(this.cipher);
@@ -345,16 +346,15 @@ export struct CipherDetailPage {
       // ViewModel 在内部完成明文到密文的转换，页面对象仍保持明文供后续展示
       VaultChangeNotifier.markLocalChangePending();
       this.cipher = await this.viewModel.updateCipher(this.cipher);
-      // 保存成功，退出编辑模式
-      this.isEditable = false;
       DataPreferences.getInstance().putSync(NEED_RELOAD_CIPHERS, 1);
       VaultChangeNotifier.setUpdatedCipher(this.cipher);
+      this.isEditable = false;
+      this.originalCipherSnapshot = JSON.stringify(this.cipher);
+      this.refreshFormattedDates();
       AppToast.show(this.getUIContext(), $r('app.string.common_success'));
-      // 重新加载密码项
-      await this.loadCipherDetail();
     } catch (error) {
       Logger.error('Failed to save cipher:', error);
-      AppToast.showError(this.getUIContext(), error, $r('app.string.error_save_failed'));
+      AppErrorDialog.showError(this.getUIContext(), error, $r('app.string.error_save_failed'));
     } finally {
       this.isSaving = false;
     }
@@ -411,7 +411,7 @@ export struct CipherDetailPage {
       AppToast.show(this.getUIContext(), $r('app.string.common_success'));
     } catch (error) {
       Logger.error('Failed to update favorite:', error);
-      AppToast.showError(this.getUIContext(), error, $r('app.string.error_save_failed'));
+      AppErrorDialog.showError(this.getUIContext(), error, $r('app.string.error_save_failed'));
     } finally {
       this.isFavoriteSaving = false;
     }
@@ -431,7 +431,7 @@ export struct CipherDetailPage {
       AppToast.show(this.getUIContext(), $r('app.string.common_success'));
     } catch (error) {
       Logger.error('Failed to restore cipher:', error);
-      AppToast.showError(this.getUIContext(), error, $r('app.string.error_save_failed'));
+      AppErrorDialog.showError(this.getUIContext(), error, $r('app.string.error_save_failed'));
     }
   }
 
@@ -1233,7 +1233,7 @@ export struct CipherDetailPage {
       Logger.error('Failed to delete cipher:', error);
 
       // 显示失败提示
-      AppToast.showError(this.getUIContext(), error, $r('app.string.error_delete_failed'));
+      AppErrorDialog.showError(this.getUIContext(), error, $r('app.string.error_delete_failed'));
 
       return false;
     }
@@ -1264,6 +1264,7 @@ export struct CipherDetailPage {
     } catch (error) {
       const err = error as BusinessError;
       Logger.error(`Failed to paste, error message: ${err.message}}`);
+      AppErrorDialog.showError(this.getUIContext(), error as Object, $r('app.string.share_copy_failed'));
     }
   }
 }

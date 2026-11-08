@@ -24,6 +24,9 @@ import { AppOptionFactory } from '../localization/AppOptionFactory';
 import { AppText, AppTextKey } from '../localization/AppText';
 import { LocaleUtil } from '../localization/LocaleUtil';
 import { AutoLockUtil } from '../utils/AutoLockUtil';
+import { BackgroundErrorStore } from '../utils/BackgroundErrorStore';
+import { LoginErrorUtil } from '../utils/LoginErrorUtil';
+import { LoginRequestError } from '../model/LoginError';
 
 /**
  * 密码库ViewModel
@@ -31,6 +34,7 @@ import { AutoLockUtil } from '../utils/AutoLockUtil';
 export class VaultViewModel {
   // 所有实例共享同一同步 Promise，避免并发请求交错覆盖数据库
   private static activeSyncPromise: Promise<boolean> | null = null;
+  private static activeSyncError: Object | null = null;
   private static activeSyncGuards: Array<() => boolean> = [];
   private static activeDatabaseWritePromise: Promise<void> | null = null;
   private static syncGeneration: number = 0;
@@ -45,6 +49,8 @@ export class VaultViewModel {
   isLoading: boolean = false;
   // 错误信息
   errorMessage: AppText | undefined = undefined;
+  verificationError: Object | null = null;
+  lastError: Object | null = null;
   errorDetail: string = '';
   errorIsRequestFailure: boolean = false;
   // 重新登录回调
@@ -62,6 +68,7 @@ export class VaultViewModel {
   async loadCiphers(forceSync: boolean = false): Promise<boolean> {
     try {
       this.errorMessage = undefined;
+      this.lastError = null;
       this.errorDetail = '';
       this.errorIsRequestFailure = false;
 
@@ -76,6 +83,7 @@ export class VaultViewModel {
       return true;
     } catch (error) {
       Logger.error(`Failed to load ciphers: ${error}`);
+      this.lastError = error as Object;
       this.errorMessage = new AppText(AppTextKey.LOAD_FAILED);
       this.errorDetail = ErrorMessageUtil.getUserMessage(error, '');
       this.errorIsRequestFailure = ErrorMessageUtil.isRequestFailure(error);
@@ -96,13 +104,18 @@ export class VaultViewModel {
       if (shouldApplyResult) {
         VaultViewModel.activeSyncGuards.push(shouldApplyResult);
       }
-      return await VaultViewModel.activeSyncPromise;
+      const result = await VaultViewModel.activeSyncPromise;
+      if (!result && VaultViewModel.activeSyncError) {
+        this.recordSyncError(VaultViewModel.activeSyncError);
+      }
+      return result;
     }
     VaultViewModel.activeSyncGuards = [];
     if (shouldApplyResult) {
       VaultViewModel.activeSyncGuards.push(shouldApplyResult);
     }
     const generation = VaultViewModel.syncGeneration;
+    VaultViewModel.activeSyncError = null;
     const syncPromise = this.performSyncCiphersFromServer(generation);
     VaultViewModel.activeSyncPromise = syncPromise;
     try {
@@ -128,6 +141,7 @@ export class VaultViewModel {
   }
 
   static async prepareForLogout(): Promise<void> {
+    BackgroundErrorStore.clearAll();
     VaultViewModel.sessionRevision++;
     VaultViewModel.sessionActive = false;
     VaultViewModel.syncBlocked = true;
@@ -197,19 +211,28 @@ export class VaultViewModel {
       }
       return true;
     } catch (error) {
-      const businessError = error as BusinessError;
+      const requestError = error as LoginRequestError;
+      if (generation !== VaultViewModel.syncGeneration) {
+        return false;
+      }
       const errorMessage = ErrorMessageUtil.getMessage(error as Object);
       Logger.error(`Failed to sync ciphers from server: ${errorMessage}`);
-      this.errorMessage = new AppText(AppTextKey.LOAD_FAILED);
-      this.errorDetail = ErrorMessageUtil.getUserMessage(error as Object, '');
-      this.errorIsRequestFailure = ErrorMessageUtil.isRequestFailure(error);
-
-      // 检查是否是认证错误（需要重新登录）
-      if (businessError.message.includes('401') || businessError.message.includes('403')) {
-        this.errorMessage = new AppText(AppTextKey.AUTH_EXPIRED);
-        this.handleReLoginRequired();
-      }
+      VaultViewModel.activeSyncError = error as Object;
+      this.recordSyncError(error as Object);
       return false;
+    }
+  }
+
+  private recordSyncError(error: Object): void {
+    const requestError = error as LoginRequestError;
+    this.lastError = error;
+    const key = LoginErrorUtil.classify(requestError);
+    this.errorMessage = new AppText(key === AppTextKey.LOGIN_FAILED ? AppTextKey.LOAD_FAILED : key);
+    this.errorDetail = ErrorMessageUtil.getUserMessage(error, '');
+    this.errorIsRequestFailure = ErrorMessageUtil.isRequestFailure(error);
+    if (requestError.response?.status === 401 || requestError.message === 'auth_session_expired') {
+      this.errorMessage = new AppText(AppTextKey.AUTH_EXPIRED);
+      this.handleReLoginRequired();
     }
   }
 
@@ -277,6 +300,7 @@ export class VaultViewModel {
   async syncCiphersInBackground(shouldApplyResult?: () => boolean): Promise<boolean> {
     try {
       this.errorMessage = undefined;
+      this.lastError = null;
       this.errorDetail = '';
       this.errorIsRequestFailure = false;
       const didApplySync = await this.syncCiphersFromServer(shouldApplyResult);
@@ -297,6 +321,7 @@ export class VaultViewModel {
     } catch (error) {
       const errorMessage = ErrorMessageUtil.getMessage(error as Object);
       Logger.error(`Background sync failed: ${errorMessage}`);
+      this.lastError = error as Object;
       this.errorMessage = new AppText(AppTextKey.LOAD_FAILED);
       this.errorIsRequestFailure = ErrorMessageUtil.isRequestFailure(error);
       return false;
@@ -740,6 +765,7 @@ export class VaultViewModel {
 
   /** 使用持久化 KDF 参数重新派生主密钥，验证受保护条目的访问权限 */
   async verifyMasterPassword(passwordInput: string): Promise<boolean> {
+    this.verificationError = null;
     if (!passwordInput || passwordInput.length === 0) {
       this.errorMessage = new AppText(AppTextKey.MASTER_PASSWORD_REQUIRED);
       return false;
@@ -774,6 +800,7 @@ export class VaultViewModel {
         return false;
       }
     } catch (error) {
+      this.verificationError = error as Object;
       Logger.error(`Master password verification failed: ${error}`);
       this.errorMessage = new AppText((error as Error).message === 'argon2_resources_unavailable' ?
         AppTextKey.KDF_RESOURCES_UNAVAILABLE : AppTextKey.VERIFICATION_FAILED);

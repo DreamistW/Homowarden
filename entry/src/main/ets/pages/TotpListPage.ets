@@ -1,3 +1,4 @@
+import { ErrorMessageUtil } from '../utils/ErrorMessageUtil';
 import { Cipher, CipherDetailParams } from '../model/CipherModels';
 import { TotpListItem } from '../component/TotpListItem';
 import { TotpListViewModel } from '../viewmodel/TotpListViewModel';
@@ -226,8 +227,8 @@ export struct TotpListPage {
       this.passwordError = '';
       return true;
     }
-    this.passwordError = AppTextResolver.resource(this.viewModel.errorMessage ??
-      new AppText(AppTextKey.VERIFICATION_FAILED));
+    this.passwordError = ErrorMessageUtil.getDisplayMessage(this.getUIContext(), this.viewModel.verificationError,
+      AppTextResolver.resource(this.viewModel.errorMessage ?? new AppText(AppTextKey.VERIFICATION_FAILED)));
     return false;
   }
 }

@@ -2,6 +2,7 @@ import { CredentialStore } from './CredentialStore';
 import { ACCESS_TOKEN_KEY, GrantType, Header_Client_Name, REFRESH_TOKEN_KEY, TOKEN_EXPIRE_TIME_KEY } from './Constants';
 import { refreshToken } from '../network/AuthApi';
 import { CredentialSnapshot } from './CredentialDatabase';
+import { LoginRequestError, LoginOperationError } from '../model/LoginError';
 
 /** 同一凭据版本只发起一次刷新；退出或切换账号后丢弃旧刷新结果。 */
 export class SessionTokenUtil {
@@ -41,6 +42,11 @@ export class SessionTokenUtil {
       grant_type: GrantType.REFRESH,
       client_id: Header_Client_Name,
       refresh_token: refresh
+    }).catch((error: LoginRequestError) => {
+      if (error.response?.status === 401 || error.response?.data?.error === 'invalid_grant') {
+        throw new LoginOperationError('auth_session_expired', error);
+      }
+      throw error as Error;
     });
     await CredentialStore.applyRefresh(snapshot, response);
     // 提交之后的异步间隙也可能退出或切换账号。

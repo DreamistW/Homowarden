@@ -5,8 +5,10 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { Logger } from '@nzy/logger';
 import { SCREEN_CAPTURE_PROTECTION } from './Constants';
 import { CredentialStore } from './CredentialStore';
+import { BackgroundErrorStore } from './BackgroundErrorStore';
 
 export class WindowPrivacyUtil {
+  static lastError: Object | null = null;
   private static store: preferences.Preferences | undefined = undefined;
   private static initialization: Promise<void> | undefined = undefined;
   private static windowUpdate: Promise<boolean> = Promise.resolve(false);
@@ -46,6 +48,7 @@ export class WindowPrivacyUtil {
   }
 
   static async setScreenCaptureProtectionEnabled(enabled: boolean): Promise<boolean> {
+    WindowPrivacyUtil.lastError = null;
     try {
       await WindowPrivacyUtil.initialization;
     } catch (error) {
@@ -53,6 +56,7 @@ export class WindowPrivacyUtil {
     }
     const store = WindowPrivacyUtil.store;
     if (!store) {
+      WindowPrivacyUtil.lastError = new Error('Screen capture protection preferences are not ready');
       Logger.error('Failed to save screen capture protection preference. Code: unavailable, message: Store is not ready');
       return false;
     }
@@ -66,6 +70,9 @@ export class WindowPrivacyUtil {
     }
     // 即使落盘失败，也应用内存中的选择，确保开启保护不会被持久化错误阻断。
     const applied = await WindowPrivacyUtil.applyForCurrentState();
+    if (saved && applied) {
+      BackgroundErrorStore.clear('privacy');
+    }
     return saved && applied;
   }
 
@@ -114,6 +121,8 @@ export class WindowPrivacyUtil {
   }
 
   private static logError(operation: string, error: Object): void {
+    WindowPrivacyUtil.lastError = error;
+    BackgroundErrorStore.setError('privacy', error, $r('app.string.error_save_failed'));
     const details = error as BusinessError;
     Logger.error(`Failed to ${operation}. Code: ${details.code ?? 'unknown'}, message: ${details.message ?? 'Unknown error'}`);
   }

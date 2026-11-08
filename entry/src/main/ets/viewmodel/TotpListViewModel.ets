@@ -21,6 +21,7 @@ export class TotpListViewModel {
   symmetricKey: string = '';
   // 错误信息
   errorMessage: AppText | undefined = undefined;
+  verificationError: Object | null = null;
 
   /**
    * 解密配置了 TOTP 的登录项，完成后仅暴露带有 TOTP 的条目
@@ -99,6 +100,7 @@ export class TotpListViewModel {
    * 按登录时保存的 KDF 参数重新派生主密钥，不直接保存或比较主密码明文
    */
   async verifyMasterPassword(passwordInput: string): Promise<boolean> {
+    this.verificationError = null;
     if (!passwordInput || passwordInput.length === 0) {
       this.errorMessage = new AppText(AppTextKey.MASTER_PASSWORD_REQUIRED);
       return false;
@@ -133,6 +135,7 @@ export class TotpListViewModel {
         return false;
       }
     } catch (error) {
+      this.verificationError = error as Object;
       Logger.error(`Master password verification failed: ${error}`);
       this.errorMessage = new AppText((error as Error).message === 'argon2_resources_unavailable' ?
         AppTextKey.KDF_RESOURCES_UNAVAILABLE : AppTextKey.VERIFICATION_FAILED);

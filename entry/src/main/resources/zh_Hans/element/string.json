@@ -1390,6 +1390,27 @@
     {"name":"storage_repair_title","value":"修复本地存储？"},
     {"name":"storage_repair_message","value":"此操作将清空本机凭据数据库、删除原密钥并生成新密钥，随后需要重新登录。服务器端的密码项不会受影响。此操作无法撤销。"},
     {"name":"storage_repair_confirm","value":"清空并修复"},
-    {"name":"storage_repair_progress","value":"正在修复本地存储…"}
+    {"name":"storage_repair_progress","value":"正在修复本地存储…"},
+    {"name":"common_got_it","value":"知道了"},
+    {"name":"error_dialog_title","value":"操作失败"},
+    {"name":"background_error_hint","value":"后台操作失败，点击查看详情"},
+    {"name":"login_error_email_invalid","value":"请输入有效的邮箱地址"},
+    {"name":"error_server_unavailable","value":"服务器暂时不可用，请稍后重试。"},
+    {"name":"error_endpoint_unavailable","value":"请求的接口不可用，请检查服务器地址。"},
+    {"name":"error_input_invalid","value":"部分字段不符合要求，请检查输入。"},
+    {"name":"anti_peep_face_required","value":"请先在系统设置中录入人脸识别，再开启防窥保护。"},
+    {"name":"anti_peep_failed","value":"防窥保护开启失败，请检查系统设置。"},
+    {"name":"vault_background_sync_failed","value":"后台同步数据失败，请尝试手动同步"},
+    {"name":"error_reason_prefix","value":"原因"},
+    {"name":"error_details_prefix","value":"详细信息"},
+    {"name":"error_code_prefix","value":"错误码"},
+    {"name":"error_http_prefix","value":"HTTP 状态"},
+    {"name":"error_dns","value":"无法解析服务器地址，请检查服务器地址及 DNS 连接。"},
+    {"name":"error_connection_refused","value":"无法连接服务器，服务可能未启动或拒绝连接。"},
+    {"name":"error_tls","value":"安全连接失败，请检查服务器证书和设备时间。"},
+    {"name":"error_connection_interrupted","value":"网络连接中断，请重试。"},
+    {"name":"share_convert_failed","value":"链接转换失败"},
+    {"name":"share_history_save_failed","value":"链接已转换，但保存历史记录失败。"},
+    {"name":"totp_import_failed_generic","value":"二维码导入失败"}
   ]
 }

@@ -49,6 +49,14 @@ export class AppTextResolver {
         return $r('app.string.error_share_failed');
       case AppTextKey.EMAIL_REQUIRED:
         return $r('app.string.login_error_email_required');
+      case AppTextKey.EMAIL_INVALID:
+        return $r('app.string.login_error_email_invalid');
+      case AppTextKey.INPUT_INVALID:
+        return $r('app.string.error_input_invalid');
+      case AppTextKey.SERVER_UNAVAILABLE:
+        return $r('app.string.error_server_unavailable');
+      case AppTextKey.ENDPOINT_UNAVAILABLE:
+        return $r('app.string.error_endpoint_unavailable');
       case AppTextKey.PASSWORD_REQUIRED:
         return $r('app.string.login_error_password_required');
       case AppTextKey.SERVER_REQUIRED:

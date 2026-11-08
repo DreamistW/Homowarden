@@ -25,6 +25,7 @@ export class AddCipherViewModel {
   // 页面状态
   submitting: boolean = false;
   errorMessage: string = '';
+  submitError: Object | null = null;
   setIdentityTitle(type: IdentityTitleType): void {
     this.identityItem.title = CipherDisplayMapping.writeIdentityTitle(type);
   }
@@ -352,6 +353,7 @@ export class AddCipherViewModel {
   /** 加密并提交新条目，服务端成功后先落库再返回明文列表副本 */
   async submitCreate(): Promise<Cipher | null> {
     this.errorMessage = '';
+    this.submitError = null;
     if (!this.canSave()) {
       this.errorMessage = 'cipher_name_required';
       return null;
@@ -365,6 +367,7 @@ export class AddCipherViewModel {
     } catch (err) {
       const diagnosticMessage = ErrorMessageUtil.getMessage(err as Object);
       console.error(`Create cipher failed: ${diagnosticMessage}`);
+      this.submitError = err as Object;
       this.errorMessage = 'error_save_failed';
       return null;
     } finally {

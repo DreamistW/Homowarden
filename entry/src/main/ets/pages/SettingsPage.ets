@@ -1,3 +1,7 @@
+import { AppErrorDialog } from '../utils/AppErrorDialog';
+import { BackgroundErrorStore } from '../utils/BackgroundErrorStore';
+import { BackgroundErrorIndicator } from '../component/BackgroundErrorIndicator';
+import { LoginRequestError } from '../model/LoginError';
 import { DataPreferences } from '@abner/datastore/src/main/ets/preferences/DataPreferences';
 import {
   AutoLockTimeout,
@@ -89,12 +93,11 @@ export struct SettingsPage {
     this.exportDialogController.close();
   }
 
-  private showConfirm(title: ResourceStr, message: ResourceStr, action: () => void): void {
+  private showConfirm(title: ResourceStr, message: ResourceStr, action: () => Promise<boolean>): void {
     this.confirmTitle = title;
     this.confirmMessage = message;
     this.confirmAction = async (): Promise<boolean> => {
-      action();
-      return true;
+      return await action();
     };
     this.confirmController.open();
   }
@@ -142,7 +145,7 @@ export struct SettingsPage {
       }
     } catch (err) {
       Logger.error(`Failed to get version name. Error: ${JSON.stringify(err)}`);
-      AppToast.show(this.getUIContext(), $r('app.string.error_unknown'));
+      AppErrorDialog.showError(this.getUIContext(), err as Object, $r('app.string.error_unknown'));
     }
   }
 
@@ -264,6 +267,7 @@ export struct SettingsPage {
               Row() {
                 Text($r('app.string.settings_block_capture'))
                   .fontSize(16)
+                BackgroundErrorIndicator({ source: 'privacy' })
 
                 Blank()
 
@@ -280,7 +284,8 @@ export struct SettingsPage {
                       const applied = await WindowPrivacyUtil.setScreenCaptureProtectionEnabled(isOn);
                       this.screenCaptureProtectionEnabled = WindowPrivacyUtil.isScreenCaptureProtectionEnabled();
                       if (!applied) {
-                        AppToast.show(this.getUIContext(), $r('app.string.error_save_failed'));
+                        AppErrorDialog.showError(this.getUIContext(), WindowPrivacyUtil.lastError,
+                          $r('app.string.error_save_failed'));
                       }
                     } finally {
                       this.screenCaptureProtectionBusy = false;
@@ -491,7 +496,7 @@ export struct SettingsPage {
     try {
       const context = getContext(this) as common.UIAbilityContext;
       if (!context) {
-        AppToast.show(this.getUIContext(), $r('app.string.error_unknown'));
+        AppErrorDialog.show(this.getUIContext(), $r('app.string.error_unknown'));
         return;
       }
       const want: Want = {
@@ -499,11 +504,11 @@ export struct SettingsPage {
       };
       context.startAbility(want).catch((err: Error) => {
         Logger.error(`Failed to open email. Error: ${err.message}`);
-        AppToast.show(this.getUIContext(), $r('app.string.error_unknown'));
+        AppErrorDialog.showError(this.getUIContext(), err as Object, $r('app.string.error_unknown'));
       });
     } catch (err) {
       Logger.error(`Failed to open email. Error: ${JSON.stringify(err)}`);
-      AppToast.show(this.getUIContext(), $r('app.string.error_unknown'));
+      AppErrorDialog.showError(this.getUIContext(), err as Object, $r('app.string.error_unknown'));
     }
   }
 
@@ -515,7 +520,7 @@ export struct SettingsPage {
       AppToast.show(this.getUIContext(), $r('app.string.share_copy_success'));
     } catch (err) {
       Logger.error(`Failed to copy QQ group number. Error: ${JSON.stringify(err)}`);
-      AppToast.show(this.getUIContext(), $r('app.string.share_copy_failed'));
+      AppErrorDialog.showError(this.getUIContext(), err as Object, $r('app.string.share_copy_failed'));
     }
   }
 
@@ -568,7 +573,7 @@ export struct SettingsPage {
       LocaleState.notifyChanged();
     } catch (error) {
       Logger.error(`Failed to change interface language: ${JSON.stringify(error)}`);
-      AppToast.show(this.getUIContext(), $r('app.string.error_save_failed'));
+      AppErrorDialog.showError(this.getUIContext(), error as Object, $r('app.string.error_save_failed'));
     } finally {
       this.appearanceChanging = false;
     }
@@ -585,7 +590,7 @@ export struct SettingsPage {
       this.interfaceColor = value;
     } catch (error) {
       Logger.error(`Failed to change interface color: ${JSON.stringify(error)}`);
-      AppToast.show(this.getUIContext(), $r('app.string.error_save_failed'));
+      AppErrorDialog.showError(this.getUIContext(), error as Object, $r('app.string.error_save_failed'));
     } finally {
       this.appearanceChanging = false;
     }
@@ -629,7 +634,7 @@ export struct SettingsPage {
         retryCount++;
       }
       if (!randData) {
-        AppToast.show(this.getUIContext(), $r('app.string.unlock_biometric_start_failed'));
+        AppErrorDialog.show(this.getUIContext(), $r('app.string.unlock_biometric_start_failed'));
         this.biometricEnabled = false;
         return;
       }
@@ -667,7 +672,8 @@ export struct SettingsPage {
           } else {
             // 认证失败，关闭开关
             this.biometricEnabled = false;
-            AppToast.show(this.getUIContext(), $r('app.string.unlock_biometric_failed'));
+            const error: LoginRequestError = { code: result.result };
+            AppErrorDialog.showError(this.getUIContext(), error, $r('app.string.unlock_biometric_failed'));
           }
         }
       });
@@ -678,17 +684,17 @@ export struct SettingsPage {
       const err = error as BusinessError;
       Logger.error(`Failed to start biometric auth. Error: ${JSON.stringify(err)}`);
       this.biometricEnabled = false;
-      AppToast.show(this.getUIContext(), $r('app.string.unlock_biometric_start_failed'));
+      AppErrorDialog.showError(this.getUIContext(), error as Object, $r('app.string.unlock_biometric_start_failed'));
     }
   }
 
   private logout() {
-    this.showConfirm($r('app.string.common_confirm'), $r('app.string.settings_logout_confirm'), () => {
-      void this.performLogout();
+    this.showConfirm($r('app.string.common_confirm'), $r('app.string.settings_logout_confirm'), async () => {
+      return await this.performLogout();
     });
   }
 
-  private async performLogout(): Promise<void> {
+  private async performLogout(): Promise<boolean> {
     const cleanupErrors: string[] = [];
     try {
       await VaultViewModel.prepareForLogout();
@@ -712,8 +718,8 @@ export struct SettingsPage {
       await CredentialStore.clear();
     } catch (error) {
       Logger.error(`Failed to clear credentials during logout: ${error}`);
-      AppToast.show(this.getUIContext(), $r('app.string.error_storage'));
-      return;
+      AppErrorDialog.showError(this.getUIContext(), error as Object, $r('app.string.error_storage'));
+      return false;
     }
     try {
       await WindowPrivacyUtil.applyForCurrentState();
@@ -721,11 +727,13 @@ export struct SettingsPage {
       cleanupErrors.push(`${error}`);
       Logger.error(`Failed to update window privacy during logout: ${error}`);
     }
-    this.onLogout();
     if (cleanupErrors.length > 0) {
       Logger.error(`Logout completed with cleanup errors: ${cleanupErrors.join('; ')}`);
-      AppToast.show(this.getUIContext(), $r('app.string.error_storage'));
+      AppErrorDialog.show(this.getUIContext(), $r('app.string.error_storage'));
+      return false;
     }
+    this.onLogout();
+    return true;
   }
 
   private lockVault() {

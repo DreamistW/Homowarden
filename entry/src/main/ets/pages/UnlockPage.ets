@@ -1,9 +1,10 @@
+import { AppErrorDialog } from '../utils/AppErrorDialog';
+import { LoginRequestError } from '../model/LoginError';
 import { EntryRouter } from '../../../../EntryRouter';
 import { userAuth } from '@kit.UserAuthenticationKit';
 import { cryptoFramework } from '@kit.CryptoArchitectureKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { common } from '@kit.AbilityKit';
-import { AppToast } from '../utils/AppToast';
 import { DataPreferences } from '@abner/datastore';
 import {
   BIOMETRIC_AUTH,
@@ -184,7 +185,7 @@ export struct UnlockPage {
       await CredentialStore.clear();
     } catch (error) {
       Logger.error(`Failed to clear credentials during logout: ${error}`);
-      AppToast.show(this.getUIContext(), $r('app.string.error_storage'));
+      AppErrorDialog.showError(this.getUIContext(), error as Object, $r('app.string.error_storage'));
       return;
     }
     try {
@@ -193,11 +194,12 @@ export struct UnlockPage {
       cleanupErrors.push(`${error}`);
       Logger.error(`Failed to update window privacy during logout: ${error}`);
     }
-    this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
     if (cleanupErrors.length > 0) {
       Logger.error(`Logout completed with cleanup errors: ${cleanupErrors.join('; ')}`);
-      AppToast.show(this.getUIContext(), $r('app.string.error_storage'));
+      AppErrorDialog.show(this.getUIContext(), $r('app.string.error_storage'));
+      return;
     }
+    this.pathInfos.replacePath({ name: EntryRouter.LoginPage });
   }
 
   /**
@@ -225,7 +227,7 @@ export struct UnlockPage {
 
   async startPasswordAuth() {
     if (!this.masterPassword || this.masterPassword.length === 0) {
-      AppToast.show(this.getUIContext(), $r('app.string.unlock_enter_master_password'));
+      AppErrorDialog.show(this.getUIContext(), $r('app.string.unlock_enter_master_password'));
       return;
     }
 
@@ -234,8 +236,7 @@ export struct UnlockPage {
       const kdfParamStr: string = CredentialStore.querySync(KDF_PARAM_KEY);
 
       if (!kdfParamStr) {
-        AppToast.show(this.getUIContext(), $r('app.string.unlock_parameters_failed'));
-        this.pathInfos.replacePath({ name: "LoginPage" });
+        AppErrorDialog.show(this.getUIContext(), $r('app.string.unlock_parameters_failed'));
         return;
       }
 
@@ -243,8 +244,7 @@ export struct UnlockPage {
       const storedMasterKey = CredentialStore.querySync(MASTER_KEY);
       const email = CredentialStore.querySync(EMAIL_KEY);
       if (!storedMasterKey) {
-        AppToast.show(this.getUIContext(), $r('app.string.unlock_parameters_failed'));
-        this.pathInfos.replacePath({ name: "LoginPage" });
+        AppErrorDialog.show(this.getUIContext(), $r('app.string.unlock_parameters_failed'));
         return;
       }
 
@@ -269,12 +269,12 @@ export struct UnlockPage {
         // 解锁前可能停留在详情页，不能只依赖主页的 onActive 消费快捷入口。
         setTimeout(() => QuickEntryManager.dispatchPending(), 0);
       } else {
-        AppToast.show(this.getUIContext(), $r('app.string.unlock_wrong_password'));
+        AppErrorDialog.show(this.getUIContext(), $r('app.string.unlock_wrong_password'));
         return;
       }
     } catch (error) {
       Logger.error(`Master password verification failed: ${error}`);
-      AppToast.show(this.getUIContext(), (error as Error).message === 'argon2_resources_unavailable' ?
+      AppErrorDialog.showError(this.getUIContext(), error as Object, (error as Error).message === 'argon2_resources_unavailable' ?
         $r('app.string.login_error_kdf_resources') : $r('app.string.unlock_verification_failed'));
       return;
     }
@@ -297,7 +297,7 @@ export struct UnlockPage {
         retryCount++;
       }
       if (!randData) {
-        AppToast.show(this.getUIContext(), $r('app.string.unlock_biometric_start_failed'));
+        AppErrorDialog.show(this.getUIContext(), $r('app.string.unlock_biometric_start_failed'));
         return;
       }
 
@@ -340,7 +340,8 @@ export struct UnlockPage {
             setTimeout(() => QuickEntryManager.dispatchPending(), 0);
           } else {
             // 认证失败，显示提示
-            AppToast.show(this.getUIContext(), $r('app.string.unlock_biometric_failed'));
+            const error: LoginRequestError = { code: result.result };
+            AppErrorDialog.showError(this.getUIContext(), error, $r('app.string.unlock_biometric_failed'));
           }
         }
       });
@@ -350,7 +351,7 @@ export struct UnlockPage {
     } catch (error) {
       const err = error as BusinessError;
       Logger.error(`Failed to start biometric auth. Error: ${JSON.stringify(err)}`);
-      AppToast.show(this.getUIContext(), $r('app.string.unlock_biometric_start_failed'));
+      AppErrorDialog.showError(this.getUIContext(), error as Object, $r('app.string.unlock_biometric_start_failed'));
     }
   }
 }

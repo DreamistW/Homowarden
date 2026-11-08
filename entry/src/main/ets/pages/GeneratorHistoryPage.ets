@@ -1,3 +1,4 @@
+import { AppErrorDialog } from '../utils/AppErrorDialog';
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
 import { Logger } from '@nzy/logger';
 import { GeneratorDatabaseUtil, GENERATOR_HISTORY_TABLE } from '../utils/GeneratorDatabaseUtil';
@@ -80,14 +81,13 @@ struct GeneratorHistory {
     customStyle: false
   });
 
-  private showConfirm(title: ResourceStr, message: ResourceStr, action: () => void,
+  private showConfirm(title: ResourceStr, message: ResourceStr, action: () => Promise<boolean>,
     confirmText: ResourceStr = $r('app.string.common_confirm')): void {
     this.confirmTitle = title;
     this.confirmMessage = message;
     this.confirmText = confirmText;
     this.confirmAction = async (): Promise<boolean> => {
-      action();
-      return true;
+      return await action();
     };
     this.confirmController.open();
   }
@@ -97,7 +97,7 @@ struct GeneratorHistory {
   }
 
   // 从数据库加载历史记录（按时间倒序）
-  async loadHistory(): Promise<void> {
+  async loadHistory(): Promise<boolean> {
     try {
       const results = await this.dbUtil.queryAllHistory();
       const items: GeneratorHistoryItem[] = [];
@@ -112,9 +112,11 @@ struct GeneratorHistory {
         items.push(item);
       }
       this.historyList = items;
+      return true;
     } catch (err) {
       Logger.error(`Failed to load generator history: ${JSON.stringify(err)}`);
-      AppToast.show(this.getUIContext(), $r('app.string.error_load_failed'));
+      AppErrorDialog.showError(this.getUIContext(), err as Object, $r('app.string.error_load_failed'));
+      return false;
     }
   }
 
@@ -131,47 +133,54 @@ struct GeneratorHistory {
     } catch (error) {
       const err = error as BusinessError;
       Logger.error(`Failed to copy generator content: ${err.message}`);
+      AppErrorDialog.showError(this.getUIContext(), error as Object, $r('app.string.share_copy_failed'));
     }
   }
 
   // 弹出确认对话框请求删除单条记录
   private requestDelete(item: GeneratorHistoryItem): void {
-    this.showConfirm($r('app.string.generator_history_delete_confirm'), item.content, () => {
-      void this.doDelete(item);
+    this.showConfirm($r('app.string.generator_history_delete_confirm'), item.content, async () => {
+      return await this.doDelete(item);
     });
   }
 
   // 弹出确认对话框请求清空全部记录
   private requestClearAll(): void {
-    this.showConfirm($r('app.string.common_confirm'), $r('app.string.generator_history_clear_confirm'), () => {
-      void this.doClearAll();
+    this.showConfirm($r('app.string.common_confirm'), $r('app.string.generator_history_clear_confirm'), async () => {
+      return await this.doClearAll();
     });
   }
 
   // 删除指定记录并刷新列表
-  private async doDelete(item: GeneratorHistoryItem): Promise<void> {
+  private async doDelete(item: GeneratorHistoryItem): Promise<boolean> {
     try {
       await this.dbUtil.deleteData(GENERATOR_HISTORY_TABLE, item.id);
-      await this.loadHistory();
+      if (!await this.loadHistory()) {
+        return false;
+      }
+      return true;
     } catch (err) {
       const error = err as BusinessError;
       Logger.error(`Failed to delete generator history: code=${error.code}, message=${error.message}`);
-      AppToast.show(this.getUIContext(), error.message.length > 0 ?
-        error.message : $r('app.string.error_delete_failed'));
+      AppErrorDialog.showError(this.getUIContext(), err as Object, $r('app.string.error_delete_failed'));
+      return false;
     }
   }
 
   // 清空全部记录并刷新列表
-  private async doClearAll(): Promise<void> {
+  private async doClearAll(): Promise<boolean> {
     try {
       await this.dbUtil.deleteAllData(GENERATOR_HISTORY_TABLE);
-      await this.loadHistory();
+      if (!await this.loadHistory()) {
+        return false;
+      }
       AppToast.show(this.getUIContext(), $r('app.string.generator_cleared'));
+      return true;
     } catch (err) {
       const error = err as BusinessError;
       Logger.error(`Failed to clear generator history: code=${error.code}, message=${error.message}`);
-      AppToast.show(this.getUIContext(), error.message.length > 0 ?
-        error.message : $r('app.string.error_delete_failed'));
+      AppErrorDialog.showError(this.getUIContext(), err as Object, $r('app.string.error_delete_failed'));
+      return false;
     }
   }
 
@@ -227,26 +236,29 @@ struct GeneratorHistory {
     if (this.selectedIds.length === 0) {
       return;
     }
-    this.showConfirm($r('app.string.common_delete'), $r('app.string.history_delete_selected_confirm'), () => {
-      void this.doDeleteSelected();
+    this.showConfirm($r('app.string.common_delete'), $r('app.string.history_delete_selected_confirm'), async () => {
+      return await this.doDeleteSelected();
     }, $r('app.string.common_delete'));
   }
 
   // 删除选中的记录并刷新列表
-  private async doDeleteSelected(): Promise<void> {
+  private async doDeleteSelected(): Promise<boolean> {
     const ids: string[] = [...this.selectedIds];
     try {
       for (const id of ids) {
         await this.dbUtil.deleteData(GENERATOR_HISTORY_TABLE, id);
       }
       this.exitSelectionMode();
-      await this.loadHistory();
+      if (!await this.loadHistory()) {
+        return false;
+      }
       AppToast.show(this.getUIContext(), $r('app.string.common_delete_success'));
+      return true;
     } catch (err) {
       const error = err as BusinessError;
       Logger.error(`Failed to delete selected generator history: code=${error.code}, message=${error.message}`);
-      AppToast.show(this.getUIContext(), error.message.length > 0 ?
-        error.message : $r('app.string.error_delete_failed'));
+      AppErrorDialog.showError(this.getUIContext(), err as Object, $r('app.string.error_delete_failed'));
+      return false;
     }
   }
 

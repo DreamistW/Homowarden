@@ -1,3 +1,4 @@
+import { AppErrorDialog } from '../utils/AppErrorDialog';
 import { AppToast } from '../utils/AppToast';
 import { TOTPUtil } from '../utils/TOTPUtil';
 import { AdaptiveIconButton, AdaptivePasteButton } from './AdaptiveButton';
@@ -27,7 +28,7 @@ export struct TotpEditItem {
     if (text.toLowerCase().startsWith('otpauth://')) {
       const parsed = TOTPUtil.parseOtpAuthUrl(text);
       if (!parsed.secret) {
-        AppToast.show(this.getUIContext(), $r('app.string.totp_import_failed_invalid_uri'));
+        AppErrorDialog.show(this.getUIContext(), $r('app.string.totp_import_failed_invalid_uri'));
         return;
       }
       this.totpSecret = parsed.secret;

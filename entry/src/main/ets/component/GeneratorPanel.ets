@@ -1,3 +1,4 @@
+import { AppErrorDialog } from '../utils/AppErrorDialog';
 import { Context } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { relationalStore } from '@kit.ArkData';
@@ -5,7 +6,6 @@ import { Logger } from '@nzy/logger';
 import { AdaptiveIconButton } from './AdaptiveButton';
 import { AppDropdown } from './AppDropdown';
 import { AppDropdownOption } from '../model/AppUiModels';
-import { AppToast } from '../utils/AppToast';
 import { EMAIL_KEY } from '../utils/Constants';
 import { CredentialStore } from '../utils/CredentialStore';
 import { GeneratorDatabaseUtil, GENERATOR_HISTORY_TABLE } from '../utils/GeneratorDatabaseUtil';
@@ -50,6 +50,7 @@ export struct GeneratorPanel {
   @State includeNumber: boolean = true;
 
   @State output: string = '';
+  @State private errorText: ResourceStr = '';
   private dbUtil: GeneratorDatabaseUtil = GeneratorDatabaseUtil.getInstance();
   private generationQueue: Promise<void> = Promise.resolve();
   private generationRequestId: number = 0;
@@ -59,12 +60,18 @@ export struct GeneratorPanel {
   ];
 
   async aboutToAppear(): Promise<void> {
+    AppErrorDialog.registerInline(this, (message: ResourceStr) => { this.errorText = message; });
     this.email = CredentialStore.querySync(EMAIL_KEY);
     await this.regenerate();
   }
 
+  aboutToDisappear(): void {
+    AppErrorDialog.unregisterInline(this);
+  }
+
   /** 依据当前模式重新生成 */
   async regenerate(): Promise<void> {
+    this.errorText = '';
     const requestId: number = ++this.generationRequestId;
     const task: Promise<void> = this.generationQueue.then(async () => {
       if (requestId !== this.generationRequestId) {
@@ -102,8 +109,7 @@ export struct GeneratorPanel {
     } catch (err) {
       const error = err as Error;
       Logger.error(`Failed to generate password: ${error.message}`);
-      AppToast.show(this.getUIContext(), error.message.length > 0 ?
-        error.message : $r('app.string.error_unknown'));
+      AppErrorDialog.showError(this.getUIContext(), err as Object, $r('app.string.error_unknown'));
     }
   }
 
@@ -137,6 +143,7 @@ export struct GeneratorPanel {
     } catch (err) {
       const error = err as BusinessError;
       Logger.error(`Failed to generate username: ${error.message}`);
+      AppErrorDialog.showError(this.getUIContext(), err as Object, $r('app.string.error_unknown'));
     }
   }
 
@@ -208,6 +215,9 @@ export struct GeneratorPanel {
 
   build() {
     Column() {
+      if (this.errorText) {
+        Text(this.errorText).fontSize(14).fontColor($r('sys.color.warning')).margin({ bottom: 12 })
+      }
       // 模式标题（关闭按钮复用半模态面板自带的，避免重复）
       Text(this.mode === GeneratorPanelMode.PASSWORD ?
         $r('app.string.generator_tab_password') : $r('app.string.generator_tab_username'))

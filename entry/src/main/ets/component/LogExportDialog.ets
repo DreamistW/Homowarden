@@ -1,3 +1,4 @@
+import { AppErrorDialog } from '../utils/AppErrorDialog';
 import { AppToast } from '../utils/AppToast';
 import { LogExportService } from '../utils/LogExportService';
 import { pasteboard } from '@kit.BasicServicesKit';
@@ -8,6 +9,16 @@ import { Logger } from '@nzy/logger';
 export struct LogExportDialog {
   controller: CustomDialogController;
   @State private submitting: boolean = false;
+  @State private errorText: ResourceStr = '';
+
+  aboutToAppear(): void {
+    this.errorText = '';
+    AppErrorDialog.registerInline(this, (message: ResourceStr) => { this.errorText = message; });
+  }
+
+  aboutToDisappear(): void {
+    AppErrorDialog.unregisterInline(this);
+  }
 
   private async exportLogs(): Promise<void> {
     if (this.submitting) {
@@ -21,7 +32,7 @@ export struct LogExportDialog {
         this.controller.close();
         AppToast.show(uiContext, $r('app.string.log_export_ready'));
       } else {
-        AppToast.show(this.getUIContext(), $r('app.string.log_export_failed'));
+        AppErrorDialog.showError(this.getUIContext(), LogExportService.lastError, $r('app.string.log_export_failed'));
       }
     } finally {
       this.submitting = false;
@@ -40,7 +51,7 @@ export struct LogExportDialog {
       AppToast.show(this.getUIContext(), $r('app.string.share_copy_success'));
     } catch (error) {
       Logger.error(`Failed to copy log export instructions: ${error}`);
-      AppToast.show(this.getUIContext(), $r('app.string.share_copy_failed'));
+      AppErrorDialog.showError(this.getUIContext(), error as Object, $r('app.string.share_copy_failed'));
     }
   }
 
@@ -53,6 +64,9 @@ export struct LogExportDialog {
           .margin({ bottom: 12 })
         Text($r('app.string.log_export_message'))
           .fontSize(16)
+        if (this.errorText) {
+          Text(this.errorText).fontSize(14).fontColor($r('sys.color.warning')).margin({ top: 12 })
+        }
       }
       .padding({ left: 24, right: 24, top: 24, bottom: 16 })
 

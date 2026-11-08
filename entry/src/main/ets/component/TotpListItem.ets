@@ -1,3 +1,4 @@
+import { AppErrorDialog } from '../utils/AppErrorDialog';
 import { AppToast } from '../utils/AppToast';
 import { Cipher } from '../model/CipherModels';
 import { TOTPUtil } from '../utils/TOTPUtil';
@@ -81,7 +82,7 @@ export struct TotpListItem {
       // 验证码属于短期敏感数据，仅在用户主动操作时写入系统剪贴板
       const codeToCopy = this.currentCode.replace(/\s/g, '');
       if (codeToCopy === '------') {
-        AppToast.show(this.getUIContext(), $r('app.string.totp_invalid'));
+        AppErrorDialog.show(this.getUIContext(), $r('app.string.totp_invalid'));
         return;
       }
 
@@ -92,7 +93,7 @@ export struct TotpListItem {
     } catch (error) {
       const err = error as BusinessError;
       Logger.error(`Failed to copy code: ${err.message}`);
-      AppToast.show(this.getUIContext(), $r('app.string.totp_copy_failed'));
+      AppErrorDialog.showError(this.getUIContext(), error as Object, $r('app.string.totp_copy_failed'));
     }
   }
 

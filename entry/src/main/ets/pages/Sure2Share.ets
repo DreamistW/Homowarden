@@ -1,3 +1,4 @@
+import { AppErrorDialog } from '../utils/AppErrorDialog';
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
 import { relationalStore } from '@kit.ArkData';
 import { common } from '@kit.AbilityKit';
@@ -18,22 +19,24 @@ export struct Sure2SharePage {
    * 解析原始分享文本、展开短链并去除跟踪信息，成功后写入历史记录
    */
   async convertLink() {
+    let converted = false;
+    try {
     const shareLink = await getShareLink(this.inputText);
     if (shareLink == "") {
-      AppToast.show(this.getUIContext(), $r('app.string.share_no_link'));
+      AppErrorDialog.show(this.getUIContext(), $r('app.string.share_no_link'));
       return;
     }
     const fullLink = await getFullLink(shareLink);
     if (fullLink == "") {
-      AppToast.show(this.getUIContext(), $r('app.string.error_network'), true);
+      AppErrorDialog.show(this.getUIContext(), $r('app.string.share_convert_failed'));
       return;
     }
     this.outputText = await replaceOutputText(this.inputText, fullLink);
     if (this.outputText == "") {
-      AppToast.show(this.getUIContext(), $r('app.string.error_unknown'));
+      AppErrorDialog.show(this.getUIContext(), $r('app.string.error_unknown'));
       return;
     }
-    AppToast.show(this.getUIContext(), $r('app.string.share_convert_success'));
+    converted = true;
     // 转换结果不含密码库密文，但可能包含用户分享内容，仅写入应用本地历史库
     const dbUtil = ShareDatabaseUtil.getInstance();
     const item: relationalStore.ValuesBucket = {
@@ -41,7 +44,12 @@ export struct Sure2SharePage {
       content: this.outputText,
       timestamp: Date.now()
     }
-    dbUtil.insertData('history', item);
+    await dbUtil.insertData('history', item);
+    AppToast.show(this.getUIContext(), $r('app.string.share_convert_success'));
+    } catch (error) {
+      AppErrorDialog.showError(this.getUIContext(), error as Object,
+        converted ? $r('app.string.share_history_save_failed') : $r('app.string.share_convert_failed'));
+    }
   }
 
   /**
@@ -49,7 +57,7 @@ export struct Sure2SharePage {
    */
   async copyLink(text: string): Promise<void> {
     if (text == "") {
-      AppToast.show(this.getUIContext(), $r('app.string.share_convert_first'));
+      AppErrorDialog.show(this.getUIContext(), $r('app.string.share_convert_first'));
       return;
     }
     let pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, text);
@@ -59,7 +67,7 @@ export struct Sure2SharePage {
       AppToast.show(this.getUIContext(), $r('app.string.share_copy_success'));
     } catch (err) {
       Logger.error(`Failed to set paste data: ${err}`);
-      AppToast.show(this.getUIContext(), $r('app.string.share_copy_failed'));
+      AppErrorDialog.showError(this.getUIContext(), err as Object, $r('app.string.share_copy_failed'));
     }
   }
 

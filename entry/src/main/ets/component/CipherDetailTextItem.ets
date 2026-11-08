@@ -1,3 +1,4 @@
+import { AppErrorDialog } from '../utils/AppErrorDialog';
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
 import { AppToast } from '../utils/AppToast';
 import { Logger } from '@nzy/logger';
@@ -166,7 +167,7 @@ export struct CipherDetailTextItem {
     try {
       const context = getContext(this) as common.UIAbilityContext;
       if (!context) {
-        AppToast.show(this.getUIContext(), $r('app.string.error_open_website'));
+        AppErrorDialog.show(this.getUIContext(), $r('app.string.error_open_website'));
         return;
       }
 
@@ -182,11 +183,11 @@ export struct CipherDetailTextItem {
       };
       context.startAbility(want).catch((err: Error) => {
         Logger.error(`Failed to open uri. Error: ${err.message}`);
-        AppToast.show(this.getUIContext(), $r('app.string.error_open_website'));
+        AppErrorDialog.showError(this.getUIContext(), err as Object, $r('app.string.error_open_website'));
       });
     } catch (err) {
       Logger.error(`Failed to open uri. Error: ${JSON.stringify(err)}`);
-      AppToast.show(this.getUIContext(), $r('app.string.error_open_website'));
+      AppErrorDialog.showError(this.getUIContext(), err as Object, $r('app.string.error_open_website'));
     }
   }
 
