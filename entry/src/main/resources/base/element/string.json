@@ -97,6 +97,7 @@
     {"name":"login_resend_email_code","value":"Resend code by email"},
     {"name":"common_got_it","value":"Got it"},
     {"name":"error_dialog_title","value":"Operation failed"},
+    {"name":"error_dialog_help_hint","value":"For help, export logs from Settings and contact us by email or through the QQ group."},
     {"name":"background_error_hint","value":"Background operation failed. Show details"},
     {"name":"login_error_email_invalid","value":"Enter a valid email address"},
     {"name":"error_server_unavailable","value":"The server is temporarily unavailable. Try again later."},

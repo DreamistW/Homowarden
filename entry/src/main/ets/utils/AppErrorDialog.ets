@@ -26,6 +26,17 @@ export class AppErrorDialog {
     AppErrorDialog.show(uiContext, ErrorMessageUtil.getDisplayMessage(uiContext, error, fallback));
   }
 
+  /** 独立错误弹窗在详情之后补充日志求助入口，沿用当前界面语言。 */
+  private static messageWithHelp(uiContext: UIContext, message: ResourceStr): ResourceStr {
+    const manager = uiContext.getHostContext()?.resourceManager;
+    if (!manager) {
+      return message;
+    }
+    // Resource 对象重载可能沿用旧语言，按资源 ID 读取才能跟随应用内语言切换。
+    const detail = typeof message === 'string' ? message : manager.getStringSync(message.id);
+    return detail + '\n\n' + manager.getStringSync($r('app.string.error_dialog_help_hint').id);
+  }
+
   static show(uiContext: UIContext, message: ResourceStr): void {
     const targets = AppErrorDialog.inlineTargets;
     if (targets.length > 0) {
@@ -44,7 +55,7 @@ export class AppErrorDialog {
     try {
       uiContext.getPromptAction().showDialog({
         title: $r('app.string.error_dialog_title'),
-        message: message,
+        message: AppErrorDialog.messageWithHelp(uiContext, message),
         buttons: [{ text: $r('app.string.common_got_it'), color: '#2777DA', primary: true }]
       }).catch(() => {
         Logger.error('Failed to display error dialog');

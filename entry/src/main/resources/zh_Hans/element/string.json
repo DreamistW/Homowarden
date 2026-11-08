@@ -1393,6 +1393,7 @@
     {"name":"storage_repair_progress","value":"正在修复本地存储…"},
     {"name":"common_got_it","value":"知道了"},
     {"name":"error_dialog_title","value":"操作失败"},
+    {"name":"error_dialog_help_hint","value":"如需帮助，可前往设置页面导出日志并通过邮箱和QQ群寻求帮助。"},
     {"name":"background_error_hint","value":"后台操作失败，点击查看详情"},
     {"name":"login_error_email_invalid","value":"请输入有效的邮箱地址"},
     {"name":"error_server_unavailable","value":"服务器暂时不可用，请稍后重试。"},

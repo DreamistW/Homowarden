@@ -69,6 +69,7 @@ struct VaultContent {
   onVaultDataChanged: (ciphers: Cipher[], symmetricKey: string) => void = () => {};
   onNavigateToDetail: (params: CipherDetailParams) => void = () => {};
   onCipherDeleted: (cipherId: string) => void = () => {};
+  onRelogin: () => void = () => {};
   @State viewModel: VaultViewModel = new VaultViewModel();
   private listScroller: ListScroller = new ListScroller();
   @State searchText: string = '';
@@ -85,6 +86,25 @@ struct VaultContent {
   private pendingDeleteCipher: Cipher | null = null;
   private pendingDeleteSession: number = -1;
   private isDeleting: boolean = false;
+  private isMounted: boolean = false;
+  private reloginSession: number = -1;
+  private needRelogin: boolean = false;
+  @State reloginTitle: ResourceStr = $r('app.string.vault_relogin_title');
+  @State reloginMessage: ResourceStr = $r('app.string.vault_relogin_message');
+  @State reloginConfirmText: ResourceStr = $r('app.string.common_confirm');
+  // 认证失效需要确认后结束会话，不能走只负责告知的普通错误框。
+  private reloginDialogController: CustomDialogController = new CustomDialogController({
+    builder: ConfirmDialog({
+      title: $reloginTitle,
+      message: $reloginMessage,
+      confirmText: $reloginConfirmText,
+      showCancel: false,
+      onConfirm: async (): Promise<boolean> => this.confirmRelogin()
+    }),
+    autoCancel: false,
+    alignment: DialogAlignment.Center,
+    customStyle: false
+  });
   @State deleteConfirmTitle: ResourceStr = $r('app.string.cipher_delete_title');
   @State deleteConfirmMessage: ResourceStr = '';
   @State deleteConfirmText: ResourceStr = $r('app.string.common_delete');
@@ -116,11 +136,19 @@ struct VaultContent {
     customStyle: false
   });
   async aboutToAppear(): Promise<void> {
+    this.isMounted = true;
+    this.needRelogin = false;
+    const session = VaultViewModel.getSessionRevision();
+    this.viewModel.onReLoginRequired = () => this.showReloginDialog(session);
     await this.loadCiphersWithBackgroundSync();
     this.consumeCommittedChange();
   }
 
   aboutToDisappear(): void {
+    this.isMounted = false;
+    this.viewModel.onReLoginRequired = undefined;
+    this.needRelogin = false;
+    this.reloginDialogController.close();
     this.pendingProtectedAction = null;
     this.passwordDialogController.close();
     this.pendingDeleteCipher = null;
@@ -175,8 +203,6 @@ struct VaultContent {
 
   /** 优先展示本地数据，并按是否为空选择前台或后台同步策略 */
   private async loadCiphersWithBackgroundSync() {
-    // 设置重新登录回调
-
     this.isInitialLoading = true;
     try {
       // 第一步：先加载本地数据库
@@ -211,7 +237,7 @@ struct VaultContent {
       this.publishVaultData();
     } else {
       // 后台同步失败时，不影响已显示的本地数据
-      if (this.viewModel.errorMessage) {
+      if (!this.needRelogin && this.isMounted && this.viewModel.errorMessage) {
         BackgroundErrorStore.setError('vault-sync', this.viewModel.lastError,
           $r('app.string.vault_background_sync_failed'));
       }
@@ -258,6 +284,9 @@ struct VaultContent {
     this.isLoading = true;
     try {
       const result = await this.viewModel.loadCiphers(forceSync);
+      if (!this.isMounted || this.needRelogin) {
+        return;
+      }
       if (result) {
         BackgroundErrorStore.clear('vault-sync');
         AppToast.show(this.getUIContext(), $r('app.string.vault_refresh_success'));
@@ -271,10 +300,47 @@ struct VaultContent {
       this.refreshFilterOptions();
       this.publishVaultData();
     } catch (error) {
-      AppErrorDialog.showError(this.getUIContext(), error, $r('app.string.vault_refresh_failed'));
+      if (this.isMounted && !this.needRelogin) {
+        AppErrorDialog.showError(this.getUIContext(), error, $r('app.string.vault_refresh_failed'));
+      }
     } finally {
       this.isLoading = false;
     }
+  }
+
+  /** 同一解锁会话只显示一次；页面消失或旧请求迟到时不补开。 */
+  private showReloginDialog(session: number): void {
+    if (!this.isMounted || this.needRelogin || session !== VaultViewModel.getSessionRevision() ||
+      !VaultViewModel.isSessionActive()) {
+      return;
+    }
+    this.needRelogin = true;
+    this.reloginSession = session;
+    BackgroundErrorStore.clear('vault-sync');
+    this.pendingProtectedAction = null;
+    this.passwordDialogController.close();
+    this.pendingDeleteCipher = null;
+    this.deleteConfirmController.close();
+    this.reloginDialogController.open();
+  }
+
+  /** 确认后停用登录状态并阻止旧同步写回，保留本地密码库供重新登录。 */
+  private async confirmRelogin(): Promise<boolean> {
+    const session = this.reloginSession;
+    if (!this.isMounted || !this.needRelogin || session !== VaultViewModel.getSessionRevision()) {
+      return true;
+    }
+    await CredentialStore.deactivate();
+    if (!this.isMounted || session !== VaultViewModel.getSessionRevision()) {
+      return true;
+    }
+    await VaultViewModel.prepareForLogout();
+    await WindowPrivacyUtil.applyForCurrentState();
+    if (this.isMounted && this.needRelogin && VaultViewModel.getSessionRevision() === session + 1 &&
+      !CredentialStore.isLoggedInSync()) {
+      this.onRelogin();
+    }
+    return true;
   }
 
   @Builder
@@ -1068,6 +1134,9 @@ export struct VaultPage {
       },
       onCipherDeleted: (cipherId: string) => {
         this.handleCipherDeleted(cipherId);
+      },
+      onRelogin: () => {
+        this.logout();
       }
     })
   }
