@@ -39,26 +39,21 @@ jobs:
           import subprocess
           import tempfile
           import time
-
           import requests
-
           token = os.environ.get("GITEE_TOKEN")
           if not token:
               raise SystemExit("Missing GITEE_TOKEN")
-
           gh = requests.Session()
           gh.headers["Authorization"] = (
               "Bearer " + os.environ["GH_TOKEN"]
           )
-
           ge = requests.Session()
           ge.headers["Authorization"] = "Bearer " + token
-
+          ge.headers["Cache-Control"] = "no-cache"
           base = (
               "https://gitee.com/api/v5/repos/"
               "yume-w/Homowarden"
           )
-
           def api(session, method, url, **kwargs):
               timeout = kwargs.pop("timeout", (30, 180))
               response = session.request(
@@ -76,14 +71,11 @@ jobs:
                   raise RuntimeError(
                       "API returned invalid JSON"
                   ) from None
-
           def checksum(data):
               return hashlib.sha256(data).hexdigest()
-
           def list_items(url):
               result = []
               page = 1
-
               while True:
                   items = api(
                       ge,
@@ -91,103 +83,81 @@ jobs:
                       url,
                       params={
                           "per_page": 100,
-                          "page": page
+                          "page": page,
+                          "_sync": time.time_ns()
                       }
                   )
-
                   if not isinstance(items, list):
                       raise RuntimeError(
                           "Expected a JSON list from Gitee"
                       )
-
                   if not items:
                       return result
-
                   result.extend(items)
-
                   if len(items) < 100:
                       return result
-
                   page += 1
                   if page > 100:
                       raise RuntimeError(
                           "Pagination limit exceeded"
                       )
-
           def exception_types(error, seen=None):
               if seen is None:
                   seen = set()
-
               if id(error) in seen:
                   return []
-
               seen.add(id(error))
               names = [type(error).__name__]
-
               for arg in getattr(error, "args", ()):
                   if isinstance(arg, BaseException):
                       names.extend(
                           exception_types(arg, seen)
                       )
-
               reason = getattr(error, "reason", None)
               if isinstance(reason, BaseException):
                   names.extend(
                       exception_types(reason, seen)
                   )
-
               cause = getattr(error, "__cause__", None)
               if isinstance(cause, BaseException):
                   names.extend(
                       exception_types(cause, seen)
                   )
-
               return names
-
           source = api(
               gh,
               "GET",
               "https://api.github.com/repos/"
               "DreamistW/Homowarden/releases/latest"
           )
-
           tag = source["tag_name"]
-
           if not re.fullmatch(r"oh-v\d+\.\d+\.\d+", tag):
               raise SystemExit(
                   "Latest release is not an OpenHarmony version"
               )
-
           if source["draft"] or source["prerelease"]:
               raise SystemExit(
                   "Expected a published stable release"
               )
-
           assets = source["assets"]
-
           if not any(
               asset["name"].endswith(".hap")
               for asset in assets
           ):
               raise SystemExit("No HAP attachment found")
-
           names = [asset["name"] for asset in assets]
           if len(names) != len(set(names)):
               raise SystemExit(
                   "Duplicate GitHub attachment filenames"
               )
-
           print("Source release: " + tag, flush=True)
-
           with tempfile.TemporaryDirectory() as temp:
               root = pathlib.Path(temp)
               assets_dir = root / "assets"
               assets_dir.mkdir()
               files = []
-
               for asset in assets:
                   name = asset["name"]
-
                   if (
                       pathlib.Path(name).name != name
                       or name in (".", "..")
@@ -195,12 +165,10 @@ jobs:
                       raise RuntimeError(
                           "Unsafe attachment filename"
                       )
-
                   print(
                       "Downloading: " + name,
                       flush=True
                   )
-
                   response = gh.get(
                       asset["url"],
                       headers={
@@ -210,12 +178,10 @@ jobs:
                   )
                   response.raise_for_status()
                   data = response.content
-
                   if len(data) != asset["size"]:
                       raise RuntimeError(
                           "Attachment size mismatch: " + name
                       )
-
                   digest = asset.get("digest")
                   if (
                       digest
@@ -224,11 +190,9 @@ jobs:
                       raise RuntimeError(
                           "Attachment checksum mismatch: " + name
                       )
-
                   path = assets_dir / name
                   path.write_bytes(data)
                   files.append(path)
-
               # Read credentials from environment variables.
               # Never put tokens into Git URLs or script files.
               askpass = root / "askpass.sh"
@@ -240,16 +204,13 @@ jobs:
                   'esac\n'
               )
               askpass.chmod(0o700)
-
               env = dict(
                   os.environ,
                   GIT_ASKPASS=str(askpass),
                   GIT_TERMINAL_PROMPT="0"
               )
-
               repo = root / "repo"
               repo.mkdir()
-
               def git(*args):
                   result = subprocess.run(
                       ["git", *args],
@@ -258,21 +219,17 @@ jobs:
                       capture_output=True,
                       timeout=300
                   )
-
                   if result.returncode:
                       raise RuntimeError(
                           "Git tag sync failed: check token "
                           "permissions and whether the Gitee "
                           "tag already differs"
                       )
-
               print(
                   "Syncing Git tag: " + tag,
                   flush=True
               )
-
               git("init", "--bare")
-
               git(
                   "fetch",
                   "--depth=1",
@@ -280,13 +237,11 @@ jobs:
                   "DreamistW/Homowarden.git",
                   f"refs/tags/{tag}:refs/tags/{tag}"
               )
-
               git(
                   "push",
                   "https://gitee.com/yume-w/Homowarden.git",
                   f"refs/tags/{tag}:refs/tags/{tag}"
               )
-
               payload = {
                   "tag_name": tag,
                   "target_commitish": tag,
@@ -294,7 +249,6 @@ jobs:
                   "body": source["body"] or "",
                   "prerelease": False
               }
-
               # Search the release list instead of treating
               # a null tag lookup response as "not found".
               releases = list_items(base + "/releases")
@@ -303,25 +257,20 @@ jobs:
                   for item in releases
                   if item.get("tag_name") == tag
               ]
-
               if len(matches) > 1:
                   raise RuntimeError(
                       "Multiple Gitee releases match this tag"
                   )
-
               if matches:
                   release = matches[0]
-
                   if not release.get("id"):
                       raise RuntimeError(
                           "Existing release has no ID"
                       )
-
                   print(
                       "Updating existing Gitee release",
                       flush=True
                   )
-
                   api(
                       ge,
                       "PATCH",
@@ -333,14 +282,12 @@ jobs:
                       "Creating Gitee release",
                       flush=True
                   )
-
                   release = api(
                       ge,
                       "POST",
                       base + "/releases",
                       json=payload
                   )
-
               if (
                   not isinstance(release, dict)
                   or not release.get("id")
@@ -348,13 +295,11 @@ jobs:
                   raise RuntimeError(
                       "Gitee did not return a valid release"
                   )
-
               print(
                   f"Gitee release ID: {release['id']}, "
                   f"tag: {release.get('tag_name')}",
                   flush=True
               )
-
               release_url = (
                   base
                   + "/releases/"
@@ -363,21 +308,17 @@ jobs:
               attachments_url = (
                   release_url + "/attach_files"
               )
-
               existing = list_items(attachments_url)
-
               for path in files:
                   matches = [
                       item
                       for item in existing
                       if item.get("name") == path.name
                   ]
-
                   if len(matches) > 1:
                       raise RuntimeError(
                           "Duplicate attachment: " + path.name
                       )
-
                   if matches:
                       print(
                           "Already exists; will verify: "
@@ -385,30 +326,31 @@ jobs:
                           flush=True
                       )
                       continue
-
                   print(
                       f"Uploading {path.name} "
                       f"({path.stat().st_size / 1024 / 1024:.1f} MiB)",
                       flush=True
                   )
-
                   started = time.monotonic()
-
                   try:
-                      with path.open("rb") as file:
-                          api(
-                              ge,
-                              "POST",
-                              attachments_url,
-                              files={
-                                  "file": (path.name, file)
-                              },
-                              timeout=(30, 900)
-                          )
-
+                      # Use a new connection for uploads. A reused socket
+                      # can retain the timeout of an earlier API request.
+                      with requests.Session() as upload:
+                          upload.headers["Authorization"] = "Bearer " + token
+                          upload.headers["Connection"] = "close"
+                          print("Upload: fresh session, timeout=900", flush=True)
+                          with path.open("rb") as file:
+                              api(
+                                  upload,
+                                  "POST",
+                                  attachments_url,
+                                  files={
+                                      "file": (path.name, file)
+                                  },
+                                  timeout=900
+                              )
                   except requests.exceptions.RequestException as exc:
                       elapsed = time.monotonic() - started
-
                       print(
                           "Upload error types: "
                           + " -> ".join(exception_types(exc)),
@@ -418,30 +360,25 @@ jobs:
                           f"Upload elapsed: {elapsed:.1f} seconds",
                           flush=True
                       )
-
                       # A timed-out POST may have succeeded.
                       # Do not automatically retry uploads.
                       raise RuntimeError(
                           "Attachment upload connection failed: "
                           + path.name
                       ) from None
-
                   print(
                       "Uploaded: " + path.name,
                       flush=True
                   )
-
               print(
                   "Verifying release notes",
                   flush=True
               )
-
               final = api(
                   ge,
                   "GET",
                   release_url
               )
-
               if (
                   not isinstance(final, dict)
                   or final.get("body") != payload["body"]
@@ -449,27 +386,22 @@ jobs:
                   raise RuntimeError(
                       "Release notes verification failed"
                   )
-
               uploaded = list_items(attachments_url)
-
               for path in files:
                   matches = [
                       item
                       for item in uploaded
                       if item.get("name") == path.name
                   ]
-
                   if len(matches) != 1:
                       raise RuntimeError(
                           "Missing or duplicate attachment: "
                           + path.name
                       )
-
                   print(
                       "Verifying attachment: " + path.name,
                       flush=True
                   )
-
                   download = ge.get(
                       attachments_url
                       + "/"
@@ -478,7 +410,6 @@ jobs:
                       timeout=(30, 900)
                   )
                   download.raise_for_status()
-
                   if (
                       checksum(download.content)
                       != checksum(path.read_bytes())
@@ -487,12 +418,10 @@ jobs:
                           "Attachment verification failed: "
                           + path.name
                       )
-
               print(
                   "Successfully synced and verified: " + tag,
                   flush=True
               )
-
               print(
                   "https://gitee.com/yume-w/"
                   "Homowarden/releases/tag/" + tag,
