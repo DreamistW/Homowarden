@@ -1,0 +1,216 @@
+name: Sync release to Gitee
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["OpenHarmony unsigned release"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gitee-release-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Install HTTP client
+        run: python3 -m pip install requests==2.32.5
+
+      - name: Sync latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+        shell: python
+        run: |
+          import hashlib
+          import os
+          import pathlib
+          import re
+          import subprocess
+          import tempfile
+          import requests
+
+          token = os.environ.get("GITEE_TOKEN")
+          if not token:
+              raise SystemExit("Missing GITEE_TOKEN")
+
+          gh = requests.Session()
+          gh.headers["Authorization"] = "Bearer " + os.environ["GH_TOKEN"]
+          ge = requests.Session()
+          ge.headers["Authorization"] = "Bearer " + token
+          base = "https://gitee.com/api/v5/repos/yume-w/Homowarden"
+
+          def api(session, method, url, **kwargs):
+              response = session.request(method, url, timeout=180, **kwargs)
+              if not response.ok:
+                  # Do not print response bodies or request headers containing secrets.
+                  raise RuntimeError(
+                      f"API request failed: {method} HTTP {response.status_code}"
+                  )
+              return response.json()
+
+          source = api(
+              gh, "GET",
+              "https://api.github.com/repos/DreamistW/Homowarden/releases/latest"
+          )
+          tag = source["tag_name"]
+          if not re.fullmatch(r"oh-v\d+\.\d+\.\d+", tag):
+              raise SystemExit("Latest release is not an OpenHarmony version")
+          if source["draft"] or source["prerelease"]:
+              raise SystemExit("Expected a published stable release")
+
+          assets = source["assets"]
+          if not any(a["name"].endswith(".hap") for a in assets):
+              raise SystemExit("No HAP attachment found")
+
+          def checksum(data):
+              return hashlib.sha256(data).hexdigest()
+
+          with tempfile.TemporaryDirectory() as temp:
+              root = pathlib.Path(temp)
+              files = []
+
+              for asset in assets:
+                  name = asset["name"]
+                  if pathlib.Path(name).name != name:
+                      raise RuntimeError("Unsafe attachment filename")
+
+                  response = gh.get(
+                      asset["url"],
+                      headers={"Accept": "application/octet-stream"},
+                      timeout=180
+                  )
+                  response.raise_for_status()
+                  data = response.content
+
+                  if len(data) != asset["size"]:
+                      raise RuntimeError("Attachment size mismatch")
+                  digest = asset.get("digest")
+                  if digest and digest != "sha256:" + checksum(data):
+                      raise RuntimeError("Attachment checksum mismatch")
+
+                  path = root / name
+                  path.write_bytes(data)
+                  files.append(path)
+
+              # Use an environment-based credential helper.
+              # The token is never written into this script or the Git URL.
+              askpass = root / "askpass.sh"
+              askpass.write_text(
+                  '#!/bin/sh\n'
+                  'case "$1" in\n'
+                  '  *Username*) printf "%s\\n" "oauth2" ;;\n'
+                  '  *) printf "%s\\n" "$GITEE_TOKEN" ;;\n'
+                  'esac\n'
+              )
+              askpass.chmod(0o700)
+              env = dict(
+                  os.environ,
+                  GIT_ASKPASS=str(askpass),
+                  GIT_TERMINAL_PROMPT="0"
+              )
+              repo = root / "repo"
+              repo.mkdir()
+
+              def git(*args):
+                  result = subprocess.run(
+                      ["git", *args], cwd=repo, env=env,
+                      capture_output=True
+                  )
+                  if result.returncode:
+                      raise RuntimeError(
+                          "Git tag sync failed: check token permissions "
+                          "and whether the Gitee tag already differs"
+                      )
+
+              git("init", "--bare")
+              git(
+                  "fetch", "--depth=1",
+                  "https://github.com/DreamistW/Homowarden.git",
+                  f"refs/tags/{tag}:refs/tags/{tag}"
+              )
+              git(
+                  "push",
+                  "https://gitee.com/yume-w/Homowarden.git",
+                  f"refs/tags/{tag}:refs/tags/{tag}"
+              )
+
+              payload = {
+                  "tag_name": tag,
+                  "target_commitish": tag,
+                  "name": source["name"] or tag,
+                  "body": source["body"] or "",
+                  "prerelease": False
+              }
+              response = ge.get(base + "/releases/tags/" + tag, timeout=60)
+
+              if response.status_code == 404:
+                  release = api(
+                      ge, "POST", base + "/releases", json=payload
+                  )
+              elif response.ok:
+                  release = response.json()
+                  api(
+                      ge, "PATCH",
+                      base + "/releases/" + str(release["id"]),
+                      json=payload
+                  )
+              else:
+                  raise RuntimeError(
+                      f"Gitee release lookup failed: HTTP {response.status_code}"
+                  )
+
+              attachments_url = (
+                  base + "/releases/" + str(release["id"]) + "/attach_files"
+              )
+              existing = api(ge, "GET", attachments_url, params={"per_page": 100})
+
+              for path in files:
+                  matches = [
+                      a for a in existing if a.get("name") == path.name
+                  ]
+                  if not matches:
+                      with path.open("rb") as file:
+                          api(
+                              ge, "POST", attachments_url,
+                              files={"file": (path.name, file)}
+                          )
+
+              # Verify the notes and all uploaded attachment contents.
+              final = api(ge, "GET", base + "/releases/tags/" + tag)
+              if final["body"] != payload["body"]:
+                  raise RuntimeError("Release notes verification failed")
+
+              uploaded = api(
+                  ge, "GET", attachments_url, params={"per_page": 100}
+              )
+              for path in files:
+                  matches = [
+                      a for a in uploaded if a.get("name") == path.name
+                  ]
+                  if len(matches) != 1:
+                      raise RuntimeError(
+                          "Missing or duplicate attachment: " + path.name
+                      )
+                  download = ge.get(
+                      attachments_url + "/" + str(matches[0]["id"]) + "/download",
+                      timeout=180
+                  )
+                  download.raise_for_status()
+                  if checksum(download.content) != checksum(path.read_bytes()):
+                      raise RuntimeError(
+                          "Attachment verification failed: " + path.name
+                      )
+
+              print("Successfully synced: " + tag)
+              print("https://gitee.com/yume-w/Homowarden/releases/tag/" + tag)
