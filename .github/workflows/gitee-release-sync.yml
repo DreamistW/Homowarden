@@ -155,20 +155,33 @@ jobs:
               response = ge.get(base + "/releases/tags/" + tag, timeout=60)
 
               if response.status_code == 404:
+                  release = None
+              elif response.ok:
+                  try:
+                      release = response.json()
+                  except ValueError:
+                      raise RuntimeError("Gitee release lookup returned invalid JSON")
+              else:
+                  raise RuntimeError(
+                      f"Gitee release lookup failed: HTTP {response.status_code}"
+                  )
+
+              # Gitee may return HTTP 200 with null when the release does not exist.
+              if release is None:
                   release = api(
                       ge, "POST", base + "/releases", json=payload
                   )
-              elif response.ok:
-                  release = response.json()
+              elif isinstance(release, dict) and release.get("id"):
                   api(
                       ge, "PATCH",
                       base + "/releases/" + str(release["id"]),
                       json=payload
                   )
               else:
-                  raise RuntimeError(
-                      f"Gitee release lookup failed: HTTP {response.status_code}"
-                  )
+                  raise RuntimeError("Gitee returned an unexpected release structure")
+
+              if not isinstance(release, dict) or not release.get("id"):
+                  raise RuntimeError("Gitee did not return a valid release after creation")
 
               attachments_url = (
                   base + "/releases/" + str(release["id"]) + "/attach_files"
